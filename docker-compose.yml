@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: waitqr-postgres
+    environment:
+      POSTGRES_DB: waitqr
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - waitqr-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d waitqr"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  waitqr-postgres-data:

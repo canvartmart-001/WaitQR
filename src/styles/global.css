@@ -1,0 +1,577 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Global styles for the WaitQR dashboard.
+   Color values below are duplicated from src/lib/theme.js (`C`) where the CSS needs a literal
+   color rather than an inline style — plain CSS files can't import JS constants. If a real
+   design-token pipeline is added later (e.g. Tailwind theme + CSS variables), these become
+   `var(--ink900)` etc. and this duplication goes away. Keep both files in sync until then:
+     ink900 = #12151B   ink600 = #333B47   amber = #E8A33D   textFaint = #5B6270
+*/
+
+.qp-mono { font-family: 'IBM Plex Mono', monospace; }
+.qp-ticket-face {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+html, body, #root {
+  min-height: 100%;
+  width: 100%;
+  max-width: 100%;
+}
+
+body {
+  margin: 0;
+  background: #12151B; /* C.ink900 */
+  color: #F2EFE7; /* C.textLight */
+  overflow-wrap: break-word;
+}
+
+button,
+input,
+select,
+textarea,
+img,
+svg {
+  max-width: 100%;
+}
+
+@layer components {
+  .qp-container {
+    @apply w-full max-w-none mx-auto px-5;
+  }
+
+  .qp-page-shell {
+    @apply w-full max-w-none mx-auto px-5 py-5 md:py-6 grid grid-cols-1 gap-5 md:gap-6 items-start;
+  }
+
+  .qp-kiosk-page-shell {
+    @apply flex-1 min-h-0 content-center justify-items-center;
+  }
+
+  .qp-header-row {
+    @apply flex items-center justify-between gap-4 flex-wrap py-4;
+  }
+
+  .qp-header-brand {
+    @apply flex items-center gap-3 min-w-0;
+  }
+
+  .qp-header-actions {
+    @apply flex items-center gap-3 flex-wrap;
+  }
+
+  .qp-livebar {
+    @apply flex items-center justify-between gap-4 mb-5 flex-wrap;
+  }
+
+  .qp-livebar-meta {
+    @apply flex items-center gap-2.5;
+  }
+
+  .qp-board-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4;
+  }
+
+  .qp-section-card {
+    @apply rounded-lg border p-4 md:p-5;
+  }
+
+  .qp-panel-card {
+    @apply rounded-lg border p-4 md:p-5;
+  }
+
+  .qp-live-card {
+    @apply relative rounded-lg p-4 md:p-5 border flex flex-col items-center text-center gap-2;
+  }
+
+  .qp-icon-box {
+    @apply w-10 h-10 rounded-lg flex items-center justify-center;
+  }
+
+  .qp-stat-grid {
+    @apply grid grid-cols-2 md:grid-cols-4 gap-3;
+  }
+
+  .qp-stat-card {
+    @apply rounded-lg border p-3 md:p-4 flex items-center gap-3 min-w-0;
+  }
+
+  .qp-stat-icon {
+    @apply w-9 h-9 rounded-lg flex items-center justify-center shrink-0;
+  }
+
+  .qp-kiosk-actions {
+    @apply grid grid-cols-1 sm:grid-cols-2 gap-3;
+  }
+
+  .qp-kiosk-card {
+    @apply qp-ticket rounded-lg p-4 md:p-5 border-2 border-dashed;
+  }
+
+  .qp-kiosk-panel {
+    @apply w-full min-w-0;
+  }
+
+  .qp-console-stack {
+    @apply flex flex-col gap-5;
+  }
+
+  .qp-filter-row {
+    @apply flex items-center gap-2;
+  }
+
+  .qp-filter-wrap {
+    @apply relative flex-1 min-w-0;
+  }
+
+  .qp-desk-list {
+    @apply flex flex-col gap-2.5;
+  }
+
+  .qp-console-card {
+    @apply relative flex flex-col min-w-0;
+  }
+
+  .qp-desk-ticket-frame {
+    @apply overflow-hidden rounded-lg border;
+  }
+
+  .qp-desk-ticket-layout {
+    --qp-ticket-number-size: 108px;
+    --qp-ticket-number-line: 0.78;
+    @apply grid items-start gap-5;
+    grid-template-columns: minmax(260px, 0.95fr) minmax(0, 1fr);
+  }
+
+  .qp-desk-ticket-left {
+    @apply flex min-w-0 flex-col items-start justify-start;
+  }
+
+  .qp-desk-ticket-status {
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .qp-desk-ticket-stack {
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .qp-desk-ticket-number {
+    display: block;
+    font-size: var(--qp-ticket-number-size);
+    line-height: var(--qp-ticket-number-line);
+    letter-spacing: 0;
+  }
+
+  .qp-desk-ticket-actions {
+    @apply grid w-full items-stretch gap-2;
+    grid-template-columns: minmax(0, 1fr) 40px 40px;
+    max-width: 100%;
+    margin-top: 18px;
+  }
+
+  .qp-desk-ticket-actions-mobile {
+    display: none;
+  }
+
+  .qp-desk-ticket-info {
+    @apply grid min-w-0 items-stretch;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 28px;
+    min-height: calc(var(--qp-ticket-number-size) * var(--qp-ticket-number-line));
+  }
+
+  .qp-desk-info-column {
+    @apply flex min-w-0 flex-col justify-between;
+  }
+
+  .qp-desk-info-label {
+    margin-bottom: 4px;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+  }
+
+  .qp-desk-info-value {
+    font-size: 16px;
+    line-height: 1.2;
+  }
+
+  .qp-desk-expanded-details {
+    @apply border-t px-4 pb-3 pt-2.5;
+    border-color: #333B47;
+  }
+
+  .qp-tabbar {
+    @apply grid grid-cols-3 gap-1.5 mb-3 rounded-lg p-1;
+  }
+
+  .qp-ticket-meta-grid {
+    @apply grid grid-cols-2 gap-x-4 gap-y-2;
+  }
+}
+
+@media (max-width: 640px) {
+  .qp-container,
+  .qp-page-shell {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .qp-desk-ticket-layout {
+    --qp-ticket-number-size: 128px;
+  }
+
+  .qp-desk-ticket-info {
+    column-gap: 34px;
+  }
+
+  .qp-desk-info-label {
+    font-size: 11px;
+  }
+
+  .qp-desk-info-value {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 560px) {
+  .qp-desk-ticket-layout {
+    --qp-ticket-number-size: 88px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .qp-desk-ticket-stack {
+    width: 100%;
+  }
+
+  .qp-desk-ticket-actions-desktop {
+    display: none;
+  }
+
+  .qp-desk-ticket-actions {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 14px;
+  }
+
+  .qp-desk-ticket-actions-mobile {
+    display: grid;
+    grid-column: 1 / -1;
+  }
+
+  .qp-desk-ticket-info {
+    column-gap: 16px;
+    min-height: auto;
+    row-gap: 14px;
+  }
+
+  .qp-desk-info-column {
+    gap: 14px;
+  }
+
+  .qp-chart-axis-text {
+    font-size: 11px;
+  }
+
+}
+
+.qp-page-shell > *,
+.qp-board-grid > *,
+.qp-stat-grid > *,
+.qp-ticket-meta-grid > *,
+.qp-tabbar > button,
+.qp-kiosk-actions > button {
+  min-width: 0;
+}
+
+@keyframes qpFlip {
+  0% { transform: rotateX(85deg); opacity: 0.2; }
+  55% { transform: rotateX(-8deg); opacity: 1; }
+  100% { transform: rotateX(0deg); opacity: 1; }
+}
+.qp-flip { animation: qpFlip 0.5s ease-out; transform-origin: 50% 60%; display: inline-block; }
+
+@keyframes qpPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.qp-livedot { animation: qpPulse 1.6s ease-in-out infinite; }
+
+@keyframes qpToastIn {
+  from { transform: translateY(-12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.qp-toast { animation: qpToastIn 0.35s ease-out; }
+
+.qp-board {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(242,239,231,0.025) 0px,
+    rgba(242,239,231,0.025) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+
+.qp-ticket { position: relative; }
+.qp-ticket-ring-host { position: relative; isolation: isolate; z-index: 0; }
+
+.qp-scroll::-webkit-scrollbar { width: 6px; }
+.qp-scroll::-webkit-scrollbar-track { background: transparent; }
+.qp-scroll::-webkit-scrollbar-thumb { background: #333B47; border-radius: 9999px; } /* C.ink600 */
+.qp-scroll-compact::-webkit-scrollbar { height: 1px; }
+.qp-scroll-compact::-webkit-scrollbar-thumb { background: rgba(91,98,112,0.55); }
+.qp-scroll-compact {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(91,98,112,0.55) transparent;
+}
+
+@media (max-width: 640px) {
+  .qp-scroll-mobile-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .qp-scroll-mobile-hidden::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .qp-scroll-mobile-visible {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(91,98,112,0.55) transparent;
+  }
+}
+
+.qp-chart-axis-text {
+  font-size: 10px;
+}
+
+.qp-chart-series-line {
+  stroke-width: 1.8;
+}
+
+.qp-chart-series-area {
+  pointer-events: none;
+}
+
+.qp-chart-x-grid-line,
+.qp-chart-y-grid-line {
+  stroke-width: 1;
+}
+
+@media (max-width: 768px) {
+  .qp-chart-axis-text {
+    font-size: 20px;
+  }
+
+  .qp-chart-series-line {
+    stroke-width: 4.2;
+  }
+
+  .qp-chart-x-grid-line,
+  .qp-chart-y-grid-line {
+    stroke-width: 0.4 !important;
+  }
+
+}
+
+@keyframes qpChartLiveHalo {
+  0% { opacity: 0; transform: scale(0.78); }
+  18% { opacity: 0.2; }
+  100% { opacity: 0; transform: scale(1.75); }
+}
+
+.qp-chart-live-point {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.qp-chart-live-halo {
+  r: 10px;
+  transform-box: fill-box;
+  transform-origin: center;
+  pointer-events: none;
+}
+
+.qp-chart-live-dot {
+  r: 4.8px;
+}
+
+.qp-chart-live-halo {
+  animation: qpChartLiveHalo 2.2s linear infinite;
+}
+
+@media (max-width: 560px) {
+  .qp-chart-live-halo {
+    r: 15px;
+  }
+
+  .qp-chart-live-dot {
+    r: 8px;
+  }
+}
+
+@keyframes qpServingBorder {
+  0%, 100% { border-color: rgba(79,178,134,0.3); box-shadow: 0 0 0 0 rgba(79,178,134,0); }
+  50% { border-color: rgba(79,178,134,0.9); box-shadow: 0 0 8px 1px rgba(79,178,134,0.2); }
+}
+.qp-serving { animation: qpServingBorder 2.4s ease-in-out infinite; }
+
+.qp-timer { }
+
+button:focus-visible, .qp-focusable:focus-visible {
+  outline: 2px solid #E8A33D; /* C.amber */
+  outline-offset: 2px;
+}
+
+input.qp-focusable:focus-visible,
+select.qp-focusable:focus-visible,
+input.qp-focusable:focus,
+select.qp-focusable:focus {
+  outline: none;
+  border-color: #E8A33D !important; /* C.amber */
+  box-shadow: 0 0 0 1px #E8A33D;
+}
+
+@keyframes qpModalIn {
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.qp-modal { animation: qpModalIn 0.18s ease-out; }
+
+/* Play → Timer morph */
+@keyframes qpPlayOut {
+  0%   { opacity: 1; transform: scale(1) rotate(0deg); }
+  60%  { opacity: 0; transform: scale(0.4) rotate(-20deg); }
+  100% { opacity: 0; transform: scale(0.3) rotate(-20deg); }
+}
+@keyframes qpTimerIn {
+  0%   { opacity: 0; transform: scale(0.5) translateY(4px); filter: blur(4px); }
+  60%  { opacity: 1; transform: scale(1.06) translateY(-1px); filter: blur(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+}
+.qp-play-out  { animation: qpPlayOut  0.32s cubic-bezier(.4,0,.2,1) forwards; }
+.qp-timer-in  { animation: qpTimerIn  0.42s cubic-bezier(.22,1,.36,1) forwards; }
+
+/* Card exit (complete) → next ticket entry */
+@keyframes qpCardOut {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  30%  { opacity: 0.6; transform: translateY(-6px) scale(0.98); }
+  100% { opacity: 0; transform: translateY(-18px) scale(0.96); }
+}
+@keyframes qpCardIn {
+  0%   { opacity: 0; transform: translateY(16px) scale(0.97); }
+  60%  { opacity: 1; transform: translateY(-2px) scale(1.005); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.qp-card-out { animation: qpCardOut 0.46s cubic-bezier(.4,0,1,1) forwards; }
+.qp-card-in  { animation: qpCardIn  0.5s  cubic-bezier(.22,1,.36,1) forwards; pointer-events: none; }
+
+/* Card exit (absent) — fade down */
+@keyframes qpSkipOut {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  30%  { opacity: 0.6; transform: translateY(6px) scale(0.98); }
+  100% { opacity: 0; transform: translateY(20px) scale(0.96); }
+}
+.qp-skip-out { animation: qpSkipOut 0.46s cubic-bezier(.4,0,1,1) forwards; }
+
+/* Snoozing cat animations */
+@keyframes qpCatBreath {
+  0%, 100% { transform: scaleY(1) scaleX(1); }
+  50%       { transform: scaleY(1.025) scaleX(0.988); }
+}
+.qp-cat-body { animation: qpCatBreath 3.8s ease-in-out infinite; transform-origin: 50% 90%; }
+
+@keyframes qpZFloat1 {
+  0%   { opacity: 0;   transform: translate(0px, 0px) scale(0.8); }
+  20%  { opacity: 0.8; }
+  100% { opacity: 0;   transform: translate(6px, -14px) scale(1.0); }
+}
+@keyframes qpZFloat2 {
+  0%   { opacity: 0;   transform: translate(0px, 0px) scale(0.7); }
+  20%  { opacity: 0.7; }
+  100% { opacity: 0;   transform: translate(6px, -14px) scale(0.95); }
+}
+@keyframes qpZFloat3 {
+  0%   { opacity: 0;   transform: translate(0px, 0px) scale(0.6); }
+  20%  { opacity: 0.6; }
+  100% { opacity: 0;   transform: translate(5px, -12px) scale(0.9); }
+}
+.qp-z1 { animation: qpZFloat1 3.2s ease-in-out infinite; animation-delay: 0s; }
+.qp-z2 { animation: qpZFloat2 3.2s ease-in-out infinite; animation-delay: 1.05s; }
+.qp-z3 { animation: qpZFloat3 3.2s ease-in-out infinite; animation-delay: 2.1s; }
+
+@keyframes qpTailWag {
+  0%, 100% { transform: rotate(-6deg); }
+  50%       { transform: rotate(6deg); }
+}
+.qp-cat-tail { animation: qpTailWag 3.2s ease-in-out infinite; transform-origin: 58px 46.5px; }
+
+@keyframes qpEarTwitch {
+  0%, 88%, 100% { transform: rotate(0deg); }
+  92%            { transform: rotate(-4deg); }
+  96%            { transform: rotate(2deg); }
+}
+.qp-cat-ear { animation: qpEarTwitch 6s ease-in-out infinite; }
+
+/* Shimmering text — a band of light gliding right to left, at a steady gentle pace.
+   The gradient is built as one repeating period so the loop has no snap-back seam. */
+@keyframes qpShimmer {
+  0%   { background-position: 0% 0; }
+  100% { background-position: -200% 0; }
+}
+.qp-shimmer-text {
+  background-image: repeating-linear-gradient(
+    100deg,
+    #5B6270 0%,   /* C.textFaint */
+    #5B6270 35%,
+    #F5F3EC 50%,
+    #5B6270 65%,
+    #5B6270 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: qpShimmer 2.8s linear infinite;
+  will-change: background-position;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qp-flip, .qp-livedot, .qp-toast,
+  .qp-play-out, .qp-timer-in, .qp-card-out, .qp-card-in, .qp-skip-out,
+  .qp-cat-body, .qp-z1, .qp-z2, .qp-z3, .qp-cat-tail, .qp-cat-ear,
+  .qp-shimmer-text, .qp-nudge-arrow, .qp-chart-live-halo { animation: none !important; color: #5B6270 !important; -webkit-background-clip: initial !important; background-clip: initial !important; }
+}
+
+/* Gentle nudge — hints the next-up ticket is tappable to switch */
+@keyframes qpNudgeArrow {
+  0%, 60%, 100% { transform: translateX(0); }
+  30%            { transform: translateX(3px); }
+}
+.qp-nudge-arrow { animation: qpNudgeArrow 1.6s ease-in-out infinite; }
