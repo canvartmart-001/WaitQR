@@ -239,11 +239,12 @@ export function ManageDesksSection({
                     onClick={() =>
                       askConfirm(
                         `Delete this ${deskWordLower}?`,
-                        `"${d.name}" will be removed. If it's currently serving someone, that ticket goes back to the front of the waiting queue.`,
+                        `"${d.name}" will be deleted. If it's currently serving someone, that ticket goes back to the front of the waiting queue.`,
                         () => {
                           removeDesk(d.id);
                           setEditingDesk(null);
-                        }
+                        },
+                        { confirmLabel: "Delete", variant: "destructive" }
                       )
                     }
                     title={`Delete this ${deskWordLower}`}

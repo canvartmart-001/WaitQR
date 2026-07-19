@@ -1,12 +1,29 @@
-import { AlertTriangle, Lock, Unlock } from "lucide-react";
+import { Lock, Trash2, Unlock } from "lucide-react";
 import { C } from "../../lib/theme";
 
-export function ConfirmDialog({ confirmAction, onCancel, onConfirm }) {
+function withAlpha(hex, alphaHex) {
+  if (!hex || hex.length !== 7) return hex;
+  return `${hex}${alphaHex}`;
+}
+
+export function ConfirmDialog({ confirmAction, onCancel, onConfirm, theme }) {
   if (!confirmAction) return null;
   const isSuccess = confirmAction.variant === "success";
+  const isDestructive = confirmAction.variant === "destructive";
+  const colors = {
+    bgColor: theme?.bgColor || C.ink800,
+    fontColor: theme?.fontColor || C.textLight,
+    borderColor: theme?.borderColor || C.hair,
+    radius: theme?.radius || 12,
+    themeMode: theme?.themeMode || "Dark",
+  };
+  const isLight = colors.themeMode === "Light" || String(colors.fontColor).toLowerCase() === "#0f172a";
+  const modalBg = isLight
+    ? colors.bgColor
+    : `color-mix(in srgb, ${colors.bgColor} 84%, ${colors.fontColor} 16%)`;
   const toneBg = isSuccess ? C.tealSoft : C.coralSoft;
   const toneColor = isSuccess ? C.teal : C.coral;
-  const Icon = isSuccess ? Unlock : Lock;
+  const Icon = isSuccess ? Unlock : isDestructive ? Trash2 : Lock;
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center p-4"
@@ -14,8 +31,12 @@ export function ConfirmDialog({ confirmAction, onCancel, onConfirm }) {
       onClick={onCancel}
     >
       <div
-        className="qp-modal rounded-xl border p-5 max-w-sm w-full"
-        style={{ background: C.ink800, borderColor: C.hair }}
+        className="qp-modal p-5 max-w-sm w-full"
+        style={{
+          background: modalBg,
+          borderRadius: colors.radius * 1.4,
+          boxShadow: isLight ? "0 18px 45px rgba(15,23,42,0.16)" : "0 22px 60px rgba(0,0,0,0.45)",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 mb-2">
@@ -29,14 +50,18 @@ export function ConfirmDialog({ confirmAction, onCancel, onConfirm }) {
             {confirmAction.title}
           </h3>
         </div>
-        <p className="text-sm mb-4 leading-relaxed" style={{ color: C.textMuted }}>
+        <p className="text-sm mb-4 leading-relaxed" style={{ color: withAlpha(colors.fontColor, "b3") }}>
           {confirmAction.message}
         </p>
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={onCancel}
-            className="qp-focusable text-xs px-3 py-2 rounded-md border"
-            style={{ borderColor: C.ink600, color: C.textMuted }}
+            className="qp-focusable text-xs px-3 py-2 rounded-md"
+            style={{
+              background: withAlpha(colors.fontColor, isLight ? "0d" : "12"),
+              color: withAlpha(colors.fontColor, "b3"),
+              boxShadow: `inset 0 0 0 1px ${withAlpha(colors.fontColor, isLight ? "14" : "1f")}`,
+            }}
           >
             Cancel
           </button>

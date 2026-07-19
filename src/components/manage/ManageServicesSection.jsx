@@ -230,11 +230,12 @@ export function ManageServicesSection({
                     onClick={() =>
                       askConfirm(
                         `Delete this ${serviceWordLower}?`,
-                        `"${s.name}" will be removed and unassigned from every ${deskWordLower}. Existing tickets that reference it will just show as "General" going forward.`,
+                        `"${s.name}" will be deleted and unassigned from every ${deskWordLower}. Existing tickets that reference it will just show as "General" going forward.`,
                         () => {
                           removeService(s.id);
                           setEditingService(null);
-                        }
+                        },
+                        { confirmLabel: "Delete", variant: "destructive" }
                       )
                     }
                     title={`Delete this ${serviceWordLower}`}

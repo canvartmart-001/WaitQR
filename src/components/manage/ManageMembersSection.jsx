@@ -269,15 +269,16 @@ export function ManageMembersSection({
                   <button
                     onClick={() =>
                       askConfirm(
-                        `Remove this ${memberWordLower}?`,
+                        `Delete this ${memberWordLower}?`,
                         `"${m.name}" will lose access and be unassigned from every ${deskWordLower}.`,
                         () => {
                           removeMember(m.id);
                           setEditingMember(null);
-                        }
+                        },
+                        { confirmLabel: "Delete", variant: "destructive" }
                       )
                     }
-                    title={`Remove this ${memberWordLower}`}
+                    title={`Delete this ${memberWordLower}`}
                     className="qp-focusable p-1.5 rounded-md border"
                     style={{ borderColor: C.ink600, color: C.coral }}
                   >

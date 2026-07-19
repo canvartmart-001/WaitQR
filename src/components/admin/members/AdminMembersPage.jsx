@@ -119,7 +119,7 @@ function StatusBadge({ status }) {
   const color = active ? "#22c55e" : "#ef4444";
   return (
     <span
-      className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
+      className="inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium"
       style={{ backgroundColor: active ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", color }}
     >
       {active ? "Active" : "Inactive"}
@@ -499,18 +499,18 @@ function MemberForm({ members, desks, services, labels, theme, brandName, editin
 
 function MemberControls({ member, theme, onEdit, onDelete, className = "" }) {
   return (
-    <div className={`flex shrink-0 items-center gap-2 sm:gap-3 ${className}`}>
+    <div className={`flex shrink-0 items-center gap-2 lg:gap-3 ${className}`}>
       <span
-        className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
+        className="inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium"
         style={{ color: theme.accentColor, backgroundColor: withAlpha(theme.accentColor, "14") }}
       >
         {member.role || "Member"}
       </span>
       <StatusBadge status={member.status || "Active"} />
-      <button type="button" onClick={onEdit} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/5" style={{ color: withAlpha(theme.fontColor, "99") }} aria-label="Edit member">
+      <button type="button" onClick={onEdit} className="inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-white/10" style={{ backgroundColor: withAlpha(theme.fontColor, "12"), color: withAlpha(theme.fontColor, "b3") }} aria-label="Edit member">
         <Pencil size={14} />
       </button>
-      <button type="button" onClick={onDelete} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/5" style={{ color: "#f87171" }} aria-label="Remove member">
+      <button type="button" onClick={onDelete} className="inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-white/10" style={{ backgroundColor: withAlpha(theme.fontColor, "12"), color: "#f87171" }} aria-label="Remove member">
         <Trash2 size={14} />
       </button>
     </div>
@@ -650,8 +650,8 @@ export function AdminMembersPage({
         ) : null}
 
         <div className="border bg-white/5 p-4" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.4 }}>
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div className="relative w-full max-w-xs">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 min-[480px]:flex-nowrap">
+            <div className="relative w-full max-w-xs min-[480px]:min-w-0 min-[480px]:flex-1">
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -662,26 +662,28 @@ export function AdminMembersPage({
               />
               <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: withAlpha(theme.fontColor, "80") }} />
             </div>
-            {(settingsSaving || settingsSaveError) ? (
-              <div className="text-xs" style={{ color: settingsSaveError ? "#f87171" : withAlpha(theme.fontColor, "80") }}>
-                {settingsSaveError || "Saving changes..."}
-              </div>
-            ) : null}
-            {!showForm ? (
-              <button
-                type="button"
-                disabled={settingsSaving}
-                onClick={() => {
-                  setEditingMember(null);
-                  setShowAddMember(true);
-                }}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white shadow-lg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                style={{ backgroundColor: theme.accentColor, borderRadius: theme.radius }}
-              >
-                <Plus size={15} />
-                Add member
-              </button>
-            ) : null}
+            <div className="flex w-full items-center justify-start gap-3 min-[480px]:ml-auto min-[480px]:w-auto min-[480px]:justify-end">
+              {(settingsSaving || settingsSaveError) ? (
+                <div className="text-xs" style={{ color: settingsSaveError ? "#f87171" : withAlpha(theme.fontColor, "80") }}>
+                  {settingsSaveError || "Saving changes..."}
+                </div>
+              ) : null}
+              {!showForm ? (
+                <button
+                  type="button"
+                  disabled={settingsSaving}
+                  onClick={() => {
+                    setEditingMember(null);
+                    setShowAddMember(true);
+                  }}
+                  className="flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium text-white shadow-lg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ backgroundColor: theme.accentColor, borderRadius: theme.radius }}
+                >
+                  <Plus size={15} />
+                  Add member
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -704,12 +706,13 @@ export function AdminMembersPage({
                 }}
                 onDelete={() =>
                   askConfirm(
-                    "Remove this member?",
+                    "Delete this member?",
                     `"${member.name}" will lose access and be unassigned from every ${COUNTER_WORD_LOWER}.`,
                     () => {
                       removeMember(member.id);
                       closeForm();
-                    }
+                    },
+                    { confirmLabel: "Delete", variant: "destructive" }
                   )
                 }
               />

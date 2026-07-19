@@ -450,7 +450,7 @@ function CountChip({ icon: Icon, count, label, tooltip, tooltipItems, tooltipSec
 
   return (
     <span
-      className="group relative inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+      className="group relative inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium"
       style={{
         backgroundColor: warning ? "rgba(239,68,68,0.15)" : withAlpha(theme.fontColor, "12"),
         color: warning ? "#f87171" : withAlpha(theme.fontColor, "b3"),
@@ -588,7 +588,7 @@ function CounterCard({ desk, index, services, members, labels, theme, getDeskPat
               </span>
             </a>
             {isDefault ? (
-              <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: withAlpha(theme.accentColor, "1f"), color: theme.accentColor }}>
+              <span className="inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium" style={{ backgroundColor: withAlpha(theme.accentColor, "1f"), color: theme.accentColor }}>
                 Default
               </span>
             ) : null}
@@ -622,17 +622,17 @@ function CounterCard({ desk, index, services, members, labels, theme, getDeskPat
         </div>
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center justify-start gap-3 lg:justify-end">
-        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium" style={{ backgroundColor: statusBackground, color: statusColor }}>
+      <div className="flex shrink-0 flex-wrap items-center justify-start gap-2 lg:justify-end lg:gap-3">
+        <span className="inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium" style={{ backgroundColor: statusBackground, color: statusColor }}>
           <StatusIcon size={12} />
           {available ? "Open" : "Closed"}
         </span>
         <CountChip icon={UserRound} count={serviceMembers.length} label={memberCountLabel} tooltip={memberLabel} tooltipItems={memberTooltipItems} tone={serviceMembers.length === 0 ? "warning" : "neutral"} theme={theme} />
         <CountChip icon={Layers3} count={assignedServices.length} label={serviceCountLabel} tooltip={serviceCoverageLabel} tooltipItems={serviceCoverageItems} theme={theme} />
-        <button type="button" onClick={onEdit} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/5" style={{ color: withAlpha(theme.fontColor, "99") }} aria-label={`Edit ${COUNTER_WORD_LOWER}`}>
+        <button type="button" onClick={onEdit} className="inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-white/10" style={{ backgroundColor: withAlpha(theme.fontColor, "12"), color: withAlpha(theme.fontColor, "b3") }} aria-label={`Edit ${COUNTER_WORD_LOWER}`}>
           <Pencil size={14} />
         </button>
-        <button type="button" onClick={onDelete} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/5" style={{ color: "#f87171" }} aria-label={`Remove ${COUNTER_WORD_LOWER}`}>
+        <button type="button" onClick={onDelete} className="inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-white/10" style={{ backgroundColor: withAlpha(theme.fontColor, "12"), color: "#f87171" }} aria-label={`Remove ${COUNTER_WORD_LOWER}`}>
           <Trash2 size={14} />
         </button>
       </div>
@@ -709,8 +709,8 @@ export function AdminCountersPage({
         ) : null}
 
         <div className="border bg-white/5 p-4" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.4 }}>
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div className="relative w-full max-w-xs">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 min-[480px]:flex-nowrap">
+            <div className="relative w-full max-w-xs min-[480px]:min-w-0 min-[480px]:flex-1">
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -721,26 +721,28 @@ export function AdminCountersPage({
               />
               <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: withAlpha(theme.fontColor, "80") }} />
             </div>
-            {(settingsSaving || settingsSaveError) ? (
-              <div className="text-xs" style={{ color: settingsSaveError ? "#f87171" : withAlpha(theme.fontColor, "80") }}>
-                {settingsSaveError || "Saving changes..."}
-              </div>
-            ) : null}
-            {!showForm ? (
-              <button
-                type="button"
-                disabled={settingsSaving}
-                onClick={() => {
-                  setEditingDesk(null);
-                  setShowAddDesk(true);
-                }}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white shadow-lg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                style={{ backgroundColor: theme.accentColor, borderRadius: theme.radius }}
-              >
-                <Plus size={15} />
-                Add {COUNTER_WORD_LOWER}
-              </button>
-            ) : null}
+            <div className="flex w-full items-center justify-start gap-3 min-[480px]:ml-auto min-[480px]:w-auto min-[480px]:justify-end">
+              {(settingsSaving || settingsSaveError) ? (
+                <div className="text-xs" style={{ color: settingsSaveError ? "#f87171" : withAlpha(theme.fontColor, "80") }}>
+                  {settingsSaveError || "Saving changes..."}
+                </div>
+              ) : null}
+              {!showForm ? (
+                <button
+                  type="button"
+                  disabled={settingsSaving}
+                  onClick={() => {
+                    setEditingDesk(null);
+                    setShowAddDesk(true);
+                  }}
+                  className="flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium text-white shadow-lg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ backgroundColor: theme.accentColor, borderRadius: theme.radius }}
+                >
+                  <Plus size={15} />
+                  Add {COUNTER_WORD_LOWER}
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -765,12 +767,13 @@ export function AdminCountersPage({
                 }}
                 onDelete={() =>
                   askConfirm(
-                    `Remove this ${COUNTER_WORD_LOWER}?`,
-                    `"${desk.name}" will be removed and any active ticket will return to the queue.`,
+                    `Delete this ${COUNTER_WORD_LOWER}?`,
+                    `"${desk.name}" will be deleted and any active ticket will return to the queue.`,
                     () => {
                       removeDesk(desk.id);
                       closeForm();
                     },
+                    { confirmLabel: "Delete", variant: "destructive" }
                   )
                 }
               />

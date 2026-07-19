@@ -100,6 +100,40 @@ function storeAppearance(appearance) {
   }
 }
 
+function resolveAppearanceThemeMode(themeMode) {
+  if (themeMode === "System") {
+    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "Dark" : "Light";
+  }
+  return themeMode === "Light" ? "Light" : "Dark";
+}
+
+function updateMobileThemeColor(appearance) {
+  if (typeof document === "undefined") return;
+
+  const mode = resolveAppearanceThemeMode(appearance?.themeMode);
+  const themeColor = mode === "Light"
+    ? appearance?.accentColor || DEFAULT_APPEARANCE_SETTINGS.accentColor
+    : appearance?.bgColor || DEFAULT_APPEARANCE_SETTINGS.bgColor;
+  const statusBarStyle = mode === "Light" ? "default" : "black-translucent";
+  let themeMeta = document.querySelector('meta[name="theme-color"]');
+  let statusMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+
+  if (!themeMeta) {
+    themeMeta = document.createElement("meta");
+    themeMeta.setAttribute("name", "theme-color");
+    document.head.appendChild(themeMeta);
+  }
+
+  if (!statusMeta) {
+    statusMeta = document.createElement("meta");
+    statusMeta.setAttribute("name", "apple-mobile-web-app-status-bar-style");
+    document.head.appendChild(statusMeta);
+  }
+
+  themeMeta.setAttribute("content", themeColor);
+  statusMeta.setAttribute("content", statusBarStyle);
+}
+
 function submissionToTicket(submission) {
   return {
     id: submission.id,
@@ -675,6 +709,19 @@ export default function App() {
 
   useEffect(() => {
     storeAppearance(appearanceSettings);
+  }, [appearanceSettings]);
+
+  useEffect(() => {
+    updateMobileThemeColor(appearanceSettings);
+
+    if (appearanceSettings.themeMode !== "System" || typeof window === "undefined") return undefined;
+
+    const media = window.matchMedia?.("(prefers-color-scheme: dark)");
+    if (!media) return undefined;
+    const handleChange = () => updateMobileThemeColor(appearanceSettings);
+    media.addEventListener?.("change", handleChange);
+
+    return () => media.removeEventListener?.("change", handleChange);
   }, [appearanceSettings]);
 
   useEffect(() => {
@@ -1290,7 +1337,7 @@ export default function App() {
       )}
 
       <IssueToast toast={ticketIssuer.toast} serviceName={serviceName} />
-      <ConfirmDialog confirmAction={confirmAction} onCancel={closeConfirm} onConfirm={runConfirm} />
+      <ConfirmDialog confirmAction={confirmAction} onCancel={closeConfirm} onConfirm={runConfirm} theme={appearanceSettings} />
     </div>
   );
 }
