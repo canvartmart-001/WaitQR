@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ImageIcon, Monitor, Pencil, Plus, Search, Trash2, Upload, X } from "lucide-react";
+import { ImageIcon, Monitor, Pencil, Plus, Search, Trash2, Upload, UserRound, X } from "lucide-react";
 import { assignedMembersForService, memberCanBeAssignedToService } from "../../../lib/assignments";
 
 function withAlpha(hex, alphaHex) {
@@ -251,9 +251,53 @@ function ServiceForm({ labels, services, theme, editingService, isSaving, onCanc
   );
 }
 
+function CountChip({ icon: Icon, count, label, tooltip, tooltipItems, tone = "neutral", theme }) {
+  const warning = tone === "warning";
+
+  return (
+    <span
+      className="group relative inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+      style={{
+        backgroundColor: warning ? "rgba(239,68,68,0.15)" : withAlpha(theme.fontColor, "12"),
+        color: warning ? "#f87171" : withAlpha(theme.fontColor, "b3"),
+      }}
+      tabIndex={0}
+      aria-label={`${count} ${label}: ${tooltip}`}
+    >
+      <Icon size={12} />
+      {count}
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-max max-w-72 -translate-x-1/2 whitespace-normal rounded-md border px-3 py-2 text-xs font-normal leading-relaxed shadow-xl group-hover:block group-focus:block"
+        style={{ color: theme.fontColor, borderColor: theme.borderColor, backgroundColor: theme.bgColor }}
+      >
+        <span className="mb-1 block font-medium" style={{ color: warning ? "#f87171" : theme.accentColor }}>
+          {count} {label}
+        </span>
+        {Array.isArray(tooltipItems) && tooltipItems.length ? (
+          <span className="block space-y-1">
+            {tooltipItems.map((item) => (
+              <span key={item} className="block">
+                {item}
+              </span>
+            ))}
+          </span>
+        ) : (
+          <span>{tooltip}</span>
+        )}
+      </span>
+    </span>
+  );
+}
+
 function ServiceCard({ service, desks, members, labels, theme, onEdit, onDelete }) {
   const assignedMembers = assignedMembersForService(members, service.id);
   const assignedDesks = desksForAssignedMembers(assignedMembers, desks);
+  const memberCountLabel = assignedMembers.length === 1 ? labels.memberWordLower : labels.memberWordPluralLower;
+  const memberTooltip = assignedMembers.length
+    ? assignedMembers.map((member) => member.name).join(", ")
+    : `No ${labels.memberWordPluralLower} assigned`;
+  const memberTooltipItems = assignedMembers.map((member) => member.name);
   const counterWord = "counter";
   const counterWordPlural = "counters";
   const counterTooltipTitle = assignedDesks.length
@@ -276,7 +320,7 @@ function ServiceCard({ service, desks, members, labels, theme, onEdit, onDelete 
 
   return (
     <div className="flex flex-col gap-3 border p-4 lg:flex-row lg:items-center" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.2 }}>
-      <div className="flex min-w-0 flex-1 items-center gap-4">
+      <div className="flex min-w-0 flex-1 items-start gap-4">
         <div
           className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border"
           style={{ borderColor: theme.borderColor, backgroundColor: withAlpha(theme.accentColor, "1f") }}
@@ -301,9 +345,9 @@ function ServiceCard({ service, desks, members, labels, theme, onEdit, onDelete 
               </span>
             ) : null}
           </div>
-          <div className="mt-0.5 flex flex-wrap gap-x-1 text-xs font-medium">
+          <div className="mt-1 flex flex-col items-start gap-1 text-xs font-medium">
             {assignedMembers.length ? (
-              assignedMembers.map((member, index) => {
+              assignedMembers.map((member) => {
                 const assignedDeskNames = assignedDeskNamesForMember(member, desks);
                 const tooltip = assignedDeskNames.length ? assignedDeskNames.join(", ") : "No desk assigned";
                 const textColor = assignedDeskNames.length ? theme.accentColor : withAlpha(theme.fontColor, "80");
@@ -316,13 +360,16 @@ function ServiceCard({ service, desks, members, labels, theme, onEdit, onDelete 
                     tabIndex={0}
                     style={{ color: textColor }}
                   >
-                    {member.name}{index < assignedMembers.length - 1 ? "," : ""}
+                    {member.name}
                     <span
                       role="tooltip"
                       className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-max max-w-64 -translate-x-1/2 whitespace-normal rounded-md border px-3 py-2 text-xs font-normal leading-relaxed shadow-xl group-hover:block group-focus:block"
                       style={{ color: theme.fontColor, borderColor: theme.borderColor, backgroundColor: theme.bgColor }}
                     >
-                      <span className="block font-medium" style={{ color: textColor }}>
+                      <span className="block font-medium" style={{ color: theme.fontColor }}>
+                        {member.name}
+                      </span>
+                      <span className="mt-1 block" style={{ color: textColor }}>
                         {tooltip}
                       </span>
                     </span>
@@ -347,6 +394,7 @@ function ServiceCard({ service, desks, members, labels, theme, onEdit, onDelete 
         <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" style={{ backgroundColor: available ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", color: statusColor }}>
           {available ? "Available" : "Unavailable"}
         </span>
+        <CountChip icon={UserRound} count={assignedMembers.length} label={memberCountLabel} tooltip={memberTooltip} tooltipItems={memberTooltipItems} tone={assignedMembers.length === 0 ? "warning" : "neutral"} theme={theme} />
         <span
           className="group relative inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
           style={{
