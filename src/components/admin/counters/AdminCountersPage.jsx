@@ -300,7 +300,7 @@ function CounterCard({ desk, index, services, members, labels, theme, getDeskPat
   const statusColor = available ? "#22c55e" : "#ef4444";
 
   return (
-    <div className="flex flex-col gap-3 border p-4 lg:flex-row lg:items-center" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.2 }}>
+    <div className="flex flex-col gap-3 border p-4 lg:flex-row lg:items-start" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.2 }}>
       <div className="flex min-w-0 flex-1 items-start gap-4">
         <div
           className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border"

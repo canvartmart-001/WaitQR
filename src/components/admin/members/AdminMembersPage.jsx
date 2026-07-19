@@ -529,7 +529,7 @@ function MemberCard({ member, desks, services, labels, theme, onEdit, onDelete }
   return (
     <div className="flex flex-col gap-3 border p-4" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.2 }}>
       <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-        <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border" style={{ borderColor: theme.borderColor, backgroundColor: withAlpha(theme.accentColor, "1f") }}>
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border" style={{ borderColor: theme.borderColor, backgroundColor: withAlpha(theme.accentColor, "1f") }}>
           {member.photo ? <img src={member.photo} alt={member.name} className="h-full w-full object-cover" /> : <span className="text-sm font-semibold" style={{ color: theme.accentColor }}>{initials(member.name)}</span>}
         </div>
 
@@ -539,6 +539,10 @@ function MemberCard({ member, desks, services, labels, theme, onEdit, onDelete }
               {member.id}
             </p>
             <p className="mt-1 min-w-0 text-sm font-semibold" style={{ color: theme.fontColor }}>{member.name}</p>
+            <div className="mt-2 flex flex-col gap-y-1 text-xs" style={{ color: withAlpha(theme.fontColor, "80") }}>
+              <span className="flex min-w-0 items-center gap-1.5"><Mail size={12} className="shrink-0" /><span className="min-w-0 break-all">{member.email || "—"}</span></span>
+              <span className="flex min-w-0 items-center gap-1.5"><Phone size={12} className="shrink-0" /><span className="min-w-0">{member.phone || "—"}</span></span>
+            </div>
           </div>
         </div>
 
@@ -562,10 +566,6 @@ function MemberCard({ member, desks, services, labels, theme, onEdit, onDelete }
             </div>
           </div>
         ) : null}
-        <div className="mt-2 flex flex-col gap-y-1 text-xs sm:flex-row sm:flex-wrap sm:gap-x-4" style={{ color: withAlpha(theme.fontColor, "80") }}>
-          <span className="flex min-w-0 items-center gap-1.5"><Mail size={12} className="shrink-0" /><span className="min-w-0 break-all">{member.email || "—"}</span></span>
-          <span className="flex min-w-0 items-center gap-1.5"><Phone size={12} className="shrink-0" /><span className="min-w-0">{member.phone || "—"}</span></span>
-        </div>
       </div>
 
       <MemberControls member={member} theme={theme} onEdit={onEdit} onDelete={onDelete} className="flex-wrap sm:hidden" />
