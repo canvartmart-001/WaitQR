@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
 import { ImageIcon, Monitor, Pencil, Plus, Search, Trash2, Upload, X } from "lucide-react";
-import { DEFAULT_SERVICE_ID } from "../../../lib/seedData";
 import { assignedMembersForService, memberCanBeAssignedToService } from "../../../lib/assignments";
 
 function withAlpha(hex, alphaHex) {
@@ -270,7 +269,7 @@ function ServiceCard({ service, desks, members, labels, theme, onEdit, onDelete 
         ? `Assigned ${labels.memberWordPluralLower} are not assigned to any ${counterWord}.`
         : `No ${labels.memberWordLower} assigned to serve this ${labels.serviceWordLower}.`;
   const deskTooltipItems = assignedDesks.map((desk) => desk.name);
-  const isDefault = service.id === DEFAULT_SERVICE_ID || service.isDefault;
+  const isDefault = Boolean(service.isDefault);
   const available = service.status !== "Unavailable";
   const statusColor = available ? "#22c55e" : "#ef4444";
   const hasAssignedDesks = assignedDesks.length > 0;
@@ -355,7 +354,6 @@ function ServiceCard({ service, desks, members, labels, theme, onEdit, onDelete 
             color: hasAssignedDesks ? withAlpha(theme.fontColor, "b3") : "#f87171",
           }}
           tabIndex={0}
-          title={deskTooltip}
           aria-label={`${assignedDesks.length} ${counterWordPlural} assigned: ${deskTooltip}`}
         >
           <Monitor size={12} />
@@ -384,14 +382,7 @@ function ServiceCard({ service, desks, members, labels, theme, onEdit, onDelete 
         <button type="button" onClick={onEdit} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/5" style={{ color: withAlpha(theme.fontColor, "99") }} aria-label={`Edit ${labels.serviceWordLower}`}>
           <Pencil size={14} />
         </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={isDefault}
-          className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
-          style={{ color: "#f87171" }}
-          aria-label={`Remove ${labels.serviceWordLower}`}
-        >
+        <button type="button" onClick={onDelete} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/5" style={{ color: "#f87171" }} aria-label={`Remove ${labels.serviceWordLower}`}>
           <Trash2 size={14} />
         </button>
       </div>

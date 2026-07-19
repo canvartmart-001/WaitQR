@@ -251,16 +251,14 @@ function moveSummaryStatus(summary, previousStatus, nextStatus) {
 
 function normalizeServicesForSettings(services = []) {
   const savedServices = Array.isArray(services) ? services : [];
-  const defaultService = savedServices.find((service) => service.id === DEFAULT_SERVICE_ID) || DEFAULT_SERVICES[0];
-  const customServices = savedServices.filter((service) => service.id !== DEFAULT_SERVICE_ID);
 
-  return [{ ...defaultService, id: DEFAULT_SERVICE_ID, isDefault: true }, ...customServices];
+  return savedServices
+    .filter((service) => service && service.id !== DEFAULT_SERVICE_ID && !service.isDefault)
+    .map((service) => ({ ...service, isDefault: false }));
 }
 
 function normalizeDesksForSettings(desks = [], services = DEFAULT_SERVICES, { preserveCurrent = false } = {}) {
-  const savedDesks = Array.isArray(desks) ? desks : [];
-  const defaultDesk = savedDesks.find((desk) => desk.id === DEFAULT_DESK_ID) || seedDesks()[0];
-  const customDesks = savedDesks.filter((desk) => desk.id !== DEFAULT_DESK_ID);
+  const savedDesks = (Array.isArray(desks) ? desks : []).filter((desk) => desk && desk.id !== DEFAULT_DESK_ID && !desk.isDefault);
   const serviceIds = new Set(normalizeServicesForSettings(services).map((service) => service.id));
   const normalizeDeskServices = (desk, fallbackServices = []) => {
     if (!Array.isArray(desk.services)) {
@@ -270,24 +268,13 @@ function normalizeDesksForSettings(desks = [], services = DEFAULT_SERVICES, { pr
     return Array.from(new Set(desk.services)).filter((serviceId) => serviceIds.has(serviceId));
   };
 
-  return [
-    {
-      ...defaultDesk,
-      id: DEFAULT_DESK_ID,
-      name: defaultDesk.name || "Desk 1",
-      services: normalizeDeskServices(defaultDesk, [DEFAULT_SERVICE_ID]),
-      locked: Boolean(defaultDesk.locked),
-      status: defaultDesk.status || "Available",
-      current: preserveCurrent ? defaultDesk.current || null : null,
-      isDefault: true,
-    },
-    ...customDesks.map((desk) => ({
-      ...desk,
-      services: normalizeDeskServices(desk),
-      status: desk.status || "Available",
-      current: preserveCurrent ? desk.current || null : null,
-    })),
-  ];
+  return savedDesks.map((desk) => ({
+    ...desk,
+    services: normalizeDeskServices(desk),
+    status: desk.status || "Available",
+    current: preserveCurrent ? desk.current || null : null,
+    isDefault: Boolean(desk.isDefault),
+  }));
 }
 
 function reconcileDeskServiceAssignments(desks, services, options) {
@@ -869,13 +856,7 @@ export default function App() {
 
   // --- Cross-cutting actions that touch more than one hook's state -----------------------------
   const addDesk = () => {
-    const serviceIds = services.length === 1 && newDeskServiceIds.length === 0 ? [services[0].id] : newDeskServiceIds;
-    if (services.length > 1 && serviceIds.length === 0) {
-      setNewDeskServiceError(`Choose at least one ${labels.serviceWordLower} before creating this ${labels.deskWordLower}.`);
-      return false;
-    }
-
-    deskHooks.addDesk(newDeskName.trim(), labels.deskWord, serviceIds);
+    deskHooks.addDesk(newDeskName.trim(), labels.deskWord, newDeskServiceIds);
     setNewDeskName("");
     setNewDeskServiceIds([]);
     setNewDeskServiceError("");
@@ -898,16 +879,9 @@ export default function App() {
   const addService = () => {
     if (!newServiceName.trim()) return false;
 
-    const deskIds = desks.length === 1 && newServiceDeskIds.length === 0 ? [desks[0].id] : newServiceDeskIds;
-
-    if (desks.length > 1 && deskIds.length === 0) {
-      setNewServiceDeskError(`Choose at least one ${labels.deskWordLower} before creating this ${labels.serviceWordLower}.`);
-      return false;
-    }
-
     const serviceId = addServiceRaw(newServiceName);
     if (serviceId) {
-      const assignedDeskIds = new Set(deskIds.length > 0 ? deskIds.map(String) : [String(DEFAULT_DESK_ID)]);
+      const assignedDeskIds = new Set(newServiceDeskIds.map(String));
       setDesks((currentDesks) =>
         currentDesks.map((desk) =>
           assignedDeskIds.has(String(desk.id))

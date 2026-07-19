@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { ChevronRight, ExternalLink, Layers3, Pencil, Plus, Search, Trash2, UserRound, X } from "lucide-react";
-import { DEFAULT_DESK_ID } from "../../../lib/seedData";
 import { assignedMembersForDesk, memberCanBeAssignedToDesk, memberCanBeAssignedToService, memberHasService } from "../../../lib/assignments";
 
 const COUNTER_WORD = "Counter";
@@ -200,7 +199,6 @@ function CountChip({ icon: Icon, count, label, tooltip, tooltipItems, tooltipSec
         color: warning ? "#f87171" : withAlpha(theme.fontColor, "b3"),
       }}
       tabIndex={0}
-      title={titleText}
       aria-label={`${count} ${label}: ${titleText}`}
     >
       <Icon size={12} />
@@ -257,25 +255,13 @@ function CountChip({ icon: Icon, count, label, tooltip, tooltipItems, tooltipSec
 }
 
 function CounterCard({ desk, index, services, members, labels, theme, getDeskPath, onEdit, onDelete }) {
-  const assignedServices = services.filter((service) => (desk.services || []).includes(service.id));
   const assignedMembers = assignedMembersForDesk(members, desk.id);
   const serviceMembers = assignedMembers.filter(memberCanBeAssignedToService);
+  const assignedServices = services.filter((service) => serviceMembers.some((member) => memberHasService(member, service.id)));
   const receptionistMembers = assignedMembers.filter((member) => (member.role || "Member") === "Receptionist");
-  const isDefault = desk.id === DEFAULT_DESK_ID || desk.isDefault;
-  const serviceLabel = assignedServices.length ? assignedServices.map((service) => service.name).join(", ") : `No ${labels.serviceWordPluralLower} covered`;
+  const isDefault = Boolean(desk.isDefault);
   const memberLabel = serviceMembers.length ? serviceMembers.map((member) => member.name).join(", ") : `No ${labels.memberWordPluralLower} assigned`;
-  const memberTooltipSections = [
-    {
-      label: `${receptionistMembers.length} ${receptionistMembers.length === 1 ? "receptionist" : "receptionists"}`,
-      items: receptionistMembers.map((member) => member.name),
-      emptyLabel: "No receptionists assigned",
-    },
-    {
-      label: `${serviceMembers.length} ${serviceMembers.length === 1 ? labels.memberWordLower : labels.memberWordPluralLower}`,
-      items: serviceMembers.map((member) => member.name),
-      emptyLabel: `No ${labels.memberWordPluralLower} assigned`,
-    },
-  ];
+  const memberTooltipItems = serviceMembers.map((member) => member.name);
   const serviceCoverageLabel = assignedServices.length
     ? assignedServices
         .map((service) => {
@@ -379,19 +365,12 @@ function CounterCard({ desk, index, services, members, labels, theme, getDeskPat
         <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" style={{ backgroundColor: available ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", color: statusColor }}>
           {available ? "Open" : "Closed"}
         </span>
-        <CountChip icon={UserRound} count={serviceMembers.length} label={memberCountLabel} tooltip={memberLabel} tooltipSections={memberTooltipSections} tone={serviceMembers.length === 0 ? "warning" : "neutral"} theme={theme} />
+        <CountChip icon={UserRound} count={serviceMembers.length} label={memberCountLabel} tooltip={memberLabel} tooltipItems={memberTooltipItems} tone={serviceMembers.length === 0 ? "warning" : "neutral"} theme={theme} />
         <CountChip icon={Layers3} count={assignedServices.length} label={serviceCountLabel} tooltip={serviceCoverageLabel} tooltipItems={serviceCoverageItems} theme={theme} />
         <button type="button" onClick={onEdit} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/5" style={{ color: withAlpha(theme.fontColor, "99") }} aria-label={`Edit ${COUNTER_WORD_LOWER}`}>
           <Pencil size={14} />
         </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={isDefault}
-          className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
-          style={{ color: "#f87171" }}
-          aria-label={`Remove ${COUNTER_WORD_LOWER}`}
-        >
+        <button type="button" onClick={onDelete} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/5" style={{ color: "#f87171" }} aria-label={`Remove ${COUNTER_WORD_LOWER}`}>
           <Trash2 size={14} />
         </button>
       </div>
@@ -423,8 +402,10 @@ export function AdminCountersPage({
   const filtered = desks.filter((desk) => {
     const q = query.trim().toLowerCase();
     if (!q) return true;
-    const serviceNames = services.filter((service) => (desk.services || []).includes(service.id)).map((service) => service.name);
-    const memberNames = assignedMembersForDesk(assignableMembers, desk.id).map((member) => member.name);
+    const deskMembers = assignedMembersForDesk(assignableMembers, desk.id);
+    const serviceMemberIds = new Set(deskMembers.filter(memberCanBeAssignedToService).flatMap((member) => member.serviceIds || []).map(String));
+    const serviceNames = services.filter((service) => serviceMemberIds.has(String(service.id))).map((service) => service.name);
+    const memberNames = deskMembers.map((member) => member.name);
     return [desk.name, desk.id, ...serviceNames, ...memberNames].some((value) => String(value || "").toLowerCase().includes(q));
   });
 

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
 import { ArrowLeft, ArrowRight, Bell, Ticket } from "lucide-react";
-import { DEFAULT_SERVICE_ID } from "../../lib/seedData";
 import { C } from "../../lib/theme";
 import { getServiceAvailability } from "../../lib/serviceAvailability";
 
@@ -20,7 +19,7 @@ export function KioskForm({
 }) {
   const showServiceSelection = services.length > 1;
   const directJoin = !showServiceSelection;
-  const defaultServiceId = services[0]?.id || DEFAULT_SERVICE_ID;
+  const defaultServiceId = services[0]?.id || "";
   const serviceAvailability = useMemo(() => {
     const map = {};
     services.forEach((service) => {

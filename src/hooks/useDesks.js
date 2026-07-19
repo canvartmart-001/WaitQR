@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { selectNextTicketForDesk } from "./useQueue";
-import { DEFAULT_DESK_ID, DEFAULT_SERVICE_ID } from "../lib/seedData";
 
 // >>> BACKEND INTEGRATION NOTE <<<
 // Every action here (callNext, startService, completeTicket, skipTicket) currently
@@ -114,7 +113,7 @@ export function useDesks(initialDesks, { queue, setQueue, onTicketCompleted, onT
   };
 
   const addDesk = (name, deskWord, serviceIds, details = {}) => {
-    const serviceSource = Array.isArray(serviceIds) ? serviceIds : [DEFAULT_SERVICE_ID];
+    const serviceSource = Array.isArray(serviceIds) ? serviceIds : [];
     const assignedServices = Array.from(new Set(serviceSource)).filter(Boolean);
     const id = Date.now();
     setDesks((ds) => [
@@ -133,7 +132,6 @@ export function useDesks(initialDesks, { queue, setQueue, onTicketCompleted, onT
   };
 
   const removeDesk = (deskId, { onBeforeRemove } = {}) => {
-    if (deskId === DEFAULT_DESK_ID || desks.length <= 1) return;
     const desk = desks.find((d) => d.id === deskId);
     if (desk && desk.current) {
       setQueue((q) => [desk.current, ...q]);

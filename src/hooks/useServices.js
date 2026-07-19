@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { DEFAULT_SERVICE_ID } from "../lib/seedData";
 
 // >>> BACKEND INTEGRATION NOTE <<<
 // Simple CRUD over a list — straightforward to swap for REST calls + socket sync later
@@ -25,7 +24,6 @@ export function useServices(initialServices) {
   };
 
   const removeService = (serviceId) => {
-    if (serviceId === DEFAULT_SERVICE_ID) return;
     setServices((s) => s.filter((x) => x.id !== serviceId));
   };
 

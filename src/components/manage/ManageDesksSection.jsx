@@ -1,5 +1,4 @@
 import { Link2, Pencil, Plus, Trash2, User } from "lucide-react";
-import { DEFAULT_DESK_ID } from "../../lib/seedData";
 import { C } from "../../lib/theme";
 
 export function ManageDesksSection({
@@ -192,9 +191,7 @@ export function ManageDesksSection({
               </div>
               {newDeskServiceIds.length === 0 && services.length > 0 && (
                 <div className="text-[10px] mt-1.5" style={{ color: C.textFaint }}>
-                  {services.length === 1
-                    ? `${services[0].name} will be assigned automatically.`
-                    : `Select at least one ${serviceWordLower} before creating this ${deskWordLower}.`}
+                  Select any {serviceWordPluralLower} this {deskWordLower} should cover, or leave it unassigned.
                 </div>
               )}
             </div>
@@ -205,7 +202,6 @@ export function ManageDesksSection({
         {desks.map((d) => {
           const isEditing = editingDesk === d.id;
           const assignedMembers = members.filter((m) => (Array.isArray(m.deskIds) ? m.deskIds : []).map(String).includes(String(d.id)));
-          const isDefaultDesk = d.id === DEFAULT_DESK_ID;
           return (
             <div key={d.id} className="rounded-lg border p-3" style={{ borderColor: isEditing ? C.amber : C.ink700, background: C.ink900 }}>
               <div className="flex items-start justify-between gap-2">
@@ -250,8 +246,7 @@ export function ManageDesksSection({
                         }
                       )
                     }
-                    disabled={isDefaultDesk || desks.length <= 1}
-                    title={isDefaultDesk ? `${d.name} is required` : desks.length <= 1 ? `At least one ${deskWordLower} is required` : `Delete this ${deskWordLower}`}
+                    title={`Delete this ${deskWordLower}`}
                     className="qp-focusable p-1.5 rounded-md border disabled:opacity-30 disabled:cursor-not-allowed"
                     style={{ borderColor: C.ink600, color: C.coral }}
                   >

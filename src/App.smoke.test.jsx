@@ -20,5 +20,5 @@ test("renders the WaitQR app shell", () => {
 
   expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
   expect(screen.getAllByRole("button", { name: "Settings" }).length).toBeGreaterThan(0);
-  expect(screen.getAllByText("Desk 1").length).toBeGreaterThan(0);
+  expect(screen.queryByText("Desk 1")).not.toBeInTheDocument();
 });

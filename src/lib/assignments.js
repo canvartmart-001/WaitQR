@@ -1,5 +1,3 @@
-import { DEFAULT_SERVICE_ID } from "./seedData";
-
 export function uniqueIds(ids = []) {
   return Array.from(
     new Map(
@@ -76,7 +74,7 @@ export function deriveDeskServicesFromMembers(desks = [], members = [], services
       ? derivedServices
       : legacyServices.length > 0
         ? legacyServices
-        : [DEFAULT_SERVICE_ID].filter((serviceId) => validServiceIds.has(String(serviceId)));
+        : [];
 
     return { ...desk, services: nextServices };
   });

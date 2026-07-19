@@ -1,5 +1,4 @@
 import { Link2, Pencil, Plus, Trash2 } from "lucide-react";
-import { DEFAULT_SERVICE_ID } from "../../lib/seedData";
 import { C } from "../../lib/theme";
 
 export function ManageServicesSection({
@@ -190,9 +189,7 @@ export function ManageServicesSection({
               </div>
               {newServiceDeskIds.length === 0 && desks.length > 0 && (
                 <div className="text-[10px] mt-1.5" style={{ color: C.textFaint }}>
-                  {desks.length === 1
-                    ? `${desks[0].name} will be assigned automatically.`
-                    : `Select at least one ${deskWordLower} before creating this ${serviceWordLower}.`}
+                  Select any {deskWordPluralLower} this {serviceWordLower} should use, or leave it unassigned.
                 </div>
               )}
             </div>
@@ -208,7 +205,6 @@ export function ManageServicesSection({
         {services.map((s) => {
           const isEditing = editingService === s.id;
           const handlingDesks = desks.filter((d) => d.services.includes(s.id));
-          const isDefaultService = s.id === DEFAULT_SERVICE_ID;
           return (
             <div key={s.id} className="rounded-lg border p-3" style={{ borderColor: isEditing ? C.amber : C.ink700, background: C.ink900 }}>
               <div className="flex items-start justify-between gap-2">
@@ -242,9 +238,8 @@ export function ManageServicesSection({
                       )
                     }
                     title={`Delete this ${serviceWordLower}`}
-                    disabled={isDefaultService}
                     className="qp-focusable p-1.5 rounded-md border disabled:cursor-not-allowed"
-                    style={{ borderColor: C.ink600, color: C.coral, opacity: isDefaultService ? 0.35 : 1 }}
+                    style={{ borderColor: C.ink600, color: C.coral, opacity: 1 }}
                   >
                     <Trash2 size={14} />
                   </button>
