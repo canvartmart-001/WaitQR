@@ -369,9 +369,19 @@ function ServiceCard({ service, desks, members, labels, theme, onEdit, onDelete 
                       <span className="block font-medium" style={{ color: theme.fontColor }}>
                         {member.name}
                       </span>
-                      <span className="mt-1 block" style={{ color: textColor }}>
-                        {tooltip}
-                      </span>
+                      {assignedDeskNames.length ? (
+                        <span className="mt-1 block space-y-1">
+                          {assignedDeskNames.map((deskName) => (
+                            <span key={deskName} className="block" style={{ color: textColor }}>
+                              {deskName}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="mt-1 block" style={{ color: textColor }}>
+                          {tooltip}
+                        </span>
+                      )}
                     </span>
                   </span>
                 );

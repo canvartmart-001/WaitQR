@@ -288,6 +288,8 @@ function sanitizeDesksForSettings(desks, services) {
     services: desk.services || [],
     locked: Boolean(desk.locked),
     status: desk.status || "Available",
+    availabilityMode: desk.availabilityMode || (desk.status === "Scheduled" ? "scheduled" : desk.status === "Unavailable" ? "always_closed" : "always_open"),
+    schedule: desk.schedule || null,
     current: null,
     isDefault: Boolean(desk.isDefault),
   }));

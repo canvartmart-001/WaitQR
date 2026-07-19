@@ -1,10 +1,24 @@
-import { useState } from "react";
-import { ChevronRight, ExternalLink, Layers3, Pencil, Plus, Search, Trash2, UserRound, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { CalendarDays, ChevronDown, ChevronRight, CircleCheck, CircleX, Clock, ExternalLink, Layers3, Pencil, Plus, Search, Trash2, UserRound, X } from "lucide-react";
 import { assignedMembersForDesk, memberCanBeAssignedToDesk, memberCanBeAssignedToService, memberHasService } from "../../../lib/assignments";
 
 const COUNTER_WORD = "Counter";
 const COUNTER_WORD_LOWER = "counter";
 const COUNTER_WORD_PLURAL_LOWER = "counters";
+const AVAILABILITY_OPTIONS = [
+  { value: "always_open", label: "Always open", status: "Available" },
+  { value: "always_closed", label: "Always closed", status: "Unavailable" },
+  { value: "scheduled", label: "Scheduled", status: "Scheduled" },
+];
+const WEEK_DAYS = [
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+  { value: 0, label: "Sun" },
+];
 
 function withAlpha(hex, alphaHex) {
   if (!hex || hex.length !== 7) return hex;
@@ -34,7 +48,80 @@ function focusHandlers(theme) {
 }
 
 function statusLabel(status) {
+  if (status === "Scheduled") return "Scheduled";
   return status === "Unavailable" ? "Closed" : "Open";
+}
+
+function statusForAvailabilityMode(mode) {
+  return AVAILABILITY_OPTIONS.find((option) => option.value === mode)?.status || "Available";
+}
+
+function availabilityModeForDesk(desk) {
+  if (desk?.availabilityMode) return desk.availabilityMode;
+  if (desk?.status === "Scheduled") return "scheduled";
+  if (desk?.status === "Unavailable") return "always_closed";
+  return "always_open";
+}
+
+function normalizeSchedule(schedule) {
+  const source = schedule && typeof schedule === "object" ? schedule : {};
+  const validDays = new Set(WEEK_DAYS.map((day) => day.value));
+  const sourceEntries = Array.isArray(source.entries) && source.entries.length
+    ? source.entries
+    : Array.isArray(source.days)
+      ? [{ days: source.days, startTime: source.startTime, endTime: source.endTime }]
+      : [{ days: [1], startTime: source.startTime, endTime: source.endTime }];
+  const usedDays = new Set();
+  const entries = sourceEntries
+    .map((entry) => {
+      const entryDays = Array.isArray(entry?.days) ? entry.days : [entry?.day];
+      const days = entryDays
+        .map(Number)
+        .filter((day) => validDays.has(day) && !usedDays.has(day) && usedDays.add(day));
+
+      return {
+        days,
+        startTime: entry?.startTime || "09:00",
+        endTime: entry?.endTime || "17:00",
+      };
+    })
+    .filter((entry) => entry.days.length > 0)
+    .slice(0, WEEK_DAYS.length);
+
+  return {
+    entries: entries.length ? entries : [{ days: [1], startTime: "09:00", endTime: "17:00" }],
+  };
+}
+
+function timeToMinutes(time) {
+  const [hours, minutes] = String(time || "").split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
+}
+
+function isScheduleOpenNow(schedule, now = new Date()) {
+  const normalized = normalizeSchedule(schedule);
+  const currentDay = now.getDay();
+  const previousDay = (currentDay + 6) % 7;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  return normalized.entries.some((entry) => {
+    const start = timeToMinutes(entry.startTime);
+    const end = timeToMinutes(entry.endTime);
+    if (start == null || end == null) return false;
+
+    if (start <= end) {
+      return entry.days.includes(currentDay) && currentMinutes >= start && currentMinutes < end;
+    }
+
+    return (entry.days.includes(currentDay) && currentMinutes >= start) || (entry.days.includes(previousDay) && currentMinutes < end);
+  });
+}
+
+function nextScheduleDays(entries) {
+  const usedDays = new Set((Array.isArray(entries) ? entries : []).flatMap((entry) => entry.days || []).map(Number));
+  const nextDay = WEEK_DAYS.find((day) => !usedDays.has(day.value))?.value ?? WEEK_DAYS[0].value;
+  return [nextDay];
 }
 
 function FormField({ label, error, children, theme }) {
@@ -66,36 +153,126 @@ function TextInput({ value, onChange, placeholder, theme }) {
   );
 }
 
-function Toggle({ checked, onChange, accent }) {
+function TimeInput({ value, onChange, theme }) {
+  const darkIcon = String(theme.fontColor || "").toLowerCase() !== "#0f172a";
+  const inputRef = useRef(null);
+  const openPicker = () => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus();
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+    }
+  };
+
   return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200"
-      style={{ backgroundColor: checked ? accent : "rgba(148, 163, 184, 0.35)" }}
-      aria-pressed={checked}
-    >
-      <span
-        className="absolute h-5 w-5 rounded-full bg-white transition-transform duration-200"
-        style={{ transform: checked ? "translateX(22px)" : "translateX(2px)" }}
+    <div className="relative">
+      <input
+        ref={inputRef}
+        type="time"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        {...focusHandlers(theme)}
+        className="qp-time-input w-full border px-3 py-2 pr-9 text-sm outline-none transition-colors"
+        style={{ ...fieldStyle(theme), colorScheme: darkIcon ? "dark" : "light" }}
       />
-    </button>
+      <button
+        type="button"
+        onClick={openPicker}
+        className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full"
+        style={{ color: withAlpha(theme.fontColor, "b3") }}
+        aria-label="Open time picker"
+      >
+        <Clock size={14} />
+      </button>
+    </div>
+  );
+}
+
+function SelectInput({ value, onChange, children, theme }) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        {...focusHandlers(theme)}
+        className="w-full appearance-none border px-3 py-2 pr-9 text-sm outline-none transition-colors"
+        style={fieldStyle(theme)}
+      >
+        {children}
+      </select>
+      <ChevronDown
+        size={16}
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+        style={{ color: withAlpha(theme.fontColor, "80") }}
+      />
+    </div>
   );
 }
 
 function CounterForm({ desks, theme, editingDesk, isSaving, onCancel, onSave }) {
   const [name, setName] = useState(() => editingDesk?.name || "");
-  const [status, setStatus] = useState(() => editingDesk?.status || "Available");
+  const [availabilityMode, setAvailabilityMode] = useState(() => availabilityModeForDesk(editingDesk));
+  const [schedule, setSchedule] = useState(() => normalizeSchedule(editingDesk?.schedule));
   const [submitError, setSubmitError] = useState("");
   const duplicateName = desks.some((desk) => desk.id !== editingDesk?.id && desk.name.trim().toLowerCase() === name.trim().toLowerCase());
   const nameError = !name.trim() ? `${COUNTER_WORD} name is required.` : duplicateName ? `This ${COUNTER_WORD_LOWER} already exists.` : "";
-  const canSave = name.trim() && !duplicateName;
+  const scheduleDays = schedule.entries.flatMap((entry) => entry.days || []).map(Number);
+  const scheduleValid = availabilityMode !== "scheduled"
+    || (
+      schedule.entries.length > 0
+      && schedule.entries.length <= WEEK_DAYS.length
+      && new Set(scheduleDays).size === scheduleDays.length
+      && schedule.entries.every((entry) => entry.days.length > 0 && entry.startTime && entry.endTime)
+    );
+  const canSave = name.trim() && !duplicateName && scheduleValid;
   const counterNumber = editingDesk ? Math.max(1, desks.findIndex((desk) => desk.id === editingDesk.id) + 1) : desks.length + 1;
+  const status = statusForAvailabilityMode(availabilityMode);
+
+  const addScheduleEntry = () => {
+    setSchedule((current) => ({
+      ...current,
+      entries: [
+        ...current.entries,
+        { days: nextScheduleDays(current.entries), startTime: "09:00", endTime: "17:00" },
+      ].slice(0, WEEK_DAYS.length),
+    }));
+  };
+
+  const updateScheduleEntry = (index, patch) => {
+    setSchedule((current) => ({
+      ...current,
+      entries: current.entries.map((entry, entryIndex) => (entryIndex === index ? { ...entry, ...patch } : entry)),
+    }));
+  };
+
+  const toggleScheduleEntryDay = (index, day) => {
+    setSchedule((current) => ({
+      ...current,
+      entries: current.entries.map((entry, entryIndex) => {
+        if (entryIndex !== index) return entry;
+        const days = entry.days.includes(day) ? entry.days.filter((item) => item !== day) : [...entry.days, day].sort((a, b) => a - b);
+        return { ...entry, days };
+      }),
+    }));
+  };
+
+  const removeScheduleEntry = (index) => {
+    setSchedule((current) => ({
+      ...current,
+      entries: current.entries.filter((_, entryIndex) => entryIndex !== index),
+    }));
+  };
 
   const handleSave = () => {
     if (!canSave) return;
 
-    const result = onSave({ name: name.trim(), status });
+    const result = onSave({
+      name: name.trim(),
+      status,
+      availabilityMode,
+      schedule: availabilityMode === "scheduled" ? { entries: schedule.entries } : null,
+    });
     if (result?.ok === false) {
       setSubmitError(
         result.error === "duplicate-name"
@@ -138,19 +315,99 @@ function CounterForm({ desks, theme, editingDesk, isSaving, onCancel, onSave }) 
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2.5">
-          <span className="whitespace-nowrap text-sm font-medium" style={{ color: status === "Available" ? theme.fontColor : withAlpha(theme.fontColor, "80") }}>
-            {statusLabel(status)}
-          </span>
-          <Toggle checked={status === "Available"} onChange={(checked) => setStatus(checked ? "Available" : "Unavailable")} accent={theme.accentColor} />
-        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-x-6" style={{ borderTop: `1px solid ${withAlpha(theme.borderColor, "40")}` }}>
+      <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.8fr)]" style={{ borderTop: `1px solid ${withAlpha(theme.borderColor, "40")}` }}>
         <FormField label={`${COUNTER_WORD} Name`} error={nameError} theme={theme}>
           <TextInput value={name} onChange={setName} placeholder={`e.g. ${COUNTER_WORD} 2`} theme={theme} />
         </FormField>
+        <FormField label="Availability" theme={theme}>
+          <SelectInput value={availabilityMode} onChange={setAvailabilityMode} theme={theme}>
+            {AVAILABILITY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </SelectInput>
+        </FormField>
       </div>
+
+      {availabilityMode === "scheduled" ? (
+        <div className="border-t py-2" style={{ borderColor: withAlpha(theme.borderColor, "40") }}>
+          <p className="pt-2 text-sm font-semibold" style={{ color: theme.fontColor }}>
+            Create schedule
+          </p>
+          <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-[minmax(0,1fr)_minmax(8rem,0.4fr)_minmax(8rem,0.4fr)]">
+            <div className="py-2 lg:col-span-3">
+              <div className="mb-1 hidden grid-cols-[minmax(20rem,1fr)_minmax(8rem,0.35fr)_minmax(8rem,0.35fr)_auto] gap-2 px-0.5 text-xs font-medium xl:grid" style={{ color: withAlpha(theme.fontColor, "80") }}>
+                <span>Week</span>
+                <span>Start Time</span>
+                <span>End Time</span>
+                <span className="sr-only">Action</span>
+              </div>
+              <div className="flex flex-col gap-4">
+                {schedule.entries.map((entry, index) => {
+                  const selectedByOtherRows = new Set(schedule.entries.filter((_, entryIndex) => entryIndex !== index).flatMap((item) => item.days || []).map(Number));
+                  return (
+                    <div key={`${entry.days.join("-")}-${index}`} className="grid grid-cols-1 gap-x-2 gap-y-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:grid-cols-[minmax(20rem,1fr)_minmax(8rem,0.35fr)_minmax(8rem,0.35fr)_auto]">
+                      <div className="flex flex-wrap gap-2 md:col-span-3 xl:col-span-1">
+                        {WEEK_DAYS.map((day) => {
+                          const active = entry.days.includes(day.value);
+                          const disabled = selectedByOtherRows.has(day.value);
+                          return (
+                            <button
+                              key={day.value}
+                              type="button"
+                              onClick={() => toggleScheduleEntryDay(index, day.value)}
+                              disabled={disabled}
+                              className="border px-3 py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-35"
+                              style={{
+                                borderColor: active ? theme.accentColor : theme.borderColor,
+                                borderRadius: theme.radius,
+                                backgroundColor: active ? withAlpha(theme.accentColor, "1f") : "transparent",
+                                color: active ? theme.accentColor : withAlpha(theme.fontColor, "99"),
+                              }}
+                            >
+                              {day.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <TimeInput value={entry.startTime} onChange={(startTime) => updateScheduleEntry(index, { startTime })} theme={theme} />
+                      <TimeInput value={entry.endTime} onChange={(endTime) => updateScheduleEntry(index, { endTime })} theme={theme} />
+                      <button
+                        type="button"
+                        onClick={() => removeScheduleEntry(index)}
+                        disabled={schedule.entries.length <= 1}
+                        className="flex h-10 w-10 items-center justify-center border transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
+                        style={{ color: "#f87171", borderColor: theme.borderColor, borderRadius: theme.radius }}
+                        aria-label="Remove schedule row"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              {!scheduleValid ? (
+                <p className="mt-2 text-xs" style={{ color: "#f87171" }}>
+                  Select at least one weekday per row, use each weekday once, and fill each start and end time.
+                </p>
+              ) : null}
+              <button
+                type="button"
+                onClick={addScheduleEntry}
+                disabled={scheduleDays.length >= WEEK_DAYS.length}
+                className="mt-3 inline-flex items-center gap-2 border px-3 py-2 text-xs font-medium transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
+                style={{ color: theme.accentColor, borderColor: theme.borderColor, borderRadius: theme.radius }}
+              >
+                <Plus size={14} />
+                Add day
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div
         className="mt-2 flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end"
@@ -296,8 +553,12 @@ function CounterCard({ desk, index, services, members, labels, theme, getDeskPat
           hasMember: false,
         },
       ];
-  const available = desk.status !== "Unavailable";
-  const statusColor = available ? "#22c55e" : "#ef4444";
+  const availabilityMode = availabilityModeForDesk(desk);
+  const scheduled = availabilityMode === "scheduled" || desk.status === "Scheduled";
+  const available = scheduled ? isScheduleOpenNow(desk.schedule) : availabilityMode !== "always_closed" && desk.status !== "Unavailable";
+  const statusColor = scheduled && !available ? "#f59e0b" : available ? "#22c55e" : "#ef4444";
+  const statusBackground = scheduled && !available ? "rgba(245,158,11,0.15)" : available ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)";
+  const StatusIcon = scheduled ? CalendarDays : available ? CircleCheck : CircleX;
 
   return (
     <div className="flex flex-col gap-3 border p-4 lg:flex-row lg:items-start" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.2 }}>
@@ -362,7 +623,8 @@ function CounterCard({ desk, index, services, members, labels, theme, getDeskPat
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center justify-start gap-3 lg:justify-end">
-        <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" style={{ backgroundColor: available ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", color: statusColor }}>
+        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium" style={{ backgroundColor: statusBackground, color: statusColor }}>
+          <StatusIcon size={12} />
           {available ? "Open" : "Closed"}
         </span>
         <CountChip icon={UserRound} count={serviceMembers.length} label={memberCountLabel} tooltip={memberLabel} tooltipItems={memberTooltipItems} tone={serviceMembers.length === 0 ? "warning" : "neutral"} theme={theme} />
@@ -414,18 +676,19 @@ export function AdminCountersPage({
     setEditingDesk(null);
   };
 
-  const saveForm = ({ name, status }) => {
+  const saveForm = ({ name, status, availabilityMode, schedule }) => {
     const duplicateName = desks.some((desk) => desk.id !== editingDeskRecord?.id && desk.name.trim().toLowerCase() === name.trim().toLowerCase());
     if (duplicateName) return { ok: false, error: "duplicate-name" };
+    const availabilityDetails = { status, availabilityMode, schedule };
 
     if (editingDeskRecord) {
-      updateDesk?.(editingDeskRecord.id, { name, status });
+      updateDesk?.(editingDeskRecord.id, { name, ...availabilityDetails });
       if (!updateDesk) renameDesk(editingDeskRecord.id, name);
       closeForm();
       return { ok: true };
     }
 
-    const result = addDeskWithAssignments(name, [], { status });
+    const result = addDeskWithAssignments(name, [], availabilityDetails);
     if (result.ok) closeForm();
     return result;
   };

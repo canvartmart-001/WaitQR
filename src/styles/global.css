@@ -47,6 +47,10 @@ svg {
   max-width: 100%;
 }
 
+.qp-time-input::-webkit-calendar-picker-indicator {
+  opacity: 0;
+}
+
 @layer components {
   .qp-container {
     @apply w-full max-w-none mx-auto px-5;
