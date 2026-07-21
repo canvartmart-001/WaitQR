@@ -64,7 +64,7 @@ app.use((req, res, next) => {
 
   next();
 });
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
@@ -171,6 +171,9 @@ app.put("/api/settings", async (req, res) => {
 
   try {
     await saveAppSettings(settings);
+    io.emit("settings:changed", {
+      changedAt: Date.now(),
+    });
     res.json({ settings });
   } catch (error) {
     console.error("Failed to save settings", error);

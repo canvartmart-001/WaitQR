@@ -15,6 +15,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { readImageFile } from "../../../lib/imageUpload";
 
 function withAlpha(hex, alphaHex) {
   if (!hex || hex.length !== 7) return hex;
@@ -254,9 +255,9 @@ function LogoUpload({ logoUrl, onUpload, onRemove, fontColor, radius, borderColo
   const handleFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onUpload(reader.result);
-    reader.readAsDataURL(file);
+    readImageFile(file).then(onUpload).catch((error) => {
+      console.warn(error.message);
+    });
   };
 
   return (

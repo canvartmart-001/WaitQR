@@ -53,6 +53,28 @@ test("loads old staff settings as members", async () => {
   expect(settings.members).toEqual([member]);
 });
 
+test("prefers clean server settings over cached settings with the same item count", async () => {
+  const cachedMember = { id: "MEM004", name: "Asha", phone: "5551112222", photo: "old-image", deskIds: [1] };
+  const remoteMember = { ...cachedMember, photo: "new-image" };
+  cacheSettings({ desks: [{ id: 1, name: "Counter 1", services: [] }], members: [cachedMember] });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        settings: {
+          desks: [{ id: 1, name: "Counter 1", services: [] }],
+          members: [remoteMember],
+        },
+      }),
+    }))
+  );
+
+  const settings = await loadSettings();
+
+  expect(settings.members[0].photo).toBe("new-image");
+});
+
 test("keeps dirty local member deletions ahead of stale server settings", async () => {
   const staleMember = { id: "MEM003", name: "Old", phone: "5557778888", password: "pass", deskIds: [1] };
   cacheSettings({ desks: [{ id: 1, name: "Counter 1", services: [] }], members: [] }, { dirty: true });

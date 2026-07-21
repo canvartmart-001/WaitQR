@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, CircleAlert, ChevronDown, ChevronRight, Mail, Pencil, Phone, Plus, Search, Trash2, Upload, UserRound, X } from "lucide-react";
 import { memberCanBeAssignedToDesk, memberCanBeAssignedToService, memberHasDesk, memberHasService } from "../../../lib/assignments";
+import { readImageFile } from "../../../lib/imageUpload";
 import { getMemberProfilePath } from "../../../lib/routing";
 
 const ROLES = ["Manager", "Receptionist", "Member"];
@@ -332,9 +333,9 @@ function MemberForm({ members, desks, services, labels, theme, brandName, editin
   const handlePhoto = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (readerEvent) => set("photo")(readerEvent.target.result);
-    reader.readAsDataURL(file);
+    readImageFile(file).then(set("photo")).catch((error) => {
+      console.warn(error.message);
+    });
   };
 
   const handleSave = () => {

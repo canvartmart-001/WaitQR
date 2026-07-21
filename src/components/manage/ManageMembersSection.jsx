@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { AlertTriangle, Camera, Eye, EyeOff, Link2, Pencil, Plus, Trash2, User } from "lucide-react";
+import { readImageFile } from "../../lib/imageUpload";
 import { C } from "../../lib/theme";
 
 const BLANK_MEMBER_FORM = { name: "", phone: "", password: "", photo: null, about: "" };
@@ -104,9 +105,9 @@ export function ManageMembersSection({
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = (ev) => setNewMember((f) => ({ ...f, photo: ev.target.result }));
-                    reader.readAsDataURL(file);
+                    readImageFile(file).then((photo) => setNewMember((f) => ({ ...f, photo }))).catch((error) => {
+                      console.warn(error.message);
+                    });
                   }}
                 />
                 {newMember.photo ? (
@@ -302,9 +303,9 @@ export function ManageMembersSection({
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
-                            const reader = new FileReader();
-                            reader.onload = (ev) => updateMember(m.id, { photo: ev.target.result });
-                            reader.readAsDataURL(file);
+                            readImageFile(file).then((photo) => updateMember(m.id, { photo })).catch((error) => {
+                              console.warn(error.message);
+                            });
                           }}
                         />
                         {m.photo ? (

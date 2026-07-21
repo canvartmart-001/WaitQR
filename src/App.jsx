@@ -639,8 +639,21 @@ export default function App() {
         });
     };
 
+    const syncSettings = () => {
+      loadSettings()
+        .then((settings) => {
+          if (cancelled) return;
+          applyLoadedSettings(settings);
+          setSettingsLoaded(true);
+        })
+        .catch((error) => {
+          if (!cancelled) console.warn(error.message);
+        });
+    };
+
     socket.on("connect", syncSubmissions);
     socket.on("submissions:changed", syncSubmissions);
+    socket.on("settings:changed", syncSettings);
     socket.on("queue:history", hydrateLiveQueueHistory);
     socket.on("queue:current", updateCurrentLiveCounts);
     socket.on("queue:counts", appendLiveQueuePoint);
@@ -717,6 +730,30 @@ export default function App() {
   const [masterLoggedIn, setMasterLoggedInState] = useState(() => isMasterLoggedIn());
   const activeLoggedInMember = loggedInMember || findLoggedInMember(memberHooks.members);
   const authenticated = Boolean(activeLoggedInMember || masterLoggedIn || isMasterLoggedIn());
+  const applyLoadedSettings = (settings = {}) => {
+    const normalizedServices = normalizeServicesForSettings(settings.services);
+    const normalizedDesks = reconcileDeskServiceAssignments(settings.desks, normalizedServices);
+    const savedAppearance = settings.appearance && typeof settings.appearance === "object" ? settings.appearance : null;
+    const normalizedAppearance = normalizeAppearance(savedAppearance || loadStoredAppearance());
+    const savedMembers = Array.isArray(settings.members) ? settings.members : Array.isArray(settings.staff) ? settings.staff : [];
+    const normalizedMembers = normalizeMembersForSettings(savedMembers, normalizedDesks, normalizedServices);
+    const assignmentDesks = deriveDeskServicesFromMembers(normalizedDesks, normalizedMembers, normalizedServices, { preserveWithoutMembers: normalizedMembers.length === 0 });
+    const nextSettingsPayloadSignature = JSON.stringify(
+      createSettingsPayload({
+        services: normalizedServices,
+        desks: assignmentDesks,
+        members: normalizedMembers,
+        appearance: normalizedAppearance,
+      })
+    );
+
+    setServices(normalizedServices);
+    setDesks(assignActiveTicketsToDesks(assignmentDesks, activeSubmissionsRef.current));
+    memberHooks.setMembers(normalizedMembers);
+    setAppearanceSettings(normalizedAppearance);
+    setLastSavedSettingsSignature(nextSettingsPayloadSignature);
+    setSettingsSaveReady(true);
+  };
 
   useEffect(() => {
     storeAppearance(appearanceSettings);
@@ -762,27 +799,7 @@ export default function App() {
     loadSettings()
       .then((settings) => {
         if (cancelled) return;
-        const normalizedServices = normalizeServicesForSettings(settings.services);
-        const normalizedDesks = reconcileDeskServiceAssignments(settings.desks, normalizedServices);
-        const savedAppearance = settings.appearance && typeof settings.appearance === "object" ? settings.appearance : null;
-        const normalizedAppearance = normalizeAppearance(savedAppearance || loadStoredAppearance());
-        const savedMembers = Array.isArray(settings.members) ? settings.members : Array.isArray(settings.staff) ? settings.staff : [];
-        const normalizedMembers = normalizeMembersForSettings(savedMembers, normalizedDesks, normalizedServices);
-        const assignmentDesks = deriveDeskServicesFromMembers(normalizedDesks, normalizedMembers, normalizedServices, { preserveWithoutMembers: normalizedMembers.length === 0 });
-        const initialSettingsPayloadSignature = JSON.stringify(
-          createSettingsPayload({
-            services: normalizedServices,
-            desks: assignmentDesks,
-            members: normalizedMembers,
-            appearance: normalizedAppearance,
-          })
-        );
-        setServices(normalizedServices);
-        setDesks(assignActiveTicketsToDesks(assignmentDesks, activeSubmissionsRef.current));
-        memberHooks.setMembers(normalizedMembers);
-        setAppearanceSettings(normalizedAppearance);
-        setLastSavedSettingsSignature(initialSettingsPayloadSignature);
-        setSettingsSaveReady(true);
+        applyLoadedSettings(settings);
       })
       .catch((error) => {
         console.warn(error.message);
@@ -1242,8 +1259,13 @@ export default function App() {
           labels={labels}
           theme={appearanceSettings}
           loading={!settingsLoaded}
+          loggedInMember={activeLoggedInMember}
+          masterLoggedIn={masterLoggedIn}
+          members={memberHooks.members}
           initialIdentifier={authIdentifierFromQuery}
           onUpdateMember={memberHooks.updateMember}
+          onAppearanceChange={setAppearanceSettings}
+          onLogout={logoutMember}
           onNavigate={navigate}
         />
       ) : currentPage === "login" ? (
@@ -1317,7 +1339,12 @@ export default function App() {
           labels={labels}
           theme={adminTheme}
           loading={!settingsLoaded}
+          loggedInMember={activeLoggedInMember}
+          masterLoggedIn={masterLoggedIn}
+          members={memberHooks.members}
           onUpdateMember={memberHooks.updateMember}
+          onAppearanceChange={setAppearanceSettings}
+          onLogout={logoutMember}
           onNavigate={navigate}
         />
       ) : currentPage === "live" ? (

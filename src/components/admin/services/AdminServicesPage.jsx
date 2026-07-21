@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { ImageIcon, Monitor, Pencil, Plus, Search, Trash2, Upload, UserRound, X } from "lucide-react";
 import { assignedMembersForService, memberCanBeAssignedToService } from "../../../lib/assignments";
+import { readImageFile } from "../../../lib/imageUpload";
 
 const CURRENCY_SYMBOLS = {
   USD: "$",
@@ -182,9 +183,9 @@ function ServiceForm({ labels, services, theme, currency, editingService, isSavi
   const handleImage = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (readerEvent) => setImage(readerEvent.target.result);
-    reader.readAsDataURL(file);
+    readImageFile(file).then(setImage).catch((error) => {
+      console.warn(error.message);
+    });
   };
 
   const handleSave = () => {

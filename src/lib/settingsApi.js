@@ -6,24 +6,11 @@ function hasSettings(settings) {
   return settings && typeof settings === "object" && !Array.isArray(settings) && Object.keys(settings).length > 0;
 }
 
-function savedMembers(settings) {
-  if (Array.isArray(settings?.members)) return settings.members;
-  if (Array.isArray(settings?.staff)) return settings.staff;
-  return [];
-}
-
-function savedItemCount(settings) {
-  return savedMembers(settings).length + (Array.isArray(settings?.desks) ? settings.desks.length : 0) + (Array.isArray(settings?.services) ? settings.services.length : 0);
-}
-
 function chooseSettings(cachedSettings, remoteSettings) {
   if (cachedSettings?.dirty && hasSettings(cachedSettings.settings)) return cachedSettings.settings;
-  const cached = cachedSettings?.settings || {};
 
-  if (!hasSettings(cached)) return normalizeSettings(remoteSettings || {});
-  if (!hasSettings(remoteSettings)) return cached;
-  if (savedItemCount(remoteSettings) > savedItemCount(cached)) return normalizeSettings(remoteSettings);
-  return cached;
+  if (hasSettings(remoteSettings)) return normalizeSettings(remoteSettings);
+  return cachedSettings?.settings || {};
 }
 
 function normalizeSettings(settings = {}, fallback = {}) {
@@ -134,7 +121,7 @@ export async function saveSettings(settings) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    return normalizedSettings;
+    throw new Error(data.error || "Failed to save settings.");
   }
 
   const savedSettings = normalizeSettings(data.settings || {}, normalizedSettings);
