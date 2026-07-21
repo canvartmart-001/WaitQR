@@ -246,6 +246,7 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
     radius = 12,
     logoUrl = null,
     themeMode = "Dark",
+    currency = "USD",
     themeColors = THEME_PRESETS,
     systemName = "WaitQR",
   } = appearance || {};
@@ -305,6 +306,8 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
     setLogoUrl: (value) => updateAppearance({ logoUrl: value }),
     setThemeColors: (value) => updateAppearance({ themeColors: value }),
     themeMode,
+    currency,
+    setCurrency: (value) => updateAppearance({ currency: value }),
     handleThemeChange,
   };
   const meta = ADMIN_PAGE_META[currentPage] || ADMIN_PAGE_META.dashboard;

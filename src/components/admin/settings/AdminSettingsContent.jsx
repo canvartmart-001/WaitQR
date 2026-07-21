@@ -79,11 +79,14 @@ function Select({ value, onChange, options, accent, fontColor, borderColor, radi
         style={{ color: fontColor, borderColor, borderRadius: radius, backgroundColor: "var(--field-bg)" }}
         className="w-full appearance-none border px-3 py-2 text-sm outline-none transition-colors"
       >
-        {options.map((opt) => (
-          <option key={opt} value={opt} style={{ color: "#0f172a" }}>
-            {opt}
+        {options.map((option) => {
+          const opt = typeof option === "string" ? { value: option, label: option } : option;
+          return (
+          <option key={opt.value} value={opt.value} style={{ color: "#0f172a" }}>
+            {opt.label}
           </option>
-        ))}
+          );
+        })}
       </select>
       <ChevronDown
         size={16}
@@ -370,6 +373,21 @@ export function AdminSettingsContent({ s, theme }) {
             borderColor={borderColor}
             radius={radius}
             options={["12 Hour (03:45 PM)", "24 Hour (15:45)"]}
+          />
+        </Field>
+        <Field label="Currency" hint="Used for service prices" fontColor={fontColor}>
+          <Select
+            value={s.currency}
+            onChange={s.setCurrency}
+            accent={accentColor}
+            fontColor={fontColor}
+            borderColor={borderColor}
+            radius={radius}
+            options={[
+              { value: "USD", label: "Dollar ($)" },
+              { value: "GBP", label: "Pound (£)" },
+              { value: "INR", label: "INR (₹)" },
+            ]}
           />
         </Field>
         <Field label="System Language" hint="Select default language" fontColor={fontColor}>

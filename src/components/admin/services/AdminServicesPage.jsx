@@ -2,6 +2,13 @@ import { useRef, useState } from "react";
 import { ImageIcon, Monitor, Pencil, Plus, Search, Trash2, Upload, UserRound, X } from "lucide-react";
 import { assignedMembersForService, memberCanBeAssignedToService } from "../../../lib/assignments";
 
+const CURRENCY_SYMBOLS = {
+  USD: "$",
+  GBP: "£",
+  INR: "₹",
+};
+const MAX_SERVICE_DESCRIPTION_WORDS = 80;
+
 function withAlpha(hex, alphaHex) {
   if (!hex || hex.length !== 7) return hex;
   return `${hex}${alphaHex}`;
@@ -31,6 +38,11 @@ function focusHandlers(theme) {
 
 function serviceInitial(name) {
   return String(name || "S").trim().charAt(0).toUpperCase() || "S";
+}
+
+function limitWords(value, maxWords) {
+  const words = String(value || "").trim().split(/\s+/).filter(Boolean);
+  return words.length <= maxWords ? value : words.slice(0, maxWords).join(" ");
 }
 
 function desksForAssignedMembers(assignedMembers, desks) {
@@ -88,17 +100,53 @@ function TextInput({ value, onChange, placeholder, theme }) {
   );
 }
 
-function TextArea({ value, onChange, placeholder, theme }) {
+function TextArea({ value, onChange, placeholder, theme, maxWords }) {
+  const wordCount = String(value || "").trim().split(/\s+/).filter(Boolean).length;
+
   return (
-    <textarea
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      placeholder={placeholder}
-      rows={3}
-      {...focusHandlers(theme)}
-      className="w-full resize-none border px-3 py-2 text-sm outline-none transition-colors placeholder:text-current placeholder:opacity-40"
-      style={fieldStyle(theme)}
-    />
+    <>
+      <textarea
+        value={value}
+        onChange={(event) => onChange(maxWords ? limitWords(event.target.value, maxWords) : event.target.value)}
+        placeholder={placeholder}
+        rows={3}
+        {...focusHandlers(theme)}
+        className="w-full resize-none border px-3 py-2 text-sm outline-none transition-colors placeholder:text-current placeholder:opacity-40"
+        style={fieldStyle(theme)}
+      />
+      {maxWords ? (
+        <p className="mt-1 text-xs" style={{ color: withAlpha(theme.fontColor, "70") }}>
+          {Math.min(wordCount, maxWords)}/{maxWords} words
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+function PriceInput({ value, onChange, currency, theme }) {
+  const symbol = CURRENCY_SYMBOLS[currency] || CURRENCY_SYMBOLS.USD;
+
+  return (
+    <div className="relative">
+      <span
+        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium"
+        style={{ color: withAlpha(theme.fontColor, "99") }}
+      >
+        {symbol}
+      </span>
+      <input
+        type="number"
+        min="0"
+        step="0.01"
+        inputMode="decimal"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="0.00"
+        {...focusHandlers(theme)}
+        className="w-full border py-2 pl-8 pr-3 text-sm outline-none transition-colors placeholder:text-current placeholder:opacity-40"
+        style={fieldStyle(theme)}
+      />
+    </div>
   );
 }
 
@@ -119,10 +167,11 @@ function Toggle({ checked, onChange, accent }) {
   );
 }
 
-function ServiceForm({ labels, services, theme, editingService, isSaving, onCancel, onSave }) {
+function ServiceForm({ labels, services, theme, currency, editingService, isSaving, onCancel, onSave }) {
   const inputRef = useRef(null);
   const [name, setName] = useState(() => editingService?.name || "");
-  const [description, setDescription] = useState(() => editingService?.description || "");
+  const [description, setDescription] = useState(() => limitWords(editingService?.description || "", MAX_SERVICE_DESCRIPTION_WORDS));
+  const [price, setPrice] = useState(() => editingService?.price ?? "");
   const [image, setImage] = useState(() => editingService?.image || null);
   const [status, setStatus] = useState(() => editingService?.status || "Available");
   const [submitError, setSubmitError] = useState("");
@@ -141,7 +190,7 @@ function ServiceForm({ labels, services, theme, editingService, isSaving, onCanc
   const handleSave = () => {
     if (!canSave) return;
 
-    const result = onSave({ name: name.trim(), description: description.trim(), image, status });
+    const result = onSave({ name: name.trim(), description: limitWords(description, MAX_SERVICE_DESCRIPTION_WORDS).trim(), price, image, status });
     if (result?.ok === false) {
       setSubmitError(
         result.error === "duplicate-name"
@@ -215,8 +264,14 @@ function ServiceForm({ labels, services, theme, editingService, isSaving, onCanc
         <FormField label={`${labels.serviceWord} Name`} error={nameError} theme={theme}>
           <TextInput value={name} onChange={setName} placeholder={`e.g. Billing ${labels.serviceWordLower}`} theme={theme} />
         </FormField>
+        <FormField label="Price" theme={theme}>
+          <PriceInput value={price} onChange={setPrice} currency={currency} theme={theme} />
+        </FormField>
+      </div>
+
+      <div className="border-t" style={{ borderColor: withAlpha(theme.borderColor, "40") }}>
         <FormField label={`${labels.serviceWord} Description`} theme={theme}>
-          <TextArea value={description} onChange={setDescription} placeholder={`Short info about this ${labels.serviceWordLower}`} theme={theme} />
+          <TextArea value={description} onChange={setDescription} placeholder={`Short info about this ${labels.serviceWordLower}`} theme={theme} maxWords={MAX_SERVICE_DESCRIPTION_WORDS} />
         </FormField>
       </div>
 
@@ -290,7 +345,7 @@ function CountChip({ icon: Icon, count, label, tooltip, tooltipItems, tone = "ne
   );
 }
 
-function ServiceCard({ service, desks, members, labels, theme, onEdit, onDelete }) {
+function ServiceCard({ service, desks, members, labels, theme, currency, onEdit, onDelete }) {
   const assignedMembers = assignedMembersForService(members, service.id);
   const assignedDesks = desksForAssignedMembers(assignedMembers, desks);
   const memberCountLabel = assignedMembers.length === 1 ? labels.memberWordLower : labels.memberWordPluralLower;
@@ -317,6 +372,8 @@ function ServiceCard({ service, desks, members, labels, theme, onEdit, onDelete 
   const available = service.status !== "Unavailable";
   const statusColor = available ? "#22c55e" : "#ef4444";
   const hasAssignedDesks = assignedDesks.length > 0;
+  const priceText = service.price === "" || service.price == null ? "" : `${CURRENCY_SYMBOLS[currency] || CURRENCY_SYMBOLS.USD}${service.price}`;
+  const descriptionText = limitWords(service.description || "", MAX_SERVICE_DESCRIPTION_WORDS).trim();
 
   return (
     <div className="flex flex-col gap-3 border p-4 lg:flex-row lg:items-start" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.2 }}>
@@ -339,12 +396,22 @@ function ServiceCard({ service, desks, members, labels, theme, onEdit, onDelete 
             <p className="text-sm font-medium" style={{ color: theme.fontColor }}>
               {service.name}
             </p>
+            {priceText ? (
+              <span className="text-xs font-semibold" style={{ color: "#22c55e" }}>
+                {priceText}
+              </span>
+            ) : null}
             {isDefault ? (
               <span className="inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium" style={{ backgroundColor: withAlpha(theme.accentColor, "1f"), color: theme.accentColor }}>
                 Default
               </span>
             ) : null}
           </div>
+          {descriptionText ? (
+            <p className="mt-1 max-w-2xl break-words text-xs leading-relaxed" style={{ color: withAlpha(theme.fontColor, "70") }}>
+              {descriptionText}
+            </p>
+          ) : null}
           <div className="mt-1 flex flex-col items-start gap-1 text-xs font-medium">
             {assignedMembers.length ? (
               assignedMembers.map((member) => {
@@ -392,11 +459,6 @@ function ServiceCard({ service, desks, members, labels, theme, onEdit, onDelete 
               </span>
             )}
           </div>
-          {service.description ? (
-            <p className="mt-1 text-xs" style={{ color: withAlpha(theme.fontColor, "70") }}>
-              {service.description}
-            </p>
-          ) : null}
         </div>
       </div>
 
@@ -473,7 +535,7 @@ export function AdminServicesPage({
     const q = query.trim().toLowerCase();
     if (!q) return true;
     const memberNames = assignedMembersForService(assignableMembers, service.id).map((member) => member.name);
-    return [service.name, service.id, service.description, ...memberNames].some((value) => String(value || "").toLowerCase().includes(q));
+    return [service.name, service.id, service.description, service.price, ...memberNames].some((value) => String(value || "").toLowerCase().includes(q));
   });
 
   const closeForm = () => {
@@ -487,18 +549,19 @@ export function AdminServicesPage({
     });
   };
 
-  const saveForm = ({ name, description, image, status }) => {
+  const saveForm = ({ name, description, price, image, status }) => {
     const duplicateName = services.some((service) => service.id !== editingServiceRecord?.id && service.name.trim().toLowerCase() === name.trim().toLowerCase());
     if (duplicateName) return { ok: false, error: "duplicate-name" };
+    const normalizedPrice = price === "" ? "" : String(price);
 
     if (editingServiceRecord) {
-      updateService?.(editingServiceRecord.id, { name, description, image: image || null, status });
+      updateService?.(editingServiceRecord.id, { name, description, price: normalizedPrice, image: image || null, status });
       if (!updateService) renameService(editingServiceRecord.id, name);
       closeForm();
       return { ok: true };
     }
 
-    const result = addServiceWithAssignments(name, [], { description, image: image || null, status });
+    const result = addServiceWithAssignments(name, [], { description, price: normalizedPrice, image: image || null, status });
     if (result.ok) closeForm();
     return result;
   };
@@ -513,6 +576,7 @@ export function AdminServicesPage({
               labels={labels}
               services={services}
               theme={formTheme}
+              currency={theme.currency}
               editingService={editingServiceRecord}
               isSaving={settingsSaving}
               onCancel={closeForm}
@@ -572,6 +636,7 @@ export function AdminServicesPage({
                 members={assignableMembers}
                 labels={labels}
                 theme={formTheme}
+                currency={theme.currency}
                 onEdit={() => {
                   setEditingService(service.id);
                   setShowAddService(false);

@@ -42,6 +42,7 @@ const DEFAULT_APPEARANCE_SETTINGS = {
   radius: 12,
   logoUrl: null,
   themeMode: "Dark",
+  currency: "USD",
   themeColors: {
     Dark: {
       accentColor: "#2563eb",

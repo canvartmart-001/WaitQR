@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { CalendarDays, ChevronDown, ChevronRight, CircleCheck, CircleX, Clock, ExternalLink, Layers3, Pencil, Plus, Search, Trash2, UserRound, X } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, ChevronRight, Clock, ExternalLink, Layers3, Pencil, Plus, Search, Trash2, UserRound, X } from "lucide-react";
 import { assignedMembersForDesk, memberCanBeAssignedToDesk, memberCanBeAssignedToService, memberHasService } from "../../../lib/assignments";
 
 const COUNTER_WORD = "Counter";
@@ -571,7 +571,7 @@ function CounterCard({ desk, index, services, members, labels, theme, getDeskPat
   const available = scheduled ? isScheduleOpenNow(desk.schedule) : availabilityMode !== "always_closed" && desk.status !== "Unavailable";
   const statusColor = scheduled && !available ? "#f59e0b" : available ? "#22c55e" : "#ef4444";
   const statusBackground = scheduled && !available ? "rgba(245,158,11,0.15)" : available ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)";
-  const StatusIcon = scheduled ? CalendarDays : available ? CircleCheck : CircleX;
+  const StatusIcon = scheduled && !available ? CalendarDays : available ? Check : X;
 
   return (
     <div className="flex flex-col gap-3 border p-4 lg:flex-row lg:items-start" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.2 }}>
