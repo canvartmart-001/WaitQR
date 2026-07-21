@@ -129,3 +129,33 @@ export async function saveSettings(settings) {
 
   return savedSettings;
 }
+
+export async function updateDeskStatus(deskId, updates = {}) {
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/desks/${encodeURIComponent(deskId)}/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updates),
+    });
+  } catch (error) {
+    throw new Error("Failed to update counter status.");
+  }
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to update counter status.");
+  }
+
+  const settings = normalizeSettings(data.settings || {});
+  if (hasSettings(settings)) cacheSettings(settings, { dirty: false });
+
+  return {
+    desk: data.desk || null,
+    settings,
+  };
+}

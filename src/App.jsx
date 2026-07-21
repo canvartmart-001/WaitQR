@@ -31,7 +31,7 @@ import { IssueToast } from "./components/shared/IssueToast";
 import { C } from "./lib/theme";
 import { findDeskByPath, findMemberByProfilePath, getDeskPath, getMemberProfilePath, getTicketPath, findTicketLabelByPath } from "./lib/routing";
 import { clearSubmissions, listQueueCountEvents, listSubmissions, updateSubmissionStatus } from "./lib/submissionsApi";
-import { cacheSettings, loadSettings, saveSettings } from "./lib/settingsApi";
+import { cacheSettings, loadSettings, saveSettings, updateDeskStatus } from "./lib/settingsApi";
 import { createRealtimeClient } from "./lib/realtime";
 import { deriveDeskServicesFromMembers, memberHasDesk, normalizeMemberRole, uniqueIds } from "./lib/assignments";
 import { findLoggedInMember, isMasterLoggedIn, MEMBER_SESSION_CHANGED_EVENT, setMasterLoggedIn, setMemberLoggedIn } from "./lib/memberSession";
@@ -692,9 +692,15 @@ export default function App() {
         });
     };
 
-    const syncSettings = () => {
+    const syncSettings = (payload = {}) => {
       if (settingsSavingRef.current) {
         pendingSettingsSyncRef.current = true;
+        return;
+      }
+
+      if (payload.settings) {
+        applyLoadedSettings(payload.settings);
+        setSettingsLoaded(true);
         return;
       }
 
@@ -957,6 +963,59 @@ export default function App() {
     }
   };
 
+  const updateDeskStatusRealtime = async (deskId, updates) => {
+    const currentDesk = desks.find((desk) => String(desk.id) === String(deskId)) || {};
+    const nextDesk = {
+      ...currentDesk,
+      ...updates,
+      id: currentDesk.id ?? deskId,
+      current: null,
+    };
+
+    deskHooks.updateDesk(deskId, updates);
+    setSettingsSaving(true);
+    settingsSavingRef.current = true;
+    setSettingsSaveError("");
+
+    try {
+      const result = await updateDeskStatus(deskId, nextDesk);
+      if (result.settings && Object.keys(result.settings).length > 0) {
+        applyLoadedSettings(result.settings);
+        setSettingsLoaded(true);
+      }
+      return true;
+    } catch (error) {
+      setSettingsSaveError(error.message || "Failed to update counter status.");
+      loadSettings({ preferRemote: true })
+        .then((settings) => {
+          applyLoadedSettings(settings);
+          setSettingsLoaded(true);
+        })
+        .catch((loadError) => {
+          console.warn(loadError.message);
+        });
+      return false;
+    } finally {
+      setSettingsSaving(false);
+      settingsSavingRef.current = false;
+      if (pendingSettingsSyncRef.current) {
+        pendingSettingsSyncRef.current = false;
+        loadSettings({ preferRemote: true })
+          .then((settings) => {
+            applyLoadedSettings(settings);
+            setSettingsLoaded(true);
+          })
+          .catch((loadError) => {
+            console.warn(loadError.message);
+          });
+      }
+    }
+  };
+  const deskPageActions = {
+    ...deskHooks,
+    updateDesk: updateDeskStatusRealtime,
+  };
+
   useEffect(() => {
     if (!settingsLoaded) return undefined;
 
@@ -1085,7 +1144,12 @@ export default function App() {
   }, [activeLoggedInMember, adminAuthenticated, adminOnlyPage, authenticated, memberHooks.members, pathname, settingsLoaded]);
 
   useEffect(() => {
-    if (!["counters", "desk", "login", "members", "profile", "services"].includes(currentPage) || !settingsDirty || settingsSaving) return undefined;
+    if (
+      !["counters", "desk", "login", "members", "profile", "services"].includes(currentPage)
+      || !settingsDirty
+      || settingsSaving
+      || settingsSavingRef.current
+    ) return undefined;
 
     const saveTimer = window.setTimeout(() => {
       saveCurrentSettings();
@@ -1376,7 +1440,7 @@ export default function App() {
       setExpandedDeskControl={setExpandedDeskControl}
       deskDetailTab={deskDetailTab}
       setDeskDetailTab={setDeskDetailTab}
-      deskActions={deskHooks}
+      deskActions={deskPageActions}
       ticketLogs={ticketLogsWithStatus}
       returnToQueue={returnToQueue}
       onNavigate={navigate}

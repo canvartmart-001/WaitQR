@@ -44,6 +44,45 @@ function emitSubmissionChange(type, submission = null) {
   });
 }
 
+function normalizeDeskAvailability(desk = {}) {
+  const availabilityMode = desk.status === "Scheduled"
+    ? "scheduled"
+    : desk.status === "Unavailable"
+      ? "always_closed"
+      : desk.status === "Available"
+        ? "always_open"
+        : desk.availabilityMode || "always_open";
+  const status = availabilityMode === "scheduled" ? "Scheduled" : availabilityMode === "always_closed" ? "Unavailable" : "Available";
+  const locked = availabilityMode === "always_closed" ? true : availabilityMode === "always_open" ? false : Boolean(desk.locked);
+
+  return {
+    ...desk,
+    status,
+    availabilityMode,
+    locked,
+    schedule: availabilityMode === "scheduled" ? desk.schedule || null : null,
+  };
+}
+
+async function loadNormalizedSettings() {
+  const settings = await getAppSettings();
+  if (!Array.isArray(settings.members) && Array.isArray(settings.staff)) {
+    settings.members = settings.staff;
+  }
+  if (Array.isArray(settings.desks)) {
+    settings.desks = settings.desks.map(normalizeDeskAvailability);
+  }
+  return settings;
+}
+
+function emitSettingsChange(settings, extra = {}) {
+  io.emit("settings:changed", {
+    changedAt: Date.now(),
+    settings,
+    ...extra,
+  });
+}
+
 async function emitLiveQueueCounts(eventType, submission = null) {
   try {
     io.emit("queue:counts", await recordQueueCountEvent(eventType, submission?.id || null));
@@ -148,10 +187,7 @@ app.delete("/api/submissions", async (_req, res) => {
 
 app.get("/api/settings", async (_req, res) => {
   try {
-    const settings = await getAppSettings();
-    if (!Array.isArray(settings.members) && Array.isArray(settings.staff)) {
-      settings.members = settings.staff;
-    }
+    const settings = await loadNormalizedSettings();
     res.json({ settings });
   } catch (error) {
     console.error("Failed to load settings", error);
@@ -171,13 +207,60 @@ app.put("/api/settings", async (req, res) => {
 
   try {
     await saveAppSettings(settings);
-    io.emit("settings:changed", {
-      changedAt: Date.now(),
-    });
-    res.json({ settings });
+    const savedSettings = await loadNormalizedSettings();
+    emitSettingsChange(savedSettings);
+    res.json({ settings: savedSettings });
   } catch (error) {
     console.error("Failed to save settings", error);
     res.status(500).json({ error: "Failed to save settings." });
+  }
+});
+
+app.patch("/api/desks/:id/status", async (req, res) => {
+  const deskId = String(req.params.id);
+  const incomingDesk = req.body && typeof req.body === "object" && !Array.isArray(req.body)
+    ? req.body
+    : {};
+  const { availabilityMode, status, locked, schedule } = incomingDesk;
+
+  try {
+    const settings = await loadNormalizedSettings();
+    const desks = Array.isArray(settings.desks) ? settings.desks : [];
+    const deskIndex = desks.findIndex((desk) => String(desk?.id) === deskId);
+
+    if (deskIndex === -1 && !incomingDesk.name) {
+      res.status(404).json({ error: "Counter not found." });
+      return;
+    }
+
+    const updatedDesk = normalizeDeskAvailability({
+      ...(deskIndex === -1 ? {} : desks[deskIndex]),
+      ...incomingDesk,
+      id: deskIndex === -1 ? incomingDesk.id ?? deskId : desks[deskIndex].id,
+      ...(availabilityMode ? { availabilityMode } : {}),
+      ...(status ? { status } : {}),
+      ...(typeof locked === "boolean" ? { locked } : {}),
+      ...(schedule !== undefined ? { schedule } : {}),
+      current: null,
+    });
+    const nextDesks = deskIndex === -1
+      ? [...desks, updatedDesk]
+      : desks.map((desk, index) => (index === deskIndex ? updatedDesk : desk));
+    await saveAppSettings({ desks: nextDesks });
+    const savedSettings = await loadNormalizedSettings();
+    const savedDesk = Array.isArray(savedSettings.desks)
+      ? savedSettings.desks.find((desk) => String(desk?.id) === deskId) || updatedDesk
+      : updatedDesk;
+
+    emitSettingsChange(savedSettings, {
+      type: "desk-status",
+      deskId,
+      desk: savedDesk,
+    });
+    res.json({ desk: savedDesk, settings: savedSettings });
+  } catch (error) {
+    console.error("Failed to update counter status", error);
+    res.status(500).json({ error: "Failed to update counter status." });
   }
 });
 
