@@ -67,6 +67,7 @@ const DEFAULT_APPEARANCE_SETTINGS = {
   },
 };
 const APPEARANCE_STORAGE_KEY = "waitqr:appearance";
+const THEME_MODES = new Set(["Dark", "Light", "System"]);
 
 function counterDisplayName(name) {
   const text = String(name || "").trim();
@@ -118,6 +119,10 @@ function normalizeAppearance(appearance) {
       },
     },
   };
+}
+
+function normalizeThemeMode(themeMode, fallback = "Dark") {
+  return THEME_MODES.has(themeMode) ? themeMode : fallback;
 }
 
 function loadStoredAppearance() {
@@ -173,6 +178,39 @@ function updateMobileThemeColor(appearance) {
 
   themeMeta.setAttribute("content", themeColor);
   statusMeta.setAttribute("content", statusBarStyle);
+}
+
+function applyThemeModeToAppearance(appearance, nextThemeMode) {
+  const normalizedAppearance = normalizeAppearance(appearance);
+  const themeMode = normalizeThemeMode(nextThemeMode, normalizedAppearance.themeMode);
+  const currentMode = resolveAppearanceThemeMode(normalizedAppearance.themeMode);
+  const nextMode = resolveAppearanceThemeMode(themeMode);
+  const themeColors = normalizedAppearance.themeColors || DEFAULT_APPEARANCE_SETTINGS.themeColors;
+  const currentColors = {
+    ...(themeColors[currentMode] || DEFAULT_APPEARANCE_SETTINGS.themeColors[currentMode]),
+    accentColor: normalizedAppearance.accentColor,
+    bgColor: normalizedAppearance.bgColor,
+    fontColor: normalizedAppearance.fontColor,
+    borderColor: normalizedAppearance.borderColor,
+    separatorColor: normalizedAppearance.separatorColor,
+  };
+  const nextColors = themeColors[nextMode] || DEFAULT_APPEARANCE_SETTINGS.themeColors[nextMode] || DEFAULT_APPEARANCE_SETTINGS.themeColors.Dark;
+
+  return normalizeAppearance({
+    ...normalizedAppearance,
+    themeMode,
+    ...nextColors,
+    themeColors: {
+      ...themeColors,
+      [currentMode]: currentColors,
+      [nextMode]: nextColors,
+    },
+  });
+}
+
+function resolveMemberAppearance(appearance, member) {
+  const memberThemeMode = normalizeThemeMode(member?.themeMode, "");
+  return memberThemeMode ? applyThemeModeToAppearance(appearance, memberThemeMode) : appearance;
 }
 
 function submissionToTicket(submission) {
@@ -491,6 +529,8 @@ function normalizeMembersForSettings(members = [], desks = [], services = DEFAUL
         .filter(Boolean);
       const serviceIds = explicitServiceIds.length > 0 ? explicitServiceIds : legacyServiceIdsForDesks(deskIds);
 
+      const themeMode = normalizeThemeMode(member?.themeMode, "");
+
       return {
         id,
         name: String(member?.name || "").trim(),
@@ -499,6 +539,7 @@ function normalizeMembersForSettings(members = [], desks = [], services = DEFAUL
         photo: member?.photo || null,
         about: String(member?.about || "").trim(),
         role: normalizeMemberRole(member?.role),
+        ...(themeMode ? { themeMode } : {}),
         email: String(member?.email || "").trim(),
         status: member?.status === "Inactive" ? "Inactive" : "Active",
         deskIds,
@@ -880,6 +921,10 @@ export default function App() {
   const [loggedInMember, setLoggedInMemberState] = useState(null);
   const [masterLoggedIn, setMasterLoggedInState] = useState(() => isMasterLoggedIn());
   const activeLoggedInMember = loggedInMember || findLoggedInMember(memberHooks.members);
+  const activeAppearanceSettings = useMemo(
+    () => resolveMemberAppearance(appearanceSettings, activeLoggedInMember),
+    [activeLoggedInMember, appearanceSettings]
+  );
   const authenticated = Boolean(activeLoggedInMember || masterLoggedIn || isMasterLoggedIn());
   const adminAuthenticated = Boolean(masterLoggedIn || isMasterLoggedIn() || normalizeMemberRole(activeLoggedInMember?.role) === "Administrator");
   const visibleCounterNotifications = useMemo(() => {
@@ -947,17 +992,17 @@ export default function App() {
   }, [memberHooks.members]);
 
   useEffect(() => {
-    updateMobileThemeColor(appearanceSettings);
+    updateMobileThemeColor(activeAppearanceSettings);
 
-    if (appearanceSettings.themeMode !== "System" || typeof window === "undefined") return undefined;
+    if (activeAppearanceSettings.themeMode !== "System" || typeof window === "undefined") return undefined;
 
     const media = window.matchMedia?.("(prefers-color-scheme: dark)");
     if (!media) return undefined;
-    const handleChange = () => updateMobileThemeColor(appearanceSettings);
+    const handleChange = () => updateMobileThemeColor(activeAppearanceSettings);
     media.addEventListener?.("change", handleChange);
 
     return () => media.removeEventListener?.("change", handleChange);
-  }, [appearanceSettings]);
+  }, [activeAppearanceSettings]);
 
   useEffect(() => {
     settingsSavingRef.current = settingsSaving;
@@ -1252,7 +1297,7 @@ export default function App() {
 
   useEffect(() => {
     if (
-      !["counters", "desk", "login", "members", "profile", "services"].includes(currentPage)
+      !["counters", "dashboard", "desk", "login", "members", "profile", "services", "settings"].includes(currentPage)
       || !settingsDirty
       || settingsSaving
       || settingsSavingRef.current
@@ -1506,30 +1551,15 @@ export default function App() {
     },
     members: { editingMember, setEditingMember, editingMemberLabel, setEditingMemberLabel, showAddMember, setShowAddMember },
   };
-  const handleContentThemeChange = (nextTheme) => {
-    const currentMode = resolveAppearanceThemeMode(appearanceSettings.themeMode);
-    const nextMode = resolveAppearanceThemeMode(nextTheme);
-    const themeColors = appearanceSettings.themeColors || DEFAULT_APPEARANCE_SETTINGS.themeColors;
-    const currentColors = {
-      ...(themeColors[currentMode] || DEFAULT_APPEARANCE_SETTINGS.themeColors[currentMode]),
-      accentColor: appearanceSettings.accentColor,
-      bgColor: appearanceSettings.bgColor,
-      fontColor: appearanceSettings.fontColor,
-      borderColor: appearanceSettings.borderColor,
-      separatorColor: appearanceSettings.separatorColor,
-    };
-    const nextColors = themeColors[nextMode] || DEFAULT_APPEARANCE_SETTINGS.themeColors[nextMode] || DEFAULT_APPEARANCE_SETTINGS.themeColors.Dark;
+  const handleActiveThemeChange = (nextTheme) => {
+    const themeMode = normalizeThemeMode(nextTheme, activeAppearanceSettings.themeMode);
 
-    setAppearanceSettings({
-      ...appearanceSettings,
-      themeMode: nextTheme,
-      ...nextColors,
-      themeColors: {
-        ...themeColors,
-        [currentMode]: currentColors,
-        [nextMode]: nextColors,
-      },
-    });
+    if (activeLoggedInMember) {
+      memberHooks.updateMember(activeLoggedInMember.id, { themeMode });
+      return;
+    }
+
+    setAppearanceSettings(applyThemeModeToAppearance(appearanceSettings, themeMode));
   };
   const activeDeskPageContent = activeDesk ? (
     <DeskPage
@@ -1556,10 +1586,10 @@ export default function App() {
   return (
     <div className="flex min-h-screen w-full flex-col" style={{ background: C.ink900, color: C.textLight, fontFamily: "'IBM Plex Sans', sans-serif" }}>
       {protectedPage && !authenticated && !settingsLoaded ? (
-        <main className="flex min-h-screen w-full items-center justify-center px-4 py-6" style={{ backgroundColor: appearanceSettings.bgColor, color: appearanceSettings.fontColor }}>
+        <main className="flex min-h-screen w-full items-center justify-center px-4 py-6" style={{ backgroundColor: activeAppearanceSettings.bgColor, color: activeAppearanceSettings.fontColor }}>
           <div className="text-center">
             <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-current border-t-transparent opacity-70" />
-            <p className="mt-4 text-sm" style={{ color: `${appearanceSettings.fontColor}cc` }}>
+            <p className="mt-4 text-sm" style={{ color: `${activeAppearanceSettings.fontColor}cc` }}>
               Checking session...
             </p>
           </div>
@@ -1567,16 +1597,16 @@ export default function App() {
       ) : protectedPage && !authenticated ? (
         <LoginPage
           members={memberHooks.members}
-          theme={appearanceSettings}
+          theme={activeAppearanceSettings}
           loading={!settingsLoaded}
           initialIdentifier={authIdentifierFromQuery}
           onNavigate={navigate}
         />
       ) : adminOnlyPage && !adminAuthenticated && !activeLoggedInMember ? (
-        <main className="flex min-h-screen w-full items-center justify-center px-4 py-6" style={{ backgroundColor: appearanceSettings.bgColor, color: appearanceSettings.fontColor }}>
+        <main className="flex min-h-screen w-full items-center justify-center px-4 py-6" style={{ backgroundColor: activeAppearanceSettings.bgColor, color: activeAppearanceSettings.fontColor }}>
           <div className="text-center">
             <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-current border-t-transparent opacity-70" />
-            <p className="mt-4 text-sm" style={{ color: `${appearanceSettings.fontColor}cc` }}>
+            <p className="mt-4 text-sm" style={{ color: `${activeAppearanceSettings.fontColor}cc` }}>
               Checking session...
             </p>
           </div>
@@ -1587,7 +1617,7 @@ export default function App() {
           desks={desks}
           services={services}
           labels={labels}
-          theme={appearanceSettings}
+          theme={activeAppearanceSettings}
           loading={!settingsLoaded}
           loggedInMember={activeLoggedInMember}
           masterLoggedIn={masterLoggedIn}
@@ -1595,23 +1625,23 @@ export default function App() {
           notifications={visibleCounterNotifications}
           onClearNotifications={() => setCounterNotifications([])}
           onUpdateMember={memberHooks.updateMember}
-          onAppearanceChange={setAppearanceSettings}
+          onAppearanceChange={(nextAppearance) => handleActiveThemeChange(nextAppearance?.themeMode)}
           onLogout={logoutMember}
           onNavigate={navigate}
         />
       ) : currentPage === "desk" && activeDesk && !canAccessActiveDesk ? (
-        <CounterPermissionDenied desk={activeDesk} member={activeLoggedInMember} members={memberHooks.members} theme={appearanceSettings} onNavigate={navigate} />
+        <CounterPermissionDenied desk={activeDesk} member={activeLoggedInMember} members={memberHooks.members} theme={activeAppearanceSettings} onNavigate={navigate} />
       ) : currentPage === "desk" && activeDesk && !adminAuthenticated ? (
-        <div className="flex min-h-screen w-full flex-col" style={{ backgroundColor: appearanceSettings.bgColor, color: appearanceSettings.fontColor }}>
+        <div className="flex min-h-screen w-full flex-col" style={{ backgroundColor: activeAppearanceSettings.bgColor, color: activeAppearanceSettings.fontColor }}>
           <ProfileHeader
             loggedInMember={activeLoggedInMember}
             masterLoggedIn={masterLoggedIn}
             members={memberHooks.members}
-            theme={appearanceSettings}
+            theme={activeAppearanceSettings}
             notifications={visibleCounterNotifications}
             onClearNotifications={() => setCounterNotifications([])}
             subtitle="Counter"
-            onThemeChange={handleContentThemeChange}
+            onThemeChange={handleActiveThemeChange}
             onNavigate={navigate}
             onLogout={logoutMember}
           />
@@ -1635,7 +1665,7 @@ export default function App() {
           desks={desks}
           services={services}
           labels={labels}
-          theme={appearanceSettings}
+          theme={activeAppearanceSettings}
           loading={!settingsLoaded}
           loggedInMember={activeLoggedInMember}
           masterLoggedIn={masterLoggedIn}
@@ -1644,14 +1674,14 @@ export default function App() {
           onClearNotifications={() => setCounterNotifications([])}
           initialIdentifier={authIdentifierFromQuery}
           onUpdateMember={memberHooks.updateMember}
-          onAppearanceChange={setAppearanceSettings}
+          onAppearanceChange={(nextAppearance) => handleActiveThemeChange(nextAppearance?.themeMode)}
           onLogout={logoutMember}
           onNavigate={navigate}
         />
       ) : currentPage === "login" ? (
         <LoginPage
           members={memberHooks.members}
-          theme={appearanceSettings}
+          theme={activeAppearanceSettings}
           loading={!settingsLoaded}
           initialIdentifier={authIdentifierFromQuery}
           onNavigate={navigate}
@@ -1659,7 +1689,7 @@ export default function App() {
       ) : currentPage === "create-password" ? (
         <CreatePasswordPage
           members={memberHooks.members}
-          theme={appearanceSettings}
+          theme={activeAppearanceSettings}
           loading={!settingsLoaded}
           initialIdentifier={authIdentifierFromQuery}
           onUpdateMember={memberHooks.updateMember}
@@ -1668,7 +1698,7 @@ export default function App() {
       ) : currentPage === "reset-password" ? (
         <ResetPasswordPage
           members={memberHooks.members}
-          theme={appearanceSettings}
+          theme={activeAppearanceSettings}
           loading={!settingsLoaded}
           onUpdateMember={memberHooks.updateMember}
           onNavigate={navigate}
@@ -1677,8 +1707,9 @@ export default function App() {
         <AdminShell
           currentPage={currentPage}
           onNavigate={navigate}
-          appearance={appearanceSettings}
+          appearance={activeAppearanceSettings}
           onAppearanceChange={setAppearanceSettings}
+          onThemeChange={handleActiveThemeChange}
           loggedInMember={activeLoggedInMember}
           masterLoggedIn={masterLoggedIn}
           members={memberHooks.members}
@@ -1728,7 +1759,7 @@ export default function App() {
           notifications={visibleCounterNotifications}
           onClearNotifications={() => setCounterNotifications([])}
           onUpdateMember={memberHooks.updateMember}
-          onAppearanceChange={setAppearanceSettings}
+          onAppearanceChange={(nextAppearance) => handleActiveThemeChange(nextAppearance?.themeMode)}
           onLogout={logoutMember}
           onNavigate={navigate}
         />
@@ -1868,7 +1899,7 @@ export default function App() {
       )}
 
       <IssueToast toast={ticketIssuer.toast} serviceName={serviceName} />
-      <ConfirmDialog confirmAction={confirmAction} onCancel={closeConfirm} onConfirm={runConfirm} theme={appearanceSettings} />
+      <ConfirmDialog confirmAction={confirmAction} onCancel={closeConfirm} onConfirm={runConfirm} theme={activeAppearanceSettings} />
     </div>
   );
 }

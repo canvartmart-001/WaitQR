@@ -25,6 +25,7 @@ export function useMembers(initialMembers) {
   const membersRef = useRef(initialMembers);
 
   const normalizeMemberId = (id) => String(id || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 24);
+  const normalizeThemeMode = (themeMode) => (["Dark", "Light", "System"].includes(themeMode) ? themeMode : null);
 
   useEffect(() => {
     membersRef.current = members;
@@ -39,12 +40,13 @@ export function useMembers(initialMembers) {
     commitMembers(typeof nextMembers === "function" ? nextMembers(membersRef.current) : nextMembers);
   };
 
-  const addMember = ({ name, phone, password, photo, about, employeeId, role, email, status, deskIds, serviceIds }) => {
+  const addMember = ({ name, phone, password, photo, about, employeeId, role, themeMode, email, status, deskIds, serviceIds }) => {
     const trimmedName = String(name || "").trim();
     const phoneDigits = String(phone || "").trim().replace(/\D/g, "");
     const trimmedPassword = String(password || "").trim();
     const fallbackId = `MEM${randomDigits(8)}`;
     const trimmedId = normalizeMemberId(employeeId || fallbackId);
+    const normalizedThemeMode = normalizeThemeMode(themeMode);
 
     if (!trimmedName || !phoneDigits) {
       return { ok: false, error: "missing-fields" };
@@ -71,6 +73,7 @@ export function useMembers(initialMembers) {
         photo: photo || null,
         about: String(about || "").trim(),
         role: normalizeMemberRole(role),
+        ...(normalizedThemeMode ? { themeMode: normalizedThemeMode } : {}),
         email: String(email || "").trim(),
         status: status || "Active",
         deskIds: uniqueIds(deskIds),
@@ -119,6 +122,10 @@ export function useMembers(initialMembers) {
 
     if (Object.prototype.hasOwnProperty.call(nextPatch, "role")) {
       nextPatch.role = normalizeMemberRole(nextPatch.role);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(nextPatch, "themeMode")) {
+      nextPatch.themeMode = normalizeThemeMode(nextPatch.themeMode) || currentMember.themeMode || "Dark";
     }
 
     if (Object.prototype.hasOwnProperty.call(nextPatch, "id")) {

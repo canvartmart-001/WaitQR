@@ -337,7 +337,7 @@ function Sidebar({ variant, open, onClose, currentPage, onNavigate, theme, colla
   );
 }
 
-export function AdminShell({ currentPage, children, onNavigate, appearance, onAppearanceChange, loggedInMember, masterLoggedIn = false, members = [], notifications = [], onClearNotifications, onLogoutMember }) {
+export function AdminShell({ currentPage, children, onNavigate, appearance, onAppearanceChange, onThemeChange, loggedInMember, masterLoggedIn = false, members = [], notifications = [], onClearNotifications, onLogoutMember }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const {
@@ -466,7 +466,7 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
           <div className="flex shrink-0 items-center gap-2 sm:gap-4">
             <ThemeSwitch
               theme={themeMode}
-              onChange={handleThemeChange}
+              onChange={onThemeChange || handleThemeChange}
               accent={accentColor}
               fontColor={fontColor}
               borderColor={borderColor}

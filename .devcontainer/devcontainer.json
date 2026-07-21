@@ -1,0 +1,13 @@
+{
+  "forwardPorts": [3000, 4000],
+  "portsAttributes": {
+    "3000": {
+      "label": "WaitQR frontend",
+      "onAutoForward": "openPreview"
+    },
+    "4000": {
+      "label": "WaitQR API",
+      "onAutoForward": "notify"
+    }
+  }
+}
