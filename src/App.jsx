@@ -778,6 +778,27 @@ export default function App() {
   });
   const { desks, setDesks, removeDesk: removeDeskRaw, clearDeskTickets } = deskHooks;
 
+  const applyDeskStatusUpdate = (deskPatch) => {
+    if (!deskPatch || deskPatch.id == null) return;
+
+    setDesks((items) => {
+      const deskId = String(deskPatch.id);
+      const deskExists = items.some((desk) => String(desk.id) === deskId);
+      const nextItems = deskExists
+        ? items.map((desk) => {
+            if (String(desk.id) !== deskId) return desk;
+            return {
+              ...desk,
+              ...deskPatch,
+              current: desk.current || deskPatch.current || null,
+            };
+          })
+        : [...items, { ...deskPatch, current: deskPatch.current || null }];
+
+      return assignActiveTicketsToDesks(nextItems, activeSubmissionsRef.current);
+    });
+  };
+
   const memberHooks = useMembers(seedMembers());
   const { unassignDeskFromAllMembers, removeServiceFromAllMembers } = memberHooks;
 
@@ -897,6 +918,10 @@ export default function App() {
         setCounterNotifications((items) => mergeCounterNotification(items, notification));
       }
 
+      if (payload.desk) {
+        applyDeskStatusUpdate(payload.desk);
+      }
+
       if (settingsSavingRef.current) {
         pendingSettingsSyncRef.current = true;
         return;
@@ -919,12 +944,18 @@ export default function App() {
         });
     };
 
+    const syncDeskStatus = (payload = {}) => {
+      if (cancelled || !payload.desk) return;
+      applyDeskStatusUpdate(payload.desk);
+    };
+
     socket.on("connect", () => {
       syncSubmissions();
       syncSettings();
     });
     socket.on("submissions:changed", syncSubmissions);
     socket.on("settings:changed", syncSettings);
+    socket.on("desks:status", syncDeskStatus);
     socket.on("queue:history", hydrateLiveQueueHistory);
     socket.on("queue:current", updateCurrentLiveCounts);
     socket.on("queue:counts", appendLiveQueuePoint);
@@ -1751,7 +1782,8 @@ export default function App() {
             notifications={visibleCounterNotifications}
             onClearNotifications={confirmClearCounterNotifications}
             onMarkNotificationsRead={markCounterNotificationsRead}
-            subtitle="Counter"
+            subtitle={null}
+            fullWidth
             onThemeChange={handleActiveThemeChange}
             onNavigate={navigate}
             onLogout={logoutMember}

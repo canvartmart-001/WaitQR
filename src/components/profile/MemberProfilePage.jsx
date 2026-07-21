@@ -170,7 +170,7 @@ function ThemeSwitch({ theme, onChange }) {
   );
 }
 
-export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme, notifications = [], onClearNotifications, onMarkNotificationsRead, subtitle = "Member profile", onThemeChange, onNavigate, onLogout }) {
+export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme, notifications = [], onClearNotifications, onMarkNotificationsRead, subtitle = "Member profile", fullWidth = false, onThemeChange, onNavigate, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const activeMember = loggedInMember || null;
@@ -196,7 +196,7 @@ export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members,
 
   return (
     <header className="sticky top-0 z-20 w-full px-2.5 py-2.5 sm:px-6 sm:py-5" style={{ backgroundColor: theme.bgColor }}>
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3">
+      <div className={`mx-auto flex w-full items-center justify-between gap-3 ${fullWidth ? "max-w-none" : "max-w-5xl"}`}>
         <button type="button" onClick={() => onNavigate?.("/")} className="flex min-w-0 items-center gap-2 text-left">
           <span
             className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden text-sm font-semibold text-white"
@@ -208,9 +208,11 @@ export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members,
             <span className="block truncate text-base font-semibold" style={{ color: theme.fontColor }}>
               {systemName}
             </span>
-            <span className="hidden text-xs sm:block" style={{ color: withAlpha(theme.fontColor, "80") }}>
-              {subtitle}
-            </span>
+            {subtitle ? (
+              <span className="hidden text-xs sm:block" style={{ color: withAlpha(theme.fontColor, "80") }}>
+                {subtitle}
+              </span>
+            ) : null}
           </span>
         </button>
 

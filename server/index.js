@@ -96,6 +96,15 @@ function emitSettingsChange(settings, extra = {}) {
   });
 }
 
+function emitDeskStatusChange(desk, extra = {}) {
+  io.emit("desks:status", {
+    changedAt: Date.now(),
+    deskId: desk?.id == null ? null : String(desk.id),
+    desk,
+    ...extra,
+  });
+}
+
 async function emitLiveQueueCounts(eventType, submission = null) {
   try {
     io.emit("queue:counts", await recordQueueCountEvent(eventType, submission?.id || null));
@@ -279,6 +288,10 @@ app.patch("/api/desks/:id/status", async (req, res) => {
       type: statusChanged ? "desk-status" : "desk-updated",
       deskId,
       desk: savedDesk,
+      changedBy: changedBy && typeof changedBy === "object" ? changedBy : null,
+    });
+    emitDeskStatusChange(savedDesk, {
+      type: statusChanged ? "desk-status" : "desk-updated",
       changedBy: changedBy && typeof changedBy === "object" ? changedBy : null,
     });
     res.json({ desk: savedDesk, settings: savedSettings });

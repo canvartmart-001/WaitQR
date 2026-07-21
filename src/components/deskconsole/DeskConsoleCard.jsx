@@ -165,7 +165,7 @@ export function DeskConsoleCard({
   const timerLabel = d.current?.startedAt ? elapsedTimerLabel(now - d.current.startedAt) : null;
   const scheduleRows = scheduleDayRows(d.schedule);
   const currentScheduleDay = new Date(now).getDay();
-  const currentScheduleColor = availability.open ? C.teal : C.amber;
+  const currentScheduleColor = isScheduleOpenNow(d.schedule, new Date(now)) ? C.teal : C.amber;
 
   const handlePrimaryAction = () => {
     if (!d.current) {
