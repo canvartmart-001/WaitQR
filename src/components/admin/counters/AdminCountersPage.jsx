@@ -285,7 +285,7 @@ function CounterForm({ desks, theme, editingDesk, isSaving, onCancel, onSave }) 
       name: name.trim(),
       status,
       availabilityMode,
-      schedule: availabilityMode === "scheduled" ? { entries: schedule.entries } : null,
+      schedule: availabilityMode === "scheduled" || editingDesk?.schedule ? { entries: schedule.entries } : null,
     });
     if (result?.ok === false) {
       setSubmitError(

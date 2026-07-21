@@ -6,6 +6,15 @@ import { SnoozingCat } from "../shared/SnoozingCat";
 import { selectNextTicketForDesk } from "../../hooks/useQueue";
 
 const DEFAULT_SCHEDULE = { entries: [{ days: [1], startTime: "09:00", endTime: "17:00" }] };
+const WEEK_DAYS = [
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+  { value: 0, label: "Sun" },
+];
 
 function normalizeSchedule(schedule) {
   const source = schedule && typeof schedule === "object" ? schedule : {};
@@ -40,13 +49,20 @@ function formatScheduleTime(time) {
   return `${String(displayHours).padStart(2, "0")}:${String(minutes).padStart(2, "0")} ${period}`;
 }
 
-function currentDayScheduleLabel(schedule, now = new Date()) {
-  const normalized = normalizeSchedule(schedule);
-  const date = new Date(now);
-  const currentDay = Number.isFinite(date.getTime()) ? date.getDay() : new Date().getDay();
-  const entry = normalized.entries.find((item) => item.days.includes(currentDay));
-  if (!entry) return "Closed today";
+function formatScheduleRange(entry) {
   return `${formatScheduleTime(entry.startTime)} - ${formatScheduleTime(entry.endTime)}`;
+}
+
+function scheduleDayRows(schedule) {
+  const normalized = normalizeSchedule(schedule);
+  return WEEK_DAYS.map((day) => {
+    const entries = normalized.entries.filter((entry) => entry.days.includes(day.value));
+    return {
+      ...day,
+      time: entries.length ? entries.map(formatScheduleRange).join(", ") : "Closed",
+      open: entries.length > 0,
+    };
+  });
 }
 
 function isScheduleOpenNow(schedule, now = new Date()) {
@@ -147,7 +163,7 @@ export function DeskConsoleCard({
   const primaryIcon = d.current?.startedAt ? <Check size={15} /> : <ArrowRight size={15} />;
   const primaryBg = !d.current ? "#2663eb" : !d.current.startedAt ? "#E8A33D" : "#4FB286";
   const timerLabel = d.current?.startedAt ? elapsedTimerLabel(now - d.current.startedAt) : null;
-  const todayScheduleLabel = currentDayScheduleLabel(d.schedule, now);
+  const scheduleRows = scheduleDayRows(d.schedule);
 
   const handlePrimaryAction = () => {
     if (!d.current) {
@@ -176,13 +192,13 @@ export function DeskConsoleCard({
         ? {
             availabilityMode: "always_closed",
             status: "Unavailable",
-            schedule: null,
+            schedule: d.schedule ? currentSchedule : null,
             locked: true,
           }
         : {
             availabilityMode: "always_open",
             status: "Available",
-            schedule: null,
+            schedule: d.schedule ? currentSchedule : null,
             locked: false,
           };
 
@@ -472,20 +488,36 @@ export function DeskConsoleCard({
               <button
                 type="button"
                 onClick={() => setDraftStatusMode("scheduled")}
-                className="qp-focusable flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-white/5"
+                className="qp-focusable w-full rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-white/5"
                 style={{ borderColor: C.ink600, color: C.textLight }}
               >
-                <span className="inline-flex items-center gap-2">
-                  <CalendarDays size={15} style={{ color: C.amber }} />
-                  Scheduled
-                </span>
-                <span className="ml-auto inline-flex shrink-0 items-center gap-2">
-                  {draftStatusMode === "scheduled" ? (
-                    <span className="qp-mono text-[11px]" style={{ color: C.textMuted }}>
-                      {todayScheduleLabel}
-                    </span>
-                  ) : null}
+                <span className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2">
+                    <CalendarDays size={15} style={{ color: C.amber }} />
+                    Scheduled
+                  </span>
                   {draftStatusMode === "scheduled" ? <Check size={15} style={{ color: C.amber }} /> : null}
+                </span>
+                <span
+                  className="block overflow-hidden transition-all duration-300 ease-out"
+                  style={{
+                    maxHeight: draftStatusMode === "scheduled" ? 190 : 0,
+                    opacity: draftStatusMode === "scheduled" ? 1 : 0,
+                    marginTop: draftStatusMode === "scheduled" ? 10 : 0,
+                  }}
+                >
+                  <span className="grid gap-1.5">
+                    {scheduleRows.map((row) => (
+                      <span key={row.value} className="grid grid-cols-[2.25rem_minmax(0,1fr)] items-center gap-3 text-xs">
+                        <span className="font-semibold" style={{ color: row.open ? C.amber : C.textFaint }}>
+                          {row.label}
+                        </span>
+                        <span className="qp-mono truncate" style={{ color: row.open ? C.textMuted : C.textFaint }}>
+                          {row.time}
+                        </span>
+                      </span>
+                    ))}
+                  </span>
                 </span>
               </button>
             </div>

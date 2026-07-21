@@ -61,8 +61,20 @@ function normalizeDeskAvailability(desk = {}) {
     status,
     availabilityMode,
     locked,
-    schedule: availabilityMode === "scheduled" ? desk.schedule || null : null,
+    schedule: desk.schedule || null,
   };
+}
+
+function preserveSavedDeskSchedules(incomingDesks = [], savedDesks = []) {
+  const savedById = new Map(
+    (Array.isArray(savedDesks) ? savedDesks : []).map((desk) => [String(desk?.id), desk])
+  );
+
+  return incomingDesks.map((desk) => {
+    const savedDesk = savedById.get(String(desk?.id));
+    if (desk?.schedule != null || savedDesk?.schedule == null) return desk;
+    return { ...desk, schedule: savedDesk.schedule };
+  });
 }
 
 async function loadNormalizedSettings() {
@@ -202,11 +214,14 @@ app.put("/api/settings", async (req, res) => {
   const memberSettings = Array.isArray(members) ? members : Array.isArray(staff) ? staff : null;
 
   if (Array.isArray(services)) settings.services = services;
-  if (Array.isArray(desks)) settings.desks = desks;
   if (Array.isArray(memberSettings)) settings.members = memberSettings;
   if (appearance && typeof appearance === "object" && !Array.isArray(appearance)) settings.appearance = appearance;
 
   try {
+    if (Array.isArray(desks)) {
+      const savedSettings = await loadNormalizedSettings();
+      settings.desks = preserveSavedDeskSchedules(desks, savedSettings.desks);
+    }
     await saveAppSettings(settings);
     const savedSettings = await loadNormalizedSettings();
     emitSettingsChange(savedSettings);
@@ -235,6 +250,7 @@ app.patch("/api/desks/:id/status", async (req, res) => {
       return;
     }
 
+    const shouldReplaceSchedule = schedule !== undefined && (schedule !== null || previousDesk?.schedule == null);
     const updatedDesk = normalizeDeskAvailability({
       ...(deskIndex === -1 ? {} : desks[deskIndex]),
       ...deskPatch,
@@ -242,7 +258,7 @@ app.patch("/api/desks/:id/status", async (req, res) => {
       ...(availabilityMode ? { availabilityMode } : {}),
       ...(status ? { status } : {}),
       ...(typeof locked === "boolean" ? { locked } : {}),
-      ...(schedule !== undefined ? { schedule } : {}),
+      ...(shouldReplaceSchedule ? { schedule } : {}),
       current: null,
     });
     const nextDesks = deskIndex === -1

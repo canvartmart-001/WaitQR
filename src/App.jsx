@@ -575,7 +575,7 @@ function sanitizeDesksForSettings(desks, services) {
       locked,
       status,
       availabilityMode,
-      schedule: availabilityMode === "scheduled" ? desk.schedule || null : null,
+      schedule: desk.schedule || null,
       current: null,
       isDefault: Boolean(desk.isDefault),
     };
