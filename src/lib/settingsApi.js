@@ -6,8 +6,8 @@ function hasSettings(settings) {
   return settings && typeof settings === "object" && !Array.isArray(settings) && Object.keys(settings).length > 0;
 }
 
-function chooseSettings(cachedSettings, remoteSettings) {
-  if (cachedSettings?.dirty && hasSettings(cachedSettings.settings)) return cachedSettings.settings;
+function chooseSettings(cachedSettings, remoteSettings, { preferRemote = false } = {}) {
+  if (!preferRemote && cachedSettings?.dirty && hasSettings(cachedSettings.settings)) return cachedSettings.settings;
 
   if (hasSettings(remoteSettings)) return normalizeSettings(remoteSettings);
   return cachedSettings?.settings || {};
@@ -77,7 +77,7 @@ export function cacheSettings(settings, { dirty = false } = {}) {
   }
 }
 
-export async function loadSettings() {
+export async function loadSettings({ preferRemote = false } = {}) {
   const cachedSettings = loadCachedSettings();
   let response;
 
@@ -94,8 +94,8 @@ export async function loadSettings() {
   }
 
   const remoteSettings = normalizeSettings(data.settings || {});
-  const settings = chooseSettings(cachedSettings, remoteSettings);
-  if (hasSettings(settings)) cacheSettings(settings, { dirty: cachedSettings.dirty && settings === cachedSettings.settings });
+  const settings = chooseSettings(cachedSettings, remoteSettings, { preferRemote });
+  if (hasSettings(settings)) cacheSettings(settings, { dirty: !preferRemote && cachedSettings.dirty && settings === cachedSettings.settings });
 
   return settings;
 }

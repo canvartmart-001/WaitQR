@@ -52,6 +52,14 @@ function displayRoleName(role, fallback = "Member") {
   return value === "Administrator" ? "Admin" : value;
 }
 
+function roleChipState(member, fallback) {
+  const inactive = member?.status === "Inactive";
+  return {
+    label: inactive ? "Inactive" : displayRoleName(member?.role, fallback),
+    color: inactive ? "#ef4444" : "#22c55e",
+  };
+}
+
 function fieldStyle(theme) {
   return {
     color: theme.fontColor,
@@ -166,6 +174,7 @@ function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme,
   const ref = useRef(null);
   const activeMember = loggedInMember || null;
   const signedIn = Boolean(activeMember || masterLoggedIn);
+  const canVisitDashboard = Boolean(masterLoggedIn || activeMember?.role === "Administrator");
   const displayName = activeMember?.name || (masterLoggedIn ? "Development Access" : "Account");
   const displayRole = activeMember ? displayRoleName(activeMember.role) : masterLoggedIn ? "Master login" : "Login required";
   const logoUrl = theme.logoUrl;
@@ -205,7 +214,7 @@ function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme,
         </button>
 
         <div className="flex shrink-0 items-center gap-2">
-          {signedIn ? (
+          {canVisitDashboard ? (
             <button
               type="button"
               onClick={() => onNavigate?.("/")}
@@ -218,7 +227,7 @@ function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme,
           ) : null}
 
           <ThemeSwitch theme={theme} onChange={onThemeChange} />
-          {signedIn ? (
+          {canVisitDashboard ? (
             <button type="button" aria-label="Notifications" className="relative rounded-full p-2 hover:bg-white/5" style={{ color: withAlpha(theme.fontColor, "99") }}>
               <Bell size={18} />
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
@@ -249,15 +258,17 @@ function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme,
                 </div>
                 {signedIn ? (
                   <>
-                    <button
-                      type="button"
-                      onClick={() => handleAction(() => onNavigate?.("/"))}
-                      className="flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-white/5 sm:hidden"
-                      style={{ color: theme.fontColor }}
-                    >
-                      <LayoutDashboard size={15} />
-                      Dashboard
-                    </button>
+                    {canVisitDashboard ? (
+                      <button
+                        type="button"
+                        onClick={() => handleAction(() => onNavigate?.("/"))}
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-white/5 sm:hidden"
+                        style={{ color: theme.fontColor }}
+                      >
+                        <LayoutDashboard size={15} />
+                        Dashboard
+                      </button>
+                    ) : null}
                     {activeMember ? (
                       <button
                         type="button"
@@ -301,7 +312,7 @@ function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme,
 
 export function MemberProfilePage({ member, desks, services, labels, theme, loading = false, loggedInMember, masterLoggedIn = false, members = [], onAppearanceChange, onUpdateMember, onLogout, onNavigate }) {
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", photo: null });
+  const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", about: "", photo: null });
   const [editError, setEditError] = useState("");
   const photoInputRef = useRef(null);
   const assignedDesks = itemsForIds(desks, member?.deskIds);
@@ -310,17 +321,19 @@ export function MemberProfilePage({ member, desks, services, labels, theme, load
   const viewingOwnProfile = Boolean(member && String(loggedInMember?.id || "") === String(member.id));
   const canViewPrivateDetails = Boolean(masterLoggedIn || viewingOwnProfile);
   const canEditProfile = Boolean(member && onUpdateMember && canViewPrivateDetails);
+  const roleChip = roleChipState(member, labels.memberWord);
 
   useEffect(() => {
     setEditForm({
       name: member?.name || "",
       phone: member?.phone || "",
       email: member?.email || "",
+      about: member?.about || "",
       photo: member?.photo || null,
     });
     setEditError("");
     if (!canEditProfile) setEditing(false);
-  }, [canEditProfile, member?.email, member?.id, member?.name, member?.phone, member?.photo]);
+  }, [canEditProfile, member?.about, member?.email, member?.id, member?.name, member?.phone, member?.photo]);
 
   const setEditValue = (key) => (value) => {
     setEditForm((current) => ({ ...current, [key]: value }));
@@ -345,6 +358,7 @@ export function MemberProfilePage({ member, desks, services, labels, theme, load
       name: member?.name || "",
       phone: member?.phone || "",
       email: member?.email || "",
+      about: member?.about || "",
       photo: member?.photo || null,
     });
     setEditError("");
@@ -364,6 +378,7 @@ export function MemberProfilePage({ member, desks, services, labels, theme, load
       name: trimmedName,
       phone: phoneDigits,
       email: editForm.email.trim(),
+      about: editForm.about.trim(),
       photo: editForm.photo || null,
     };
     const result = onUpdateMember?.(member.id, patch);
@@ -477,10 +492,10 @@ export function MemberProfilePage({ member, desks, services, labels, theme, load
                         )}
                       </div>
                       <span
-                        className="inline-flex max-w-full items-center rounded-full px-2.5 py-1 text-center text-[11px] font-medium sm:text-xs"
-                        style={{ color: theme.accentColor, backgroundColor: withAlpha(theme.accentColor, "14") }}
+                        className="inline-flex max-w-[6.5rem] justify-center rounded-full px-2.5 py-1 text-center text-[11px] font-medium sm:text-xs"
+                        style={{ color: roleChip.color, backgroundColor: `${roleChip.color}24` }}
                       >
-                        <span className="truncate">{displayRoleName(member?.role, labels.memberWord)}</span>
+                        <span className="truncate">{roleChip.label}</span>
                       </span>
                     </div>
 
@@ -498,6 +513,9 @@ export function MemberProfilePage({ member, desks, services, labels, theme, load
                               <TextInput value={editForm.phone} onChange={(value) => setEditValue("phone")(value.replace(/\D/g, "").slice(0, 15))} placeholder="Enter phone" inputMode="numeric" theme={theme} />
                             </FormField>
                           </div>
+                          <FormField label="About" theme={theme}>
+                            <TextInput value={editForm.about} onChange={setEditValue("about")} placeholder="Short note or specialization" theme={theme} />
+                          </FormField>
                           {editError ? (
                             <p className="text-xs" style={{ color: "#f87171" }}>
                               {editError}

@@ -29,7 +29,7 @@ import { MemberProfilePage } from "./components/profile/MemberProfilePage";
 import { ConfirmDialog } from "./components/modals/ConfirmDialog";
 import { IssueToast } from "./components/shared/IssueToast";
 import { C } from "./lib/theme";
-import { findDeskByPath, findMemberByProfilePath, getDeskPath, getTicketPath, findTicketLabelByPath } from "./lib/routing";
+import { findDeskByPath, findMemberByProfilePath, getDeskPath, getMemberProfilePath, getTicketPath, findTicketLabelByPath } from "./lib/routing";
 import { clearSubmissions, listQueueCountEvents, listSubmissions, updateSubmissionStatus } from "./lib/submissionsApi";
 import { cacheSettings, loadSettings, saveSettings } from "./lib/settingsApi";
 import { createRealtimeClient } from "./lib/realtime";
@@ -640,7 +640,7 @@ export default function App() {
     };
 
     const syncSettings = () => {
-      loadSettings()
+      loadSettings({ preferRemote: true })
         .then((settings) => {
           if (cancelled) return;
           applyLoadedSettings(settings);
@@ -651,7 +651,10 @@ export default function App() {
         });
     };
 
-    socket.on("connect", syncSubmissions);
+    socket.on("connect", () => {
+      syncSubmissions();
+      syncSettings();
+    });
     socket.on("submissions:changed", syncSubmissions);
     socket.on("settings:changed", syncSettings);
     socket.on("queue:history", hydrateLiveQueueHistory);
@@ -730,6 +733,7 @@ export default function App() {
   const [masterLoggedIn, setMasterLoggedInState] = useState(() => isMasterLoggedIn());
   const activeLoggedInMember = loggedInMember || findLoggedInMember(memberHooks.members);
   const authenticated = Boolean(activeLoggedInMember || masterLoggedIn || isMasterLoggedIn());
+  const adminAuthenticated = Boolean(masterLoggedIn || isMasterLoggedIn() || normalizeMemberRole(activeLoggedInMember?.role) === "Administrator");
   const applyLoadedSettings = (settings = {}) => {
     const normalizedServices = normalizeServicesForSettings(settings.services);
     const normalizedDesks = reconcileDeskServiceAssignments(settings.desks, normalizedServices);
@@ -969,6 +973,17 @@ export default function App() {
       setSearch("");
     }
   }, [authenticated, pathname, protectedPage, settingsLoaded]);
+
+  useEffect(() => {
+    if (!settingsLoaded || !protectedPage || !authenticated || adminAuthenticated) return;
+
+    const nextPath = activeLoggedInMember ? getMemberProfilePath(activeLoggedInMember, memberHooks.members) : "/login";
+    if (pathname !== nextPath) {
+      window.history.replaceState({}, "", nextPath);
+      setPathname(nextPath);
+      setSearch("");
+    }
+  }, [activeLoggedInMember, adminAuthenticated, authenticated, memberHooks.members, pathname, protectedPage, settingsLoaded]);
 
   useEffect(() => {
     if (!["counters", "login", "members", "profile", "services"].includes(currentPage) || !settingsDirty || settingsSaving) return undefined;
@@ -1223,7 +1238,7 @@ export default function App() {
   };
   return (
     <div className="flex min-h-screen w-full flex-col" style={{ background: C.ink900, color: C.textLight, fontFamily: "'IBM Plex Sans', sans-serif" }}>
-      {protectedPage && !authenticated && !settingsLoaded ? (
+      {protectedPage && !adminAuthenticated && !settingsLoaded ? (
         <main className="flex min-h-screen w-full items-center justify-center px-4 py-6" style={{ backgroundColor: appearanceSettings.bgColor, color: appearanceSettings.fontColor }}>
           <div className="text-center">
             <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-current border-t-transparent opacity-70" />
@@ -1238,6 +1253,31 @@ export default function App() {
           theme={appearanceSettings}
           loading={!settingsLoaded}
           initialIdentifier={authIdentifierFromQuery}
+          onNavigate={navigate}
+        />
+      ) : protectedPage && !adminAuthenticated && !activeLoggedInMember ? (
+        <main className="flex min-h-screen w-full items-center justify-center px-4 py-6" style={{ backgroundColor: appearanceSettings.bgColor, color: appearanceSettings.fontColor }}>
+          <div className="text-center">
+            <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-current border-t-transparent opacity-70" />
+            <p className="mt-4 text-sm" style={{ color: `${appearanceSettings.fontColor}cc` }}>
+              Checking session...
+            </p>
+          </div>
+        </main>
+      ) : protectedPage && !adminAuthenticated ? (
+        <MemberProfilePage
+          member={activeLoggedInMember}
+          desks={desks}
+          services={services}
+          labels={labels}
+          theme={appearanceSettings}
+          loading={!settingsLoaded}
+          loggedInMember={activeLoggedInMember}
+          masterLoggedIn={masterLoggedIn}
+          members={memberHooks.members}
+          onUpdateMember={memberHooks.updateMember}
+          onAppearanceChange={setAppearanceSettings}
+          onLogout={logoutMember}
           onNavigate={navigate}
         />
       ) : currentPage === "create" ? (
