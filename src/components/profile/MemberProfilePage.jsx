@@ -618,10 +618,10 @@ export function MemberProfilePage({ member, desks, services, labels, theme, load
                     )}
                   </div>
                   <h1 className="mt-5 break-words text-2xl font-semibold" style={{ color: theme.fontColor }}>
-                    Hello {member?.name || "Member"}
+                    {member?.name || "Member"}
                   </h1>
                   <p className="mt-1 text-sm" style={{ color: withAlpha(theme.fontColor, "80") }}>
-                    Sign in to view your private profile details.
+                    Sign in to access this account.
                   </p>
                   <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
                     <button

@@ -97,71 +97,60 @@ export function ResetPasswordPage({ members, theme, loading, initialIdentifier =
             <h1 className="text-xl font-semibold" style={{ color: theme.fontColor }}>
               Reset password
             </h1>
-            <p className="mt-1 text-sm" style={{ color: withAlpha(theme.fontColor, "80") }}>
-              Confirm your current password first.
-            </p>
           </div>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium" style={{ color: theme.fontColor }}>
-              Employee ID, email, or phone
-            </label>
             <div className="relative">
               <UserRound size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: withAlpha(theme.fontColor, "80") }} />
               <input
                 autoFocus
                 value={identifier}
                 onChange={(event) => setIdentifier(event.target.value)}
+                placeholder="Employee ID, email, or phone"
                 {...focusHandlers(theme)}
-                className="w-full border py-2 pl-9 pr-3 text-sm outline-none"
+                className="w-full border py-2 pl-9 pr-3 text-sm outline-none placeholder:text-current placeholder:opacity-40"
                 style={fieldStyle(theme)}
               />
             </div>
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium" style={{ color: theme.fontColor }}>
-              Password
-            </label>
             <div className="relative">
               <Lock size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: withAlpha(theme.fontColor, "80") }} />
               <input
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
+                placeholder="Current password"
                 {...focusHandlers(theme)}
-                className="w-full border py-2 pl-9 pr-3 text-sm outline-none"
+                className="w-full border py-2 pl-9 pr-3 text-sm outline-none placeholder:text-current placeholder:opacity-40"
                 style={fieldStyle(theme)}
               />
             </div>
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium" style={{ color: theme.fontColor }}>
-              New password
-            </label>
             <input
               type="password"
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
+              placeholder="New password"
               {...focusHandlers(theme)}
-              className="w-full border px-3 py-2 text-sm outline-none"
+              className="w-full border px-3 py-2 text-sm outline-none placeholder:text-current placeholder:opacity-40"
               style={fieldStyle(theme)}
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium" style={{ color: theme.fontColor }}>
-              Confirm password
-            </label>
             <input
               type="password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
+              placeholder="Confirm password"
               onKeyDown={(event) => {
                 if (event.key === "Enter") handleReset();
               }}
               {...focusHandlers(theme)}
-              className="w-full border px-3 py-2 text-sm outline-none"
+              className="w-full border px-3 py-2 text-sm outline-none placeholder:text-current placeholder:opacity-40"
               style={fieldStyle(theme)}
             />
           </div>
