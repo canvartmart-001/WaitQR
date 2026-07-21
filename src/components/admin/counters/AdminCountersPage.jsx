@@ -166,14 +166,14 @@ function TimeInput({ value, onChange, theme }) {
   };
 
   return (
-    <div className="relative">
+    <div className="relative min-w-0">
       <input
         ref={inputRef}
         type="time"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         {...focusHandlers(theme)}
-        className="qp-time-input w-full border px-3 py-2 pr-9 text-sm outline-none transition-colors"
+        className="qp-time-input h-10 min-w-0 w-full border px-2 pr-8 text-sm outline-none transition-colors sm:px-3 sm:pr-9"
         style={{ ...fieldStyle(theme), colorScheme: darkIcon ? "dark" : "light" }}
       />
       <button
@@ -349,8 +349,8 @@ function CounterForm({ desks, theme, editingDesk, isSaving, onCancel, onSave }) 
                 {schedule.entries.map((entry, index) => {
                   const selectedByOtherRows = new Set(schedule.entries.filter((_, entryIndex) => entryIndex !== index).flatMap((item) => item.days || []).map(Number));
                   return (
-                    <div key={`${entry.days.join("-")}-${index}`} className="grid grid-cols-1 gap-x-2 gap-y-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:grid-cols-[minmax(20rem,1fr)_minmax(8rem,0.35fr)_minmax(8rem,0.35fr)_auto]">
-                      <div className="flex flex-wrap gap-2 md:col-span-3 xl:col-span-1">
+                    <div key={`${entry.days.join("-")}-${index}`} className="grid grid-cols-2 gap-x-2 gap-y-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:grid-cols-[minmax(20rem,1fr)_minmax(8rem,0.35fr)_minmax(8rem,0.35fr)_auto]">
+                      <div className="col-span-2 grid grid-cols-7 gap-1 md:col-span-3 md:flex md:flex-wrap md:gap-2 xl:col-span-1">
                         {WEEK_DAYS.map((day) => {
                           const active = entry.days.includes(day.value);
                           const disabled = selectedByOtherRows.has(day.value);
@@ -360,7 +360,7 @@ function CounterForm({ desks, theme, editingDesk, isSaving, onCancel, onSave }) 
                               type="button"
                               onClick={() => toggleScheduleEntryDay(index, day.value)}
                               disabled={disabled}
-                              className="border px-3 py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-35"
+                              className="h-9 min-w-0 border px-0 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-35 md:h-auto md:px-3 md:py-2 md:text-xs"
                               style={{
                                 borderColor: active ? theme.accentColor : theme.borderColor,
                                 borderRadius: theme.radius,
@@ -379,7 +379,7 @@ function CounterForm({ desks, theme, editingDesk, isSaving, onCancel, onSave }) 
                         type="button"
                         onClick={() => removeScheduleEntry(index)}
                         disabled={schedule.entries.length <= 1}
-                        className="flex h-10 w-10 items-center justify-center border transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
+                        className="col-span-2 flex h-10 w-full items-center justify-center border transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35 md:col-span-1 md:w-10"
                         style={{ color: "#f87171", borderColor: theme.borderColor, borderRadius: theme.radius }}
                         aria-label="Remove schedule row"
                       >
@@ -398,7 +398,7 @@ function CounterForm({ desks, theme, editingDesk, isSaving, onCancel, onSave }) 
                 type="button"
                 onClick={addScheduleEntry}
                 disabled={scheduleDays.length >= WEEK_DAYS.length}
-                className="mt-3 inline-flex items-center gap-2 border px-3 py-2 text-xs font-medium transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
+                className="mt-3 flex h-10 w-full items-center justify-center gap-2 border px-3 text-xs font-medium transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35 sm:inline-flex sm:w-auto"
                 style={{ color: theme.accentColor, borderColor: theme.borderColor, borderRadius: theme.radius }}
               >
                 <Plus size={14} />
