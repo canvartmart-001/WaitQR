@@ -669,6 +669,7 @@ export function AdminCountersPage({
   const { addDeskWithAssignments, renameDesk, updateDesk, removeDesk } = deskActions;
   const { editingDesk, setEditingDesk, showAddDesk, setShowAddDesk } = manageUi.desks;
   const [query, setQuery] = useState("");
+  const formRef = useRef(null);
   const editingDeskRecord = editingDesk ? desks.find((desk) => desk.id === editingDesk) : null;
   const showForm = showAddDesk || Boolean(editingDeskRecord);
   const formTheme = { ...theme, bgColor: theme.bgColor || "#04060b" };
@@ -687,6 +688,12 @@ export function AdminCountersPage({
   const closeForm = () => {
     setShowAddDesk(false);
     setEditingDesk(null);
+  };
+
+  const scrollToForm = () => {
+    window.requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   };
 
   const saveForm = ({ name, status, availabilityMode, schedule }) => {
@@ -710,15 +717,17 @@ export function AdminCountersPage({
     <div style={{ "--field-bg": "rgba(255,255,255,0.04)" }}>
       <main className="space-y-4 px-2.5 py-2.5 sm:space-y-6 sm:px-6 sm:py-6 md:pl-10 md:pr-6">
         {showForm ? (
-          <CounterForm
-            key={editingDeskRecord ? `edit-${editingDeskRecord.id}` : "add"}
-            desks={desks}
-            theme={formTheme}
-            editingDesk={editingDeskRecord}
-            isSaving={settingsSaving}
-            onCancel={closeForm}
-            onSave={saveForm}
-          />
+          <div ref={formRef}>
+            <CounterForm
+              key={editingDeskRecord ? `edit-${editingDeskRecord.id}` : "add"}
+              desks={desks}
+              theme={formTheme}
+              editingDesk={editingDeskRecord}
+              isSaving={settingsSaving}
+              onCancel={closeForm}
+              onSave={saveForm}
+            />
+          </div>
         ) : null}
 
         <div className="border bg-white/5 p-4" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.4 }}>
@@ -777,6 +786,7 @@ export function AdminCountersPage({
                 onEdit={() => {
                   setEditingDesk(desk.id);
                   setShowAddDesk(false);
+                  scrollToForm();
                 }}
                 onDelete={() =>
                   askConfirm(

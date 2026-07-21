@@ -463,6 +463,7 @@ export function AdminServicesPage({
   const { addServiceWithAssignments, renameService, updateService, removeService } = serviceActions;
   const { editingService, setEditingService, showAddService, setShowAddService } = manageUi.services;
   const [query, setQuery] = useState("");
+  const formRef = useRef(null);
   const editingServiceRecord = editingService ? services.find((service) => service.id === editingService) : null;
   const showForm = showAddService || Boolean(editingServiceRecord);
   const formTheme = { ...theme, bgColor: theme.bgColor || "#04060b" };
@@ -478,6 +479,12 @@ export function AdminServicesPage({
   const closeForm = () => {
     setShowAddService(false);
     setEditingService(null);
+  };
+
+  const scrollToForm = () => {
+    window.requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   };
 
   const saveForm = ({ name, description, image, status }) => {
@@ -500,16 +507,18 @@ export function AdminServicesPage({
     <div style={{ "--field-bg": "rgba(255,255,255,0.04)" }}>
       <main className="space-y-4 px-2.5 py-2.5 sm:space-y-6 sm:px-6 sm:py-6 md:pl-10 md:pr-6">
         {showForm ? (
-          <ServiceForm
-            key={editingServiceRecord ? `edit-${editingServiceRecord.id}` : "add"}
-            labels={labels}
-            services={services}
-            theme={formTheme}
-            editingService={editingServiceRecord}
-            isSaving={settingsSaving}
-            onCancel={closeForm}
-            onSave={saveForm}
-          />
+          <div ref={formRef}>
+            <ServiceForm
+              key={editingServiceRecord ? `edit-${editingServiceRecord.id}` : "add"}
+              labels={labels}
+              services={services}
+              theme={formTheme}
+              editingService={editingServiceRecord}
+              isSaving={settingsSaving}
+              onCancel={closeForm}
+              onSave={saveForm}
+            />
+          </div>
         ) : null}
 
         <div className="border bg-white/5 p-4" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.4 }}>
@@ -566,6 +575,7 @@ export function AdminServicesPage({
                 onEdit={() => {
                   setEditingService(service.id);
                   setShowAddService(false);
+                  scrollToForm();
                 }}
                 onDelete={() =>
                   askConfirm(

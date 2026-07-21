@@ -589,6 +589,7 @@ export function AdminMembersPage({
   const { addMember, updateMember, removeMember } = memberActions;
   const { editingMember, setEditingMember, showAddMember, setShowAddMember } = manageUi.members;
   const [query, setQuery] = useState("");
+  const formRef = useRef(null);
   const editingMemberRecord = editingMember ? members.find((member) => member.id === editingMember) : null;
   const showForm = showAddMember || Boolean(editingMemberRecord);
   const formTheme = { ...theme, bgColor: theme.bgColor || "#04060b" };
@@ -605,6 +606,12 @@ export function AdminMembersPage({
   const closeForm = () => {
     setShowAddMember(false);
     setEditingMember(null);
+  };
+
+  const scrollToForm = () => {
+    window.requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   };
 
   const saveForm = (form) => {
@@ -635,18 +642,20 @@ export function AdminMembersPage({
     <div style={{ "--field-bg": "rgba(255,255,255,0.04)" }}>
       <main className="space-y-4 px-2.5 py-2.5 sm:space-y-6 sm:px-6 sm:py-6 md:pl-10 md:pr-6">
         {showForm ? (
-          <MemberForm
-            key={editingMemberRecord ? `edit-${editingMemberRecord.id}` : "add"}
-            members={members}
-            desks={desks}
-            services={services}
-            labels={labels}
-            theme={formTheme}
-            brandName={brandName}
-            editing={editingMemberRecord}
-            onCancel={closeForm}
-            onSave={saveForm}
-          />
+          <div ref={formRef}>
+            <MemberForm
+              key={editingMemberRecord ? `edit-${editingMemberRecord.id}` : "add"}
+              members={members}
+              desks={desks}
+              services={services}
+              labels={labels}
+              theme={formTheme}
+              brandName={brandName}
+              editing={editingMemberRecord}
+              onCancel={closeForm}
+              onSave={saveForm}
+            />
+          </div>
         ) : null}
 
         <div className="border bg-white/5 p-4" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.4 }}>
@@ -703,6 +712,7 @@ export function AdminMembersPage({
                 onEdit={() => {
                   setEditingMember(member.id);
                   setShowAddMember(false);
+                  scrollToForm();
                 }}
                 onDelete={() =>
                   askConfirm(
