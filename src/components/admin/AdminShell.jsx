@@ -7,9 +7,11 @@ import {
   Monitor,
   Moon,
   Sun,
+  UserRound,
   X,
 } from "lucide-react";
 import { ADMIN_NAV_ITEMS, ADMIN_PAGE_META } from "./adminNavigation";
+import { getMemberProfilePath } from "../../lib/routing";
 
 const THEME_PRESETS = {
   Dark: { accentColor: "#2563eb", bgColor: "#04060b", fontColor: "#e2e8f0", borderColor: "#171d2b", separatorColor: "#171d2b" },
@@ -36,6 +38,15 @@ function pickThemeColors(appearance) {
     borderColor: appearance.borderColor,
     separatorColor: appearance.separatorColor,
   };
+}
+
+function initials(name) {
+  return String(name || "")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "AD";
 }
 
 function ThemeSwitch({ theme, onChange, accent, fontColor, borderColor, bgColor, radius }) {
@@ -92,6 +103,93 @@ function ThemeSwitch({ theme, onChange, accent, fontColor, borderColor, bgColor,
               </button>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProfileMenu({ member, masterLoggedIn, accentColor, fontColor, borderColor, bgColor, radius, onProfile, onLogin, onLogout }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const displayName = member?.name || (masterLoggedIn ? "Development Access" : "Account");
+  const displayRole = member?.role || (masterLoggedIn ? "Master login" : "Login required");
+  const avatarText = initials(member?.name);
+
+  useEffect(() => {
+    const handleClick = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const handleAction = (action) => {
+    action?.();
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-label="Open profile menu"
+        aria-expanded={open}
+        className="flex items-center gap-2 rounded-full transition-colors hover:bg-white/5"
+        style={{ color: withAlpha(fontColor, "99") }}
+      >
+        <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-slate-700 text-sm font-semibold text-white">
+          {member?.photo ? <img src={member.photo} alt={member.name} className="h-full w-full object-cover" /> : member ? avatarText : masterLoggedIn ? "DEV" : <UserRound size={17} />}
+        </span>
+        <span className="hidden text-left text-sm md:block">
+          <span className="block font-medium" style={{ color: fontColor }}>
+            {displayName}
+          </span>
+          <span className="block text-xs" style={{ color: withAlpha(fontColor, "80") }}>
+            {displayRole}
+          </span>
+        </span>
+      </button>
+      {open && (
+        <div
+          className="absolute right-0 top-full z-20 mt-2 w-40 overflow-hidden border py-1 shadow-lg"
+          style={{ backgroundColor: bgColor, borderColor, borderRadius: radius }}
+        >
+          {member || masterLoggedIn ? (
+            <>
+              {member ? (
+                <button
+                  type="button"
+                  onClick={() => handleAction(onProfile)}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-white/5"
+                  style={{ color: fontColor }}
+                >
+                  <UserRound size={15} />
+                  Profile
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => handleAction(onLogout)}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-white/5"
+                style={{ color: fontColor }}
+              >
+                <LogOut size={15} />
+                Logout
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleAction(onLogin)}
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-white/5"
+              style={{ color: accentColor }}
+            >
+              <UserRound size={15} />
+              Login
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -234,7 +332,7 @@ function Sidebar({ variant, open, onClose, currentPage, onNavigate, theme, colla
   );
 }
 
-export function AdminShell({ currentPage, children, onNavigate, appearance, onAppearanceChange }) {
+export function AdminShell({ currentPage, children, onNavigate, appearance, onAppearanceChange, loggedInMember, masterLoggedIn = false, members = [], onLogoutMember }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const {
@@ -374,17 +472,18 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
               <Bell size={18} />
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
             </button>
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-sm font-semibold text-white">AD</div>
-              <div className="hidden text-sm md:block">
-                <p className="font-medium" style={{ color: fontColor }}>
-                  Admin
-                </p>
-                <p className="text-xs" style={{ color: withAlpha(fontColor, "80") }}>
-                  Super Admin
-                </p>
-              </div>
-            </div>
+            <ProfileMenu
+              member={loggedInMember}
+              masterLoggedIn={masterLoggedIn}
+              accentColor={accentColor}
+              fontColor={fontColor}
+              borderColor={borderColor}
+              bgColor={bgColor}
+              radius={radius}
+              onProfile={() => onNavigate(loggedInMember ? getMemberProfilePath(loggedInMember, members) : "/login")}
+              onLogin={() => onNavigate("/login")}
+              onLogout={onLogoutMember}
+            />
           </div>
         </div>
 

@@ -11,6 +11,9 @@ import { useAbsentActions } from "./hooks/useAbsentActions";
 import { useLabels } from "./hooks/useLabels";
 import { useConfirmDialog } from "./hooks/useConfirmDialog";
 import { AdminShell } from "./components/admin/AdminShell";
+import { CreatePasswordPage } from "./components/auth/CreatePasswordPage";
+import { LoginPage } from "./components/auth/LoginPage";
+import { ResetPasswordPage } from "./components/auth/ResetPasswordPage";
 import { StatsStrip } from "./components/layout/StatsStrip";
 import { BreakdownTabsSection } from "./components/layout/BreakdownTabsSection";
 import { LivePage } from "./components/liveboard/LivePage";
@@ -22,14 +25,16 @@ import { AdminCountersPage } from "./components/admin/counters/AdminCountersPage
 import { AdminServicesPage } from "./components/admin/services/AdminServicesPage";
 import { AdminMembersPage } from "./components/admin/members/AdminMembersPage";
 import { AdminSettingsPage } from "./components/admin/settings/AdminSettingsPage";
+import { MemberProfilePage } from "./components/profile/MemberProfilePage";
 import { ConfirmDialog } from "./components/modals/ConfirmDialog";
 import { IssueToast } from "./components/shared/IssueToast";
 import { C } from "./lib/theme";
-import { findDeskByPath, findTicketLabelByPath, getDeskPath, getTicketPath } from "./lib/routing";
+import { findDeskByPath, findMemberByProfilePath, getDeskPath, getTicketPath, findTicketLabelByPath } from "./lib/routing";
 import { clearSubmissions, listQueueCountEvents, listSubmissions, updateSubmissionStatus } from "./lib/submissionsApi";
 import { cacheSettings, loadSettings, saveSettings } from "./lib/settingsApi";
 import { createRealtimeClient } from "./lib/realtime";
 import { deriveDeskServicesFromMembers, normalizeMemberRole, uniqueIds } from "./lib/assignments";
+import { findLoggedInMember, isMasterLoggedIn, MEMBER_SESSION_CHANGED_EVENT, setMasterLoggedIn, setMemberLoggedIn } from "./lib/memberSession";
 
 const DASHBOARD_BREAKDOWN_MIN_HEIGHT = 640;
 const DEFAULT_APPEARANCE_SETTINGS = {
@@ -453,6 +458,7 @@ export default function App() {
   const now = useClock();
   const currentYear = new Date(now).getFullYear();
   const [pathname, setPathname] = useState(() => window.location.pathname || "/");
+  const [search, setSearch] = useState(() => window.location.search || "");
   const [activeDeskPageId, setActiveDeskPageId] = useState(null);
   const [recentIssuedTicket, setRecentIssuedTicket] = useState(null);
   const [issuedToday, setIssuedToday] = useState(0);
@@ -707,10 +713,30 @@ export default function App() {
   );
   const settingsPayloadSignature = JSON.stringify(settingsPayload);
   const settingsDirty = settingsLoaded && settingsSaveReady && settingsPayloadSignature !== lastSavedSettingsSignature;
+  const [loggedInMember, setLoggedInMemberState] = useState(null);
+  const [masterLoggedIn, setMasterLoggedInState] = useState(() => isMasterLoggedIn());
+  const activeLoggedInMember = loggedInMember || findLoggedInMember(memberHooks.members);
+  const authenticated = Boolean(activeLoggedInMember || masterLoggedIn || isMasterLoggedIn());
 
   useEffect(() => {
     storeAppearance(appearanceSettings);
   }, [appearanceSettings]);
+
+  useEffect(() => {
+    const refreshLoggedInMember = () => {
+      setLoggedInMemberState(findLoggedInMember(memberHooks.members));
+      setMasterLoggedInState(isMasterLoggedIn());
+    };
+
+    refreshLoggedInMember();
+    window.addEventListener("storage", refreshLoggedInMember);
+    window.addEventListener(MEMBER_SESSION_CHANGED_EVENT, refreshLoggedInMember);
+
+    return () => {
+      window.removeEventListener("storage", refreshLoggedInMember);
+      window.removeEventListener(MEMBER_SESSION_CHANGED_EVENT, refreshLoggedInMember);
+    };
+  }, [memberHooks.members]);
 
   useEffect(() => {
     updateMobileThemeColor(appearanceSettings);
@@ -787,16 +813,31 @@ export default function App() {
   }, [settingsDirty, settingsSaveError]);
 
   useEffect(() => {
-    const handlePopState = () => setPathname(window.location.pathname || "/");
+    const handlePopState = () => {
+      setPathname(window.location.pathname || "/");
+      setSearch(window.location.search || "");
+    };
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   const navigate = (nextPath) => {
-    if (nextPath === pathname) return;
-    window.history.pushState({}, "", nextPath);
-    setPathname(nextPath);
+    const nextUrl = new URL(nextPath, window.location.origin);
+    const nextLocation = `${nextUrl.pathname}${nextUrl.search}`;
+    const currentLocation = `${pathname}${search}`;
+    if (nextLocation === currentLocation) return;
+    window.history.pushState({}, "", nextLocation);
+    setPathname(nextUrl.pathname);
+    setSearch(nextUrl.search);
+  };
+
+  const logoutMember = () => {
+    if (activeLoggedInMember) setMemberLoggedIn(activeLoggedInMember.id, false);
+    if (masterLoggedIn || isMasterLoggedIn()) setMasterLoggedIn(false);
+    setLoggedInMemberState(null);
+    setMasterLoggedInState(false);
+    navigate("/login");
   };
 
   const saveCurrentSettings = async () => {
@@ -817,7 +858,9 @@ export default function App() {
     }
   };
 
-  const matchedDeskFromPath = findDeskByPath(pathname, desks);
+  const matchedMemberFromPath = findMemberByProfilePath(pathname, memberHooks.members);
+  const memberProfilePathRequested = /^\/members\/[^/]+\/?$/i.test(pathname);
+  const matchedDeskFromPath = matchedMemberFromPath ? null : findDeskByPath(pathname, desks);
   const ticketLabelFromPath = findTicketLabelByPath(pathname);
 
   useEffect(() => {
@@ -830,16 +873,20 @@ export default function App() {
       pathname === "/" ||
       pathname === "/analytics" ||
       pathname === "/create" ||
+      pathname === "/create-password" ||
+      pathname === "/login" ||
+      pathname === "/reset-password" ||
       pathname === "/live" ||
       pathname === "/counters" ||
       pathname === "/services" ||
       pathname === "/members" ||
       pathname === "/settings" ||
-      ticketLabelFromPath
+      ticketLabelFromPath ||
+      memberProfilePathRequested
     ) {
       setActiveDeskPageId(null);
     }
-  }, [matchedDeskFromPath, pathname, ticketLabelFromPath]);
+  }, [matchedDeskFromPath, memberProfilePathRequested, pathname, ticketLabelFromPath]);
 
   const activeDesk = matchedDeskFromPath || (activeDeskPageId ? desks.find((desk) => desk.id === activeDeskPageId) || null : null);
 
@@ -847,13 +894,17 @@ export default function App() {
     if (!activeDesk) return;
     if (
       pathname === "/create" ||
+      pathname === "/create-password" ||
       pathname === "/analytics" ||
+      pathname === "/login" ||
+      pathname === "/reset-password" ||
       pathname === "/live" ||
       pathname === "/counters" ||
       pathname === "/services" ||
       pathname === "/members" ||
       pathname === "/settings" ||
-      ticketLabelFromPath
+      ticketLabelFromPath ||
+      memberProfilePathRequested
     ) return;
 
     const nextPath = getDeskPath(activeDesk, desks);
@@ -861,12 +912,20 @@ export default function App() {
       window.history.replaceState({}, "", nextPath);
       setPathname(nextPath);
     }
-  }, [activeDesk, desks, pathname, ticketLabelFromPath]);
+  }, [activeDesk, desks, memberProfilePathRequested, pathname, ticketLabelFromPath]);
 
   const currentPage = ticketLabelFromPath
     ? "ticket"
+    : memberProfilePathRequested
+      ? "profile"
     : pathname === "/create"
       ? "create"
+      : pathname === "/create-password"
+        ? "create-password"
+      : pathname === "/login"
+        ? "login"
+        : pathname === "/reset-password"
+          ? "reset-password"
       : pathname === "/analytics"
         ? "analytics"
       : pathname === "/live"
@@ -882,9 +941,20 @@ export default function App() {
     : activeDesk
       ? "desk"
       : "dashboard";
+  const protectedPage = !["create", "create-password", "login", "profile", "reset-password", "ticket"].includes(currentPage);
 
   useEffect(() => {
-    if (!["counters", "members", "services"].includes(currentPage) || !settingsDirty || settingsSaving) return undefined;
+    if (!settingsLoaded || !protectedPage || authenticated) return;
+
+    if (pathname !== "/login") {
+      window.history.replaceState({}, "", "/login");
+      setPathname("/login");
+      setSearch("");
+    }
+  }, [authenticated, pathname, protectedPage, settingsLoaded]);
+
+  useEffect(() => {
+    if (!["counters", "login", "members", "profile", "services"].includes(currentPage) || !settingsDirty || settingsSaving) return undefined;
 
     const saveTimer = window.setTimeout(() => {
       saveCurrentSettings();
@@ -894,6 +964,7 @@ export default function App() {
   }, [currentPage, settingsDirty, settingsSaving, settingsPayloadSignature]);
 
   const getDeskRoute = (desk) => getDeskPath(desk, desks);
+  const authIdentifierFromQuery = new URLSearchParams(search).get("member") || "";
   const ticketFromState = ticketLabelFromPath
     ? findSubmissionByLabel(ticketLabelFromPath, {
         savedSubmissions,
@@ -1135,7 +1206,23 @@ export default function App() {
   };
   return (
     <div className="flex min-h-screen w-full flex-col" style={{ background: C.ink900, color: C.textLight, fontFamily: "'IBM Plex Sans', sans-serif" }}>
-      {currentPage === "create" ? (
+      {protectedPage && !authenticated && !settingsLoaded ? (
+        <main className="flex min-h-screen w-full items-center justify-center px-4 py-6" style={{ backgroundColor: appearanceSettings.bgColor, color: appearanceSettings.fontColor }}>
+          <div className="text-center">
+            <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-current border-t-transparent opacity-70" />
+            <p className="mt-4 text-sm" style={{ color: `${appearanceSettings.fontColor}cc` }}>
+              Checking session...
+            </p>
+          </div>
+        </main>
+      ) : protectedPage && !authenticated ? (
+        <LoginPage
+          members={memberHooks.members}
+          theme={appearanceSettings}
+          loading={!settingsLoaded}
+          onNavigate={navigate}
+        />
+      ) : currentPage === "create" ? (
         <CreatePage ticketIssuer={ticketIssuer} desks={desks} services={services} labels={labels} />
       ) : currentPage === "ticket" ? (
         <TicketPage
@@ -1147,12 +1234,52 @@ export default function App() {
           serviceName={serviceName}
           onNavigate={navigate}
         />
+      ) : currentPage === "profile" ? (
+        <MemberProfilePage
+          member={matchedMemberFromPath}
+          desks={desks}
+          services={services}
+          labels={labels}
+          theme={appearanceSettings}
+          loading={!settingsLoaded}
+          initialIdentifier={authIdentifierFromQuery}
+          onUpdateMember={memberHooks.updateMember}
+          onNavigate={navigate}
+        />
+      ) : currentPage === "login" ? (
+        <LoginPage
+          members={memberHooks.members}
+          theme={appearanceSettings}
+          loading={!settingsLoaded}
+          onNavigate={navigate}
+        />
+      ) : currentPage === "create-password" ? (
+        <CreatePasswordPage
+          members={memberHooks.members}
+          theme={appearanceSettings}
+          loading={!settingsLoaded}
+          initialIdentifier={authIdentifierFromQuery}
+          onUpdateMember={memberHooks.updateMember}
+          onNavigate={navigate}
+        />
+      ) : currentPage === "reset-password" ? (
+        <ResetPasswordPage
+          members={memberHooks.members}
+          theme={appearanceSettings}
+          loading={!settingsLoaded}
+          onUpdateMember={memberHooks.updateMember}
+          onNavigate={navigate}
+        />
       ) : (
         <AdminShell
           currentPage={currentPage}
           onNavigate={navigate}
           appearance={appearanceSettings}
           onAppearanceChange={setAppearanceSettings}
+          loggedInMember={activeLoggedInMember}
+          masterLoggedIn={masterLoggedIn}
+          members={memberHooks.members}
+          onLogoutMember={logoutMember}
         >
           {(adminTheme) => (
           <div className="flex min-h-0 flex-1 flex-col">
@@ -1180,6 +1307,17 @@ export default function App() {
           ticketPosition={ticketDeskQueueInfo.position}
           ticketDeskName={ticketDeskQueueInfo.deskName}
           serviceName={serviceName}
+          onNavigate={navigate}
+        />
+      ) : currentPage === "profile" ? (
+        <MemberProfilePage
+          member={matchedMemberFromPath}
+          desks={desks}
+          services={services}
+          labels={labels}
+          theme={adminTheme}
+          loading={!settingsLoaded}
+          onUpdateMember={memberHooks.updateMember}
           onNavigate={navigate}
         />
       ) : currentPage === "live" ? (

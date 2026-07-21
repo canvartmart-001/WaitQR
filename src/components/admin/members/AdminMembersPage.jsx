@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, CircleAlert, ChevronDown, ChevronRight, Mail, Pencil, Phone, Plus, Search, Trash2, Upload, UserRound, X } from "lucide-react";
 import { memberCanBeAssignedToDesk, memberCanBeAssignedToService, memberHasDesk, memberHasService } from "../../../lib/assignments";
+import { getMemberProfilePath } from "../../../lib/routing";
 
 const ROLES = ["Manager", "Receptionist", "Member"];
 const COUNTER_WORD = "Counter";
@@ -517,7 +518,7 @@ function MemberControls({ member, theme, onEdit, onDelete, className = "" }) {
   );
 }
 
-function MemberCard({ member, desks, services, labels, theme, onEdit, onDelete }) {
+function MemberCard({ member, members, desks, services, labels, theme, onEdit, onDelete }) {
   const canAssignServices = memberCanBeAssignedToService(member);
   const canAssignDesks = memberCanBeAssignedToDesk(member);
   const assignedDesks = desks.filter((desk) => memberHasDesk(member, desk.id));
@@ -538,7 +539,9 @@ function MemberCard({ member, desks, services, labels, theme, onEdit, onDelete }
             <p className="shrink-0 text-xs font-medium" style={{ color: withAlpha(theme.fontColor, "65") }}>
               {member.id}
             </p>
-            <p className="mt-1 min-w-0 text-sm font-semibold" style={{ color: theme.fontColor }}>{member.name}</p>
+            <a href={getMemberProfilePath(member, members)} target="_blank" rel="noreferrer" className="mt-1 block min-w-0 text-sm font-semibold transition-opacity hover:opacity-80" style={{ color: theme.accentColor }}>
+              {member.name}
+            </a>
             <div className="mt-2 flex flex-col gap-y-1 text-xs" style={{ color: withAlpha(theme.fontColor, "80") }}>
               <span className="flex min-w-0 items-center gap-1.5"><Mail size={12} className="shrink-0" /><span className="min-w-0 break-all">{member.email || "—"}</span></span>
               <span className="flex min-w-0 items-center gap-1.5"><Phone size={12} className="shrink-0" /><span className="min-w-0">{member.phone || "—"}</span></span>
@@ -705,6 +708,7 @@ export function AdminMembersPage({
               <MemberCard
                 key={member.id}
                 member={member}
+                members={members}
                 desks={desks}
                 services={services}
                 labels={labels}
