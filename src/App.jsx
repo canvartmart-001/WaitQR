@@ -37,6 +37,7 @@ import { deriveDeskServicesFromMembers, memberHasDesk, normalizeMemberRole, uniq
 import { findLoggedInMember, isMasterLoggedIn, MEMBER_SESSION_CHANGED_EVENT, setMasterLoggedIn, setMemberLoggedIn } from "./lib/memberSession";
 
 const DASHBOARD_BREAKDOWN_MIN_HEIGHT = 640;
+const COUNTER_NOTIFICATIONS_STORAGE_KEY = "waitqr:counter-notifications";
 const DEFAULT_APPEARANCE_SETTINGS = {
   systemName: "WaitQR",
   accentColor: "#2563eb",
@@ -338,6 +339,80 @@ function availabilityModeForDeskStatus(desk = {}) {
   return desk.availabilityMode || "always_open";
 }
 
+function counterStatusDetails(desk = {}) {
+  const availabilityMode = availabilityModeForDeskStatus(desk);
+  if (availabilityMode === "scheduled") {
+    return { label: "Scheduled", mode: "scheduled", color: "#f59e0b" };
+  }
+  if (availabilityMode === "always_closed") {
+    return { label: "Closed", mode: "closed", color: "#ef4444" };
+  }
+  return { label: "Open", mode: "open", color: "#22c55e" };
+}
+
+function canReceiveCounterNotification({ member, masterLoggedIn, desk }) {
+  if (masterLoggedIn) return true;
+  if (!member || member.status === "Inactive") return false;
+  if (normalizeMemberRole(member.role) === "Administrator") return true;
+  return desk?.id != null && memberHasDesk(member, desk.id);
+}
+
+function makeCounterNotification(payload = {}, context = {}) {
+  if (payload.type !== "desk-status" || !payload.desk) return null;
+  const desk = payload.desk;
+  const currentMember = context.member || null;
+  const masterLoggedIn = Boolean(context.masterLoggedIn);
+
+  if (!canReceiveCounterNotification({ member: currentMember, masterLoggedIn, desk })) return null;
+
+  const status = counterStatusDetails(desk);
+  const actor = payload.changedBy?.name || (payload.changedBy?.role === "master" ? "Master login" : "Counter status");
+
+  return {
+    id: `${payload.changedAt || Date.now()}-${desk.id}-${status.label}`,
+    title: `${desk.name || "Counter"} is ${status.label}`,
+    message: `${actor} updated counter status.`,
+    time: payload.changedAt || Date.now(),
+    mode: status.mode,
+    color: status.color,
+    deskId: desk.id,
+  };
+}
+
+function loadStoredCounterNotifications() {
+  if (typeof window === "undefined" || !window.localStorage) return [];
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(COUNTER_NOTIFICATIONS_STORAGE_KEY) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item && item.id && item.deskId != null)
+      .map((item) => ({
+        id: String(item.id),
+        title: String(item.title || "Counter updated"),
+        message: String(item.message || "Counter status changed."),
+        time: Number(item.time) || Date.now(),
+        mode: item.mode === "scheduled" || item.mode === "closed" ? item.mode : "open",
+        color: item.color || "#22c55e",
+        deskId: item.deskId,
+      }))
+      .slice(0, 30);
+  } catch (error) {
+    console.warn("Failed to load counter notifications.", error);
+    return [];
+  }
+}
+
+function storeCounterNotifications(notifications = []) {
+  if (typeof window === "undefined" || !window.localStorage) return;
+
+  try {
+    window.localStorage.setItem(COUNTER_NOTIFICATIONS_STORAGE_KEY, JSON.stringify(notifications.slice(0, 30)));
+  } catch (error) {
+    console.warn("Failed to save counter notifications.", error);
+  }
+}
+
 function normalizeDesksForSettings(desks = [], services = DEFAULT_SERVICES, { preserveCurrent = false } = {}) {
   const savedDesks = (Array.isArray(desks) ? desks : []).filter((desk) => desk && desk.id !== DEFAULT_DESK_ID && !desk.isDefault);
   const serviceIds = new Set(normalizeServicesForSettings(services).map((service) => service.id));
@@ -518,8 +593,10 @@ export default function App() {
   const [savedSubmissions, setSavedSubmissions] = useState([]);
   const [submissionSummary, setSubmissionSummary] = useState({ total: 0, waiting: 0, serving: 0, served: 0, absent: 0 });
   const [liveQueuePoints, setLiveQueuePoints] = useState([]);
+  const [counterNotifications, setCounterNotifications] = useState(loadStoredCounterNotifications);
   const [submissionsLoaded, setSubmissionsLoaded] = useState(false);
   const activeSubmissionsRef = useRef([]);
+  const counterNotificationContextRef = useRef({ member: null, masterLoggedIn: false });
 
   // --- Core domain state ---------------------------------------------------------------------
   const { queue, setQueue, nextForDesk, nextTwoForDesk, sortedQueue } = useQueue(seedQueue(initBase));
@@ -693,6 +770,11 @@ export default function App() {
     };
 
     const syncSettings = (payload = {}) => {
+      const notification = makeCounterNotification(payload, counterNotificationContextRef.current);
+      if (notification) {
+        setCounterNotifications((items) => [notification, ...items.filter((item) => item.id !== notification.id)].slice(0, 30));
+      }
+
       if (settingsSavingRef.current) {
         pendingSettingsSyncRef.current = true;
         return;
@@ -800,6 +882,25 @@ export default function App() {
   const activeLoggedInMember = loggedInMember || findLoggedInMember(memberHooks.members);
   const authenticated = Boolean(activeLoggedInMember || masterLoggedIn || isMasterLoggedIn());
   const adminAuthenticated = Boolean(masterLoggedIn || isMasterLoggedIn() || normalizeMemberRole(activeLoggedInMember?.role) === "Administrator");
+  const visibleCounterNotifications = useMemo(() => {
+    if (!authenticated) return [];
+    const activeMasterLogin = Boolean(masterLoggedIn || isMasterLoggedIn());
+    return counterNotifications.filter((item) => {
+      const desk = desks.find((deskItem) => String(deskItem.id) === String(item.deskId)) || { id: item.deskId };
+      return canReceiveCounterNotification({ member: activeLoggedInMember, masterLoggedIn: activeMasterLogin, desk });
+    });
+  }, [activeLoggedInMember, authenticated, counterNotifications, desks, masterLoggedIn]);
+
+  useEffect(() => {
+    counterNotificationContextRef.current = {
+      member: activeLoggedInMember || null,
+      masterLoggedIn: Boolean(masterLoggedIn || isMasterLoggedIn()),
+    };
+  }, [activeLoggedInMember, masterLoggedIn]);
+
+  useEffect(() => {
+    storeCounterNotifications(counterNotifications);
+  }, [counterNotifications]);
   const applyLoadedSettings = (settings = {}) => {
     const normalizedServices = normalizeServicesForSettings(settings.services);
     const normalizedDesks = reconcileDeskServiceAssignments(settings.desks, normalizedServices);
@@ -926,6 +1027,7 @@ export default function App() {
   const logoutMember = () => {
     if (activeLoggedInMember) setMemberLoggedIn(activeLoggedInMember.id, false);
     if (masterLoggedIn || isMasterLoggedIn()) setMasterLoggedIn(false);
+    setCounterNotifications([]);
     setLoggedInMemberState(null);
     setMasterLoggedInState(false);
     navigate("/login");
@@ -969,6 +1071,11 @@ export default function App() {
       ...currentDesk,
       ...updates,
       id: currentDesk.id ?? deskId,
+      changedBy: activeLoggedInMember
+        ? { id: activeLoggedInMember.id, name: activeLoggedInMember.name, role: activeLoggedInMember.role }
+        : masterLoggedIn || isMasterLoggedIn()
+          ? { role: "master", name: "Master login" }
+          : null,
       current: null,
     };
 
@@ -1322,7 +1429,7 @@ export default function App() {
     addDeskWithAssignments,
     removeDesk,
     renameDesk: deskHooks.renameDesk,
-    updateDesk: deskHooks.updateDesk,
+    updateDesk: updateDeskStatusRealtime,
     setDeskServices: deskHooks.setDeskServices,
     toggleDeskService,
     setServiceDesks: deskHooks.setServiceDesks,
@@ -1485,6 +1592,8 @@ export default function App() {
           loggedInMember={activeLoggedInMember}
           masterLoggedIn={masterLoggedIn}
           members={memberHooks.members}
+          notifications={visibleCounterNotifications}
+          onClearNotifications={() => setCounterNotifications([])}
           onUpdateMember={memberHooks.updateMember}
           onAppearanceChange={setAppearanceSettings}
           onLogout={logoutMember}
@@ -1499,6 +1608,8 @@ export default function App() {
             masterLoggedIn={masterLoggedIn}
             members={memberHooks.members}
             theme={appearanceSettings}
+            notifications={visibleCounterNotifications}
+            onClearNotifications={() => setCounterNotifications([])}
             subtitle="Counter"
             onThemeChange={handleContentThemeChange}
             onNavigate={navigate}
@@ -1529,6 +1640,8 @@ export default function App() {
           loggedInMember={activeLoggedInMember}
           masterLoggedIn={masterLoggedIn}
           members={memberHooks.members}
+          notifications={visibleCounterNotifications}
+          onClearNotifications={() => setCounterNotifications([])}
           initialIdentifier={authIdentifierFromQuery}
           onUpdateMember={memberHooks.updateMember}
           onAppearanceChange={setAppearanceSettings}
@@ -1569,6 +1682,8 @@ export default function App() {
           loggedInMember={activeLoggedInMember}
           masterLoggedIn={masterLoggedIn}
           members={memberHooks.members}
+          notifications={visibleCounterNotifications}
+          onClearNotifications={() => setCounterNotifications([])}
           onLogoutMember={logoutMember}
         >
           {(adminTheme) => (
@@ -1610,6 +1725,8 @@ export default function App() {
           loggedInMember={activeLoggedInMember}
           masterLoggedIn={masterLoggedIn}
           members={memberHooks.members}
+          notifications={visibleCounterNotifications}
+          onClearNotifications={() => setCounterNotifications([])}
           onUpdateMember={memberHooks.updateMember}
           onAppearanceChange={setAppearanceSettings}
           onLogout={logoutMember}

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Bell,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -12,6 +11,7 @@ import {
 } from "lucide-react";
 import { ADMIN_NAV_ITEMS, ADMIN_PAGE_META } from "./adminNavigation";
 import { getMemberProfilePath } from "../../lib/routing";
+import { NotificationMenu } from "../shared/NotificationMenu";
 
 const THEME_PRESETS = {
   Dark: { accentColor: "#2563eb", bgColor: "#04060b", fontColor: "#e2e8f0", borderColor: "#171d2b", separatorColor: "#171d2b" },
@@ -337,7 +337,7 @@ function Sidebar({ variant, open, onClose, currentPage, onNavigate, theme, colla
   );
 }
 
-export function AdminShell({ currentPage, children, onNavigate, appearance, onAppearanceChange, loggedInMember, masterLoggedIn = false, members = [], onLogoutMember }) {
+export function AdminShell({ currentPage, children, onNavigate, appearance, onAppearanceChange, loggedInMember, masterLoggedIn = false, members = [], notifications = [], onClearNotifications, onLogoutMember }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const {
@@ -473,10 +473,7 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
               bgColor={bgColor}
               radius={radius}
             />
-            <button type="button" className="relative rounded-full p-2 hover:bg-white/5" style={{ color: withAlpha(fontColor, "99") }}>
-              <Bell size={18} />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
-            </button>
+            <NotificationMenu notifications={notifications} theme={{ bgColor, fontColor, borderColor, radius }} onClear={onClearNotifications} />
             <ProfileMenu
               member={loggedInMember}
               masterLoggedIn={masterLoggedIn}

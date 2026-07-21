@@ -1,7 +1,8 @@
-import { Bell, BriefcaseBusiness, Check, KeyRound, LayoutDashboard, LogIn, LogOut, Mail, Pencil, Phone, Monitor, Moon, Sun, Upload, UserRound, X } from "lucide-react";
+import { BriefcaseBusiness, Check, KeyRound, LayoutDashboard, LogIn, LogOut, Mail, Pencil, Phone, Monitor, Moon, Sun, Upload, UserRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { readImageFile } from "../../lib/imageUpload";
 import { getDeskPath, getMemberProfilePath } from "../../lib/routing";
+import { NotificationMenu } from "../shared/NotificationMenu";
 
 const THEME_PRESETS = {
   Dark: { accentColor: "#2563eb", bgColor: "#04060b", fontColor: "#e2e8f0", borderColor: "#171d2b", separatorColor: "#171d2b" },
@@ -169,7 +170,7 @@ function ThemeSwitch({ theme, onChange }) {
   );
 }
 
-export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme, subtitle = "Member profile", onThemeChange, onNavigate, onLogout }) {
+export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme, notifications = [], onClearNotifications, subtitle = "Member profile", onThemeChange, onNavigate, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const activeMember = loggedInMember || null;
@@ -227,12 +228,7 @@ export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members,
           ) : null}
 
           <ThemeSwitch theme={theme} onChange={onThemeChange} />
-          {canVisitDashboard ? (
-            <button type="button" aria-label="Notifications" className="relative rounded-full p-2 hover:bg-white/5" style={{ color: withAlpha(theme.fontColor, "99") }}>
-              <Bell size={18} />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
-            </button>
-          ) : null}
+          {signedIn ? <NotificationMenu notifications={notifications} theme={theme} onClear={onClearNotifications} /> : null}
 
           <div className="relative" ref={ref}>
             <button
@@ -310,7 +306,7 @@ export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members,
   );
 }
 
-export function MemberProfilePage({ member, desks, services, labels, theme, loading = false, loggedInMember, masterLoggedIn = false, members = [], onAppearanceChange, onUpdateMember, onLogout, onNavigate }) {
+export function MemberProfilePage({ member, desks, services, labels, theme, loading = false, loggedInMember, masterLoggedIn = false, members = [], notifications = [], onClearNotifications, onAppearanceChange, onUpdateMember, onLogout, onNavigate }) {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", about: "", photo: null });
   const [editError, setEditError] = useState("");
@@ -430,6 +426,8 @@ export function MemberProfilePage({ member, desks, services, labels, theme, load
         masterLoggedIn={masterLoggedIn}
         members={members}
         theme={theme}
+        notifications={notifications}
+        onClearNotifications={onClearNotifications}
         onThemeChange={handleThemeChange}
         onNavigate={onNavigate}
         onLogout={onLogout}

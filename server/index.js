@@ -45,6 +45,7 @@ function emitSubmissionChange(type, submission = null) {
 }
 
 function normalizeDeskAvailability(desk = {}) {
+  const { changedBy, ...deskDetails } = desk;
   const availabilityMode = desk.status === "Scheduled"
     ? "scheduled"
     : desk.status === "Unavailable"
@@ -56,7 +57,7 @@ function normalizeDeskAvailability(desk = {}) {
   const locked = availabilityMode === "always_closed" ? true : availabilityMode === "always_open" ? false : Boolean(desk.locked);
 
   return {
-    ...desk,
+    ...deskDetails,
     status,
     availabilityMode,
     locked,
@@ -221,12 +222,13 @@ app.patch("/api/desks/:id/status", async (req, res) => {
   const incomingDesk = req.body && typeof req.body === "object" && !Array.isArray(req.body)
     ? req.body
     : {};
-  const { availabilityMode, status, locked, schedule } = incomingDesk;
+  const { availabilityMode, status, locked, schedule, changedBy, ...deskPatch } = incomingDesk;
 
   try {
     const settings = await loadNormalizedSettings();
     const desks = Array.isArray(settings.desks) ? settings.desks : [];
     const deskIndex = desks.findIndex((desk) => String(desk?.id) === deskId);
+    const previousDesk = deskIndex === -1 ? null : normalizeDeskAvailability(desks[deskIndex]);
 
     if (deskIndex === -1 && !incomingDesk.name) {
       res.status(404).json({ error: "Counter not found." });
@@ -235,7 +237,7 @@ app.patch("/api/desks/:id/status", async (req, res) => {
 
     const updatedDesk = normalizeDeskAvailability({
       ...(deskIndex === -1 ? {} : desks[deskIndex]),
-      ...incomingDesk,
+      ...deskPatch,
       id: deskIndex === -1 ? incomingDesk.id ?? deskId : desks[deskIndex].id,
       ...(availabilityMode ? { availabilityMode } : {}),
       ...(status ? { status } : {}),
@@ -251,11 +253,17 @@ app.patch("/api/desks/:id/status", async (req, res) => {
     const savedDesk = Array.isArray(savedSettings.desks)
       ? savedSettings.desks.find((desk) => String(desk?.id) === deskId) || updatedDesk
       : updatedDesk;
+    const statusChanged = !previousDesk
+      || previousDesk.status !== savedDesk.status
+      || previousDesk.availabilityMode !== savedDesk.availabilityMode
+      || Boolean(previousDesk.locked) !== Boolean(savedDesk.locked)
+      || JSON.stringify(previousDesk.schedule || null) !== JSON.stringify(savedDesk.schedule || null);
 
     emitSettingsChange(savedSettings, {
-      type: "desk-status",
+      type: statusChanged ? "desk-status" : "desk-updated",
       deskId,
       desk: savedDesk,
+      changedBy: changedBy && typeof changedBy === "object" ? changedBy : null,
     });
     res.json({ desk: savedDesk, settings: savedSettings });
   } catch (error) {
