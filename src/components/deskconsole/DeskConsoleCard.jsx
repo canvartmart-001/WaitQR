@@ -164,6 +164,8 @@ export function DeskConsoleCard({
   const primaryBg = !d.current ? "#2663eb" : !d.current.startedAt ? "#E8A33D" : "#4FB286";
   const timerLabel = d.current?.startedAt ? elapsedTimerLabel(now - d.current.startedAt) : null;
   const scheduleRows = scheduleDayRows(d.schedule);
+  const currentScheduleDay = new Date(now).getDay();
+  const currentScheduleColor = availability.open ? C.teal : C.amber;
 
   const handlePrimaryAction = () => {
     if (!d.current) {
@@ -507,16 +509,21 @@ export function DeskConsoleCard({
                   }}
                 >
                   <span className="grid gap-1.5">
-                    {scheduleRows.map((row) => (
-                      <span key={row.value} className="grid grid-cols-[2.25rem_minmax(0,1fr)] items-center gap-3 text-xs">
-                        <span className="font-semibold" style={{ color: row.open ? C.amber : C.textFaint }}>
-                          {row.label}
+                    {scheduleRows.map((row) => {
+                      const isCurrentDay = row.value === currentScheduleDay;
+                      const rowColor = isCurrentDay ? currentScheduleColor : C.textFaint;
+
+                      return (
+                        <span key={row.value} className="grid grid-cols-[2.25rem_minmax(0,1fr)] items-center gap-3 text-xs">
+                          <span className="font-semibold" style={{ color: rowColor }}>
+                            {row.label}
+                          </span>
+                          <span className="qp-mono truncate" style={{ color: rowColor }}>
+                            {row.time}
+                          </span>
                         </span>
-                        <span className="qp-mono truncate" style={{ color: row.open ? C.textMuted : C.textFaint }}>
-                          {row.time}
-                        </span>
-                      </span>
-                    ))}
+                      );
+                    })}
                   </span>
                 </span>
               </button>
