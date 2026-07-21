@@ -1784,8 +1784,6 @@ export default function App() {
             onClearNotifications={confirmClearCounterNotifications}
             onMarkNotificationsRead={markCounterNotificationsRead}
             subtitle={null}
-            brandTitle={activeDesk.name}
-            hideBrandMark
             fullWidth
             onThemeChange={handleActiveThemeChange}
             onNavigate={navigate}
