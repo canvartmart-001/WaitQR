@@ -33,7 +33,7 @@ import { findDeskByPath, findMemberByProfilePath, getDeskPath, getMemberProfileP
 import { clearSubmissions, listQueueCountEvents, listSubmissions, updateSubmissionStatus } from "./lib/submissionsApi";
 import { cacheSettings, loadSettings, saveSettings } from "./lib/settingsApi";
 import { createRealtimeClient } from "./lib/realtime";
-import { deriveDeskServicesFromMembers, normalizeMemberRole, uniqueIds } from "./lib/assignments";
+import { deriveDeskServicesFromMembers, memberHasDesk, normalizeMemberRole, uniqueIds } from "./lib/assignments";
 import { findLoggedInMember, isMasterLoggedIn, MEMBER_SESSION_CHANGED_EVENT, setMasterLoggedIn, setMemberLoggedIn } from "./lib/memberSession";
 
 const DASHBOARD_BREAKDOWN_MIN_HEIGHT = 640;
@@ -66,6 +66,40 @@ const DEFAULT_APPEARANCE_SETTINGS = {
   },
 };
 const APPEARANCE_STORAGE_KEY = "waitqr:appearance";
+
+function counterDisplayName(name) {
+  const text = String(name || "").trim();
+  if (!text) return "Counter";
+  return text.replace(/^desk\b/i, "Counter");
+}
+
+function CounterPermissionDenied({ desk, member, members, theme, onNavigate }) {
+  const counterName = counterDisplayName(desk?.name);
+  const fallbackPath = member ? getMemberProfilePath(member, members) : "/login";
+  return (
+    <main className="flex min-h-screen w-full items-center justify-center px-4 py-6" style={{ backgroundColor: theme.bgColor, color: theme.fontColor }}>
+      <section className="w-full max-w-md border bg-white/5 p-5 text-center" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.4 }}>
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: `${theme.accentColor}1f`, color: theme.accentColor }}>
+          <span className="text-lg font-semibold">!</span>
+        </div>
+        <h1 className="mt-4 text-xl font-semibold" style={{ color: theme.fontColor }}>
+          No permission
+        </h1>
+        <p className="mt-2 text-sm" style={{ color: `${theme.fontColor}cc` }}>
+          You have no permission to access {counterName}.
+        </p>
+        <button
+          type="button"
+          onClick={() => onNavigate?.(fallbackPath)}
+          className="mt-5 inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          style={{ backgroundColor: theme.accentColor, borderRadius: theme.radius }}
+        >
+          Go back
+        </button>
+      </section>
+    </main>
+  );
+}
 
 function normalizeAppearance(appearance) {
   const source = appearance && typeof appearance === "object" ? appearance : {};
@@ -963,6 +997,8 @@ export default function App() {
       ? "desk"
       : "dashboard";
   const protectedPage = !["create", "create-password", "login", "profile", "reset-password", "ticket"].includes(currentPage);
+  const adminOnlyPage = protectedPage && currentPage !== "desk";
+  const canAccessActiveDesk = Boolean(!activeDesk || adminAuthenticated || (activeLoggedInMember && memberHasDesk(activeLoggedInMember, activeDesk.id)));
 
   useEffect(() => {
     if (!settingsLoaded || !protectedPage || authenticated) return;
@@ -975,7 +1011,7 @@ export default function App() {
   }, [authenticated, pathname, protectedPage, settingsLoaded]);
 
   useEffect(() => {
-    if (!settingsLoaded || !protectedPage || !authenticated || adminAuthenticated) return;
+    if (!settingsLoaded || !adminOnlyPage || !authenticated || adminAuthenticated) return;
 
     const nextPath = activeLoggedInMember ? getMemberProfilePath(activeLoggedInMember, memberHooks.members) : "/login";
     if (pathname !== nextPath) {
@@ -983,7 +1019,7 @@ export default function App() {
       setPathname(nextPath);
       setSearch("");
     }
-  }, [activeLoggedInMember, adminAuthenticated, authenticated, memberHooks.members, pathname, protectedPage, settingsLoaded]);
+  }, [activeLoggedInMember, adminAuthenticated, adminOnlyPage, authenticated, memberHooks.members, pathname, settingsLoaded]);
 
   useEffect(() => {
     if (!["counters", "login", "members", "profile", "services"].includes(currentPage) || !settingsDirty || settingsSaving) return undefined;
@@ -1236,9 +1272,32 @@ export default function App() {
     },
     members: { editingMember, setEditingMember, editingMemberLabel, setEditingMemberLabel, showAddMember, setShowAddMember },
   };
+  const activeDeskPageContent = activeDesk ? (
+    <DeskPage
+      desk={activeDesk}
+      deskPath={getDeskRoute(activeDesk)}
+      desks={desks}
+      services={services}
+      serviceName={serviceName}
+      labels={labels}
+      now={now}
+      queue={queue}
+      sortedQueue={sortedQueue}
+      eligibleForDesk={eligibleForDesk}
+      expandedDeskControl={expandedDeskControl}
+      setExpandedDeskControl={setExpandedDeskControl}
+      deskDetailTab={deskDetailTab}
+      setDeskDetailTab={setDeskDetailTab}
+      deskActions={deskHooks}
+      ticketLogs={ticketLogsWithStatus}
+      returnToQueue={returnToQueue}
+      askConfirm={askConfirm}
+      onNavigate={navigate}
+    />
+  ) : null;
   return (
     <div className="flex min-h-screen w-full flex-col" style={{ background: C.ink900, color: C.textLight, fontFamily: "'IBM Plex Sans', sans-serif" }}>
-      {protectedPage && !adminAuthenticated && !settingsLoaded ? (
+      {protectedPage && !authenticated && !settingsLoaded ? (
         <main className="flex min-h-screen w-full items-center justify-center px-4 py-6" style={{ backgroundColor: appearanceSettings.bgColor, color: appearanceSettings.fontColor }}>
           <div className="text-center">
             <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-current border-t-transparent opacity-70" />
@@ -1255,7 +1314,7 @@ export default function App() {
           initialIdentifier={authIdentifierFromQuery}
           onNavigate={navigate}
         />
-      ) : protectedPage && !adminAuthenticated && !activeLoggedInMember ? (
+      ) : adminOnlyPage && !adminAuthenticated && !activeLoggedInMember ? (
         <main className="flex min-h-screen w-full items-center justify-center px-4 py-6" style={{ backgroundColor: appearanceSettings.bgColor, color: appearanceSettings.fontColor }}>
           <div className="text-center">
             <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-current border-t-transparent opacity-70" />
@@ -1264,7 +1323,7 @@ export default function App() {
             </p>
           </div>
         </main>
-      ) : protectedPage && !adminAuthenticated ? (
+      ) : adminOnlyPage && !adminAuthenticated ? (
         <MemberProfilePage
           member={activeLoggedInMember}
           desks={desks}
@@ -1280,6 +1339,10 @@ export default function App() {
           onLogout={logoutMember}
           onNavigate={navigate}
         />
+      ) : currentPage === "desk" && activeDesk && !canAccessActiveDesk ? (
+        <CounterPermissionDenied desk={activeDesk} member={activeLoggedInMember} members={memberHooks.members} theme={appearanceSettings} onNavigate={navigate} />
+      ) : currentPage === "desk" && activeDesk && !adminAuthenticated ? (
+        activeDeskPageContent
       ) : currentPage === "create" ? (
         <CreatePage ticketIssuer={ticketIssuer} desks={desks} services={services} labels={labels} />
       ) : currentPage === "ticket" ? (
@@ -1456,27 +1519,7 @@ export default function App() {
           onSaveSettings={saveCurrentSettings}
         />
       ) : currentPage === "desk" && activeDesk ? (
-        <DeskPage
-          desk={activeDesk}
-          deskPath={getDeskRoute(activeDesk)}
-          desks={desks}
-          services={services}
-          serviceName={serviceName}
-          labels={labels}
-          now={now}
-          queue={queue}
-          sortedQueue={sortedQueue}
-          eligibleForDesk={eligibleForDesk}
-          expandedDeskControl={expandedDeskControl}
-          setExpandedDeskControl={setExpandedDeskControl}
-          deskDetailTab={deskDetailTab}
-          setDeskDetailTab={setDeskDetailTab}
-          deskActions={deskHooks}
-          ticketLogs={ticketLogsWithStatus}
-          returnToQueue={returnToQueue}
-          askConfirm={askConfirm}
-          onNavigate={navigate}
-        />
+        activeDeskPageContent
       ) : (
         <>
           <main className="flex-1 min-h-0 w-full px-2.5 pb-2.5 sm:px-6 sm:pb-6 md:pl-10 md:pr-6">
