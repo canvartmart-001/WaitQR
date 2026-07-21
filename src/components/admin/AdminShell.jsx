@@ -49,6 +49,11 @@ function initials(name) {
     .join("") || "AD";
 }
 
+function displayRoleName(role, fallback = "Member") {
+  const value = String(role || fallback).trim();
+  return value === "Administrator" ? "Admin" : value;
+}
+
 function ThemeSwitch({ theme, onChange, accent, fontColor, borderColor, bgColor, radius }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -113,7 +118,7 @@ function ProfileMenu({ member, masterLoggedIn, accentColor, fontColor, borderCol
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const displayName = member?.name || (masterLoggedIn ? "Development Access" : "Account");
-  const displayRole = member?.role || (masterLoggedIn ? "Master login" : "Login required");
+  const displayRole = member ? displayRoleName(member.role) : masterLoggedIn ? "Master login" : "Login required";
   const avatarText = initials(member?.name);
 
   useEffect(() => {

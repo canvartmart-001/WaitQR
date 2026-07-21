@@ -1,6 +1,5 @@
 import { Bell, BriefcaseBusiness, Check, KeyRound, LayoutDashboard, LogIn, LogOut, Mail, Pencil, Phone, Monitor, Moon, Sun, Upload, UserRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { isMemberLoggedIn } from "../../lib/memberSession";
 import { readImageFile } from "../../lib/imageUpload";
 import { getDeskPath, getMemberProfilePath } from "../../lib/routing";
 
@@ -46,6 +45,11 @@ function counterDisplayName(name) {
   const text = String(name || "").trim();
   if (!text) return "Counter";
   return text.replace(/^desk\b/i, "Counter");
+}
+
+function displayRoleName(role, fallback = "Member") {
+  const value = String(role || fallback).trim();
+  return value === "Administrator" ? "Admin" : value;
 }
 
 function fieldStyle(theme) {
@@ -163,7 +167,7 @@ function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme,
   const activeMember = loggedInMember || null;
   const signedIn = Boolean(activeMember || masterLoggedIn);
   const displayName = activeMember?.name || (masterLoggedIn ? "Development Access" : "Account");
-  const displayRole = activeMember?.role || (masterLoggedIn ? "Master login" : "Login required");
+  const displayRole = activeMember ? displayRoleName(activeMember.role) : masterLoggedIn ? "Master login" : "Login required";
   const logoUrl = theme.logoUrl;
   const systemName = theme.systemName || "WaitQR";
 
@@ -296,7 +300,6 @@ function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme,
 }
 
 export function MemberProfilePage({ member, desks, services, labels, theme, loading = false, loggedInMember, masterLoggedIn = false, members = [], onAppearanceChange, onUpdateMember, onLogout, onNavigate }) {
-  const [loggedIn, setLoggedIn] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", photo: null });
   const [editError, setEditError] = useState("");
@@ -304,18 +307,9 @@ export function MemberProfilePage({ member, desks, services, labels, theme, load
   const assignedDesks = itemsForIds(desks, member?.deskIds);
   const assignedServiceNames = namesForIds(services, member?.serviceIds);
   const hasPassword = Boolean(String(member?.password || "").trim());
-  const sessionKey = member?.id ? `waitqr:member-login:${member.id}` : "";
-  const canViewPrivateDetails = Boolean(masterLoggedIn || loggedInMember || loggedIn);
-  const canEditProfile = Boolean(member && onUpdateMember && (masterLoggedIn || loggedIn || String(loggedInMember?.id || "") === String(member.id)));
-
-  useEffect(() => {
-    if (!sessionKey) {
-      setLoggedIn(false);
-      return;
-    }
-
-    setLoggedIn(isMemberLoggedIn(member?.id));
-  }, [sessionKey]);
+  const viewingOwnProfile = Boolean(member && String(loggedInMember?.id || "") === String(member.id));
+  const canViewPrivateDetails = Boolean(masterLoggedIn || viewingOwnProfile);
+  const canEditProfile = Boolean(member && onUpdateMember && canViewPrivateDetails);
 
   useEffect(() => {
     setEditForm({
@@ -486,7 +480,7 @@ export function MemberProfilePage({ member, desks, services, labels, theme, load
                         className="inline-flex max-w-full items-center rounded-full px-2.5 py-1 text-center text-[11px] font-medium sm:text-xs"
                         style={{ color: theme.accentColor, backgroundColor: withAlpha(theme.accentColor, "14") }}
                       >
-                        <span className="truncate">{member?.role || labels.memberWord}</span>
+                        <span className="truncate">{displayRoleName(member?.role, labels.memberWord)}</span>
                       </span>
                     </div>
 

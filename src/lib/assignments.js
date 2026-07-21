@@ -18,7 +18,7 @@ export function memberHasDesk(member, deskId) {
 
 export function normalizeMemberRole(role) {
   const normalized = String(role || "Member").trim().toLowerCase();
-  if (normalized === "manager") return "Manager";
+  if (normalized === "administrator" || normalized === "manager") return "Administrator";
   if (normalized === "receptionist") return "Receptionist";
   return "Member";
 }

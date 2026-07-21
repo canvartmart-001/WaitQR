@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, CircleAlert, ChevronDown, ChevronRight, Mail, Pencil, Phone, Plus, Search, Trash2, Upload, UserRound, X } from "lucide-react";
+import { Check, CircleAlert, ChevronDown, ChevronRight, Mail, Pencil, Phone, Plus, RotateCcw, Search, Trash2, Upload, UserRound, X } from "lucide-react";
 import { memberCanBeAssignedToDesk, memberCanBeAssignedToService, memberHasDesk, memberHasService } from "../../../lib/assignments";
 import { readImageFile } from "../../../lib/imageUpload";
+import { setMemberLoggedIn } from "../../../lib/memberSession";
 import { getMemberProfilePath } from "../../../lib/routing";
 
-const ROLES = ["Manager", "Receptionist", "Member"];
+const ROLES = ["Administrator", "Receptionist", "Member"];
 const COUNTER_WORD = "Counter";
 const COUNTER_WORD_LOWER = "counter";
 const COUNTER_WORD_PLURAL = "Counters";
@@ -312,11 +313,16 @@ function MultiSelectInput({ items, selectedIds, onChange, placeholder, emptyLabe
   );
 }
 
-function MemberForm({ members, desks, services, labels, theme, brandName, editing, onCancel, onSave }) {
+function MemberForm({ members, desks, services, labels, theme, brandName, editing, onCancel, onSave, onResetPassword }) {
   const [form, setForm] = useState(() => memberToForm(editing, members, brandName));
   const [submitError, setSubmitError] = useState("");
+  const [submitMessage, setSubmitMessage] = useState("");
   const inputRef = useRef(null);
-  const set = (key) => (value) => setForm((current) => ({ ...current, [key]: value }));
+  const set = (key) => (value) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    setSubmitError("");
+    setSubmitMessage("");
+  };
   const canAssignServices = memberCanBeAssignedToService(form);
   const canAssignDesks = memberCanBeAssignedToDesk(form);
   const memberId = form.employeeId.trim();
@@ -340,6 +346,7 @@ function MemberForm({ members, desks, services, labels, theme, brandName, editin
 
   const handleSave = () => {
     if (!canSave) return;
+    setSubmitMessage("");
     const result = onSave({
       ...form,
       employeeId: memberId,
@@ -357,6 +364,17 @@ function MemberForm({ members, desks, services, labels, theme, brandName, editin
               : "Enter name and phone number to save this member."
       );
     }
+  };
+
+  const handleResetPassword = () => {
+    if (!editing) return;
+    setSubmitError("");
+    const result = onResetPassword?.(editing.id);
+    if (result?.ok === false) {
+      setSubmitError("Failed to reset this member password.");
+      return;
+    }
+    setSubmitMessage("Password reset. Member can create a new password from their profile.");
   };
 
   return (
@@ -482,9 +500,25 @@ function MemberForm({ members, desks, services, labels, theme, brandName, editin
             {submitError}
           </div>
         ) : null}
+        {!submitError && submitMessage ? (
+          <div className="text-xs sm:mr-auto" style={{ color: "#22c55e" }}>
+            {submitMessage}
+          </div>
+        ) : null}
         <button type="button" onClick={onCancel} className="border px-4 py-2 text-sm transition-colors hover:bg-white/5" style={{ color: withAlpha(theme.fontColor, "cc"), borderColor: theme.borderColor, borderRadius: theme.radius }}>
           Cancel
         </button>
+        {editing ? (
+          <button
+            type="button"
+            onClick={handleResetPassword}
+            className="inline-flex items-center justify-center gap-2 border px-4 py-2 text-sm transition-colors hover:bg-white/5"
+            style={{ color: withAlpha(theme.fontColor, "cc"), borderColor: theme.borderColor, borderRadius: theme.radius }}
+          >
+            <RotateCcw size={15} />
+            Reset password
+          </button>
+        ) : null}
         <button
           type="button"
           disabled={!canSave}
@@ -642,6 +676,12 @@ export function AdminMembersPage({
     return result;
   };
 
+  const resetMemberPassword = (memberId) => {
+    const result = updateMember(memberId, { password: "" });
+    if (result?.ok !== false) setMemberLoggedIn(memberId, false);
+    return result;
+  };
+
   return (
     <div style={{ "--field-bg": "rgba(255,255,255,0.04)" }}>
       <main className="space-y-4 px-2.5 py-2.5 sm:space-y-6 sm:px-6 sm:py-6 md:pl-10 md:pr-6">
@@ -658,6 +698,7 @@ export function AdminMembersPage({
               editing={editingMemberRecord}
               onCancel={closeForm}
               onSave={saveForm}
+              onResetPassword={resetMemberPassword}
             />
           </div>
         ) : null}

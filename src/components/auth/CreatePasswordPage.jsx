@@ -1,7 +1,5 @@
 import { KeyRound, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
-import { loginAsMember } from "../../lib/memberSession";
-import { getMemberProfilePath } from "../../lib/routing";
 
 function withAlpha(hex, alphaHex) {
   if (!hex || hex.length !== 7) return hex;
@@ -90,8 +88,7 @@ export function CreatePasswordPage({ members, theme, loading, initialIdentifier 
       return;
     }
 
-    loginAsMember(member.id, members);
-    onNavigate(getMemberProfilePath(member, members));
+    onNavigate(`/login?member=${encodeURIComponent(member.id)}`);
   };
 
   return (

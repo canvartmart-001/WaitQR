@@ -46,24 +46,29 @@ function findLoginMember(members, identifier) {
   }) || null;
 }
 
-export function LoginPage({ members, theme, loading, onNavigate }) {
-  const [identifier, setIdentifier] = useState("");
+export function LoginPage({ members, theme, loading, initialIdentifier = "", onNavigate }) {
+  const [identifier, setIdentifier] = useState(initialIdentifier);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (loading) return;
+    setIdentifier(initialIdentifier);
+  }, [initialIdentifier]);
 
-    if (isMasterLoggedIn()) {
+  useEffect(() => {
+    if (loading) return;
+    const requestedMember = initialIdentifier ? findLoginMember(members, initialIdentifier) : null;
+
+    if (isMasterLoggedIn() && !requestedMember) {
       onNavigate("/");
       return;
     }
 
     const loggedInMember = findLoggedInMember(members);
-    if (loggedInMember) {
+    if (loggedInMember && (!requestedMember || String(requestedMember.id) === String(loggedInMember.id))) {
       onNavigate(getMemberProfilePath(loggedInMember, members));
     }
-  }, [loading, members, onNavigate]);
+  }, [initialIdentifier, loading, members, onNavigate]);
 
   const handleLogin = () => {
     setError("");

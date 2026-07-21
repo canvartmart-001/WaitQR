@@ -1237,6 +1237,7 @@ export default function App() {
           members={memberHooks.members}
           theme={appearanceSettings}
           loading={!settingsLoaded}
+          initialIdentifier={authIdentifierFromQuery}
           onNavigate={navigate}
         />
       ) : currentPage === "create" ? (
@@ -1273,6 +1274,7 @@ export default function App() {
           members={memberHooks.members}
           theme={appearanceSettings}
           loading={!settingsLoaded}
+          initialIdentifier={authIdentifierFromQuery}
           onNavigate={navigate}
         />
       ) : currentPage === "create-password" ? (
