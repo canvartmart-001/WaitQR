@@ -18,7 +18,6 @@ export function DeskPage({
   deskActions,
   ticketLogs,
   returnToQueue,
-  askConfirm,
 }) {
   const { deskWord, deskWordLower, serviceWord, serviceWordLower, serviceWordPluralLower } = labels;
   const { servedByDesk, absentByDesk, removedByDesk, servedByDeskService, absentByDeskService, removedByDeskService, absentList, sortedServed, removeAbsent } = ticketLogs;
@@ -48,8 +47,7 @@ export function DeskPage({
             startService={deskActions.startService}
             completeTicket={deskActions.completeTicket}
             skipTicket={deskActions.skipTicket}
-            toggleDeskLock={deskActions.toggleDeskLock}
-            askConfirm={askConfirm}
+            updateDesk={deskActions.updateDesk}
             servedByDesk={servedByDesk}
             absentByDesk={absentByDesk}
             removedByDesk={removedByDesk}

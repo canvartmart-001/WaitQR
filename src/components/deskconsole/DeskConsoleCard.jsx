@@ -1,8 +1,99 @@
-import { ArrowRight, Check, Coffee, Info, X } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, Coffee, Info, Lock, Unlock, X } from "lucide-react";
+import { useState } from "react";
 import { C } from "../../lib/theme";
 import { elapsedLabel, elapsedTimerLabel } from "../../lib/format";
 import { SnoozingCat } from "../shared/SnoozingCat";
 import { selectNextTicketForDesk } from "../../hooks/useQueue";
+
+const DEFAULT_SCHEDULE = { entries: [{ days: [1], startTime: "09:00", endTime: "17:00" }] };
+
+function normalizeSchedule(schedule) {
+  const source = schedule && typeof schedule === "object" ? schedule : {};
+  const sourceEntries = Array.isArray(source.entries) && source.entries.length
+    ? source.entries
+    : Array.isArray(source.days)
+      ? [{ days: source.days, startTime: source.startTime, endTime: source.endTime }]
+      : DEFAULT_SCHEDULE.entries;
+
+  const entries = sourceEntries
+    .map((entry) => ({
+      days: (Array.isArray(entry?.days) ? entry.days : [entry?.day]).map(Number).filter((day) => day >= 0 && day <= 6),
+      startTime: entry?.startTime || "09:00",
+      endTime: entry?.endTime || "17:00",
+    }))
+    .filter((entry) => entry.days.length > 0);
+
+  return { entries: entries.length ? entries : DEFAULT_SCHEDULE.entries };
+}
+
+function timeToMinutes(time) {
+  const [hours, minutes] = String(time || "").split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
+}
+
+function formatScheduleTime(time) {
+  const [hours, minutes] = String(time || "").split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return "";
+  const period = hours >= 12 ? "PM" : "AM";
+  const displayHours = hours % 12 || 12;
+  return `${String(displayHours).padStart(2, "0")}:${String(minutes).padStart(2, "0")} ${period}`;
+}
+
+function currentDayScheduleLabel(schedule, now = new Date()) {
+  const normalized = normalizeSchedule(schedule);
+  const date = new Date(now);
+  const currentDay = Number.isFinite(date.getTime()) ? date.getDay() : new Date().getDay();
+  const entry = normalized.entries.find((item) => item.days.includes(currentDay));
+  if (!entry) return "No time today";
+  return `${formatScheduleTime(entry.startTime)} - ${formatScheduleTime(entry.endTime)}`;
+}
+
+function isScheduleOpenNow(schedule, now = new Date()) {
+  const normalized = normalizeSchedule(schedule);
+  const currentDay = now.getDay();
+  const previousDay = (currentDay + 6) % 7;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  return normalized.entries.some((entry) => {
+    const start = timeToMinutes(entry.startTime);
+    const end = timeToMinutes(entry.endTime);
+    if (start == null || end == null) return false;
+
+    if (start <= end) {
+      return entry.days.includes(currentDay) && currentMinutes >= start && currentMinutes < end;
+    }
+
+    return (entry.days.includes(currentDay) && currentMinutes >= start) || (entry.days.includes(previousDay) && currentMinutes < end);
+  });
+}
+
+function deskAvailability(desk, now) {
+  const mode = desk.status === "Scheduled"
+    ? "scheduled"
+    : desk.status === "Unavailable"
+      ? "always_closed"
+      : desk.status === "Available"
+        ? "always_open"
+        : desk.availabilityMode || "always_open";
+  if (mode === "scheduled" || desk.status === "Scheduled") {
+    const open = isScheduleOpenNow(desk.schedule, new Date(now));
+    return {
+      mode: "scheduled",
+      open,
+      dot: open ? C.teal : C.amber,
+      label: open ? "Scheduled open" : "Scheduled closed",
+    };
+  }
+
+  const open = mode !== "always_closed" && desk.status !== "Unavailable" && !desk.locked;
+  return {
+    mode,
+    open,
+    dot: open ? C.teal : C.coral,
+    label: open ? "Open" : "Closed",
+  };
+}
 
 export function DeskConsoleCard({
   desk: d,
@@ -25,8 +116,7 @@ export function DeskConsoleCard({
   startService,
   completeTicket,
   skipTicket,
-  toggleDeskLock,
-  askConfirm,
+  updateDesk,
   servedByDesk,
   absentByDesk,
   removedByDesk,
@@ -34,6 +124,8 @@ export function DeskConsoleCard({
   absentByDeskService,
   removedByDeskService,
 }) {
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [draftStatusMode, setDraftStatusMode] = useState("always_open");
   const canCallNext = !d.current && queue.some(eligibleForDesk(d));
   const isCalledNotStarted = d.current && !d.current.startedAt;
   const previewTicket = !d.current ? selectNextTicketForDesk(queue, d) : null;
@@ -47,13 +139,15 @@ export function DeskConsoleCard({
   const dim = !d.current;
   const revealAnim = justRevealedDesk === d.id ? "qp-card-in" : "";
   const isPrimaryBusy = completingDesk === d.id || startingDesk === d.id;
-  const isLocked = Boolean(d.locked);
+  const availability = deskAvailability(d, now);
+  const isLocked = !availability.open;
   const isServing = Boolean(d.current?.startedAt);
   const stateLabel = d.current ? (d.current.startedAt ? "Now Serving" : "Called") : previewTicket ? "Next in line" : null;
   const primaryLabel = !d.current ? "Call Next" : !d.current.startedAt ? "Start Serving" : "Mark Complete";
   const primaryIcon = d.current?.startedAt ? <Check size={15} /> : <ArrowRight size={15} />;
   const primaryBg = !d.current ? "#2663eb" : !d.current.startedAt ? "#E8A33D" : "#4FB286";
   const timerLabel = d.current?.startedAt ? elapsedTimerLabel(now - d.current.startedAt) : null;
+  const todayScheduleLabel = currentDayScheduleLabel(d.schedule, now);
 
   const handlePrimaryAction = () => {
     if (!d.current) {
@@ -67,6 +161,38 @@ export function DeskConsoleCard({
     }
 
     completeTicket(d.id);
+  };
+
+  const updateDeskAvailability = (mode) => {
+    const currentSchedule = normalizeSchedule(d.schedule);
+    const next = mode === "scheduled"
+      ? {
+          availabilityMode: "scheduled",
+          status: "Scheduled",
+          schedule: currentSchedule,
+          locked: !isScheduleOpenNow(currentSchedule, new Date(now)),
+        }
+      : mode === "always_closed"
+        ? {
+            availabilityMode: "always_closed",
+            status: "Unavailable",
+            schedule: null,
+            locked: true,
+          }
+        : {
+            availabilityMode: "always_open",
+            status: "Available",
+            schedule: null,
+            locked: false,
+          };
+
+    updateDesk?.(d.id, next);
+    setStatusOpen(false);
+  };
+
+  const openStatusDialog = () => {
+    setDraftStatusMode(availability.mode);
+    setStatusOpen(true);
   };
 
   const renderDeskActions = (className = "mt-4 flex items-stretch gap-2") => (
@@ -177,31 +303,19 @@ export function DeskConsoleCard({
           <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"
-              onClick={() =>
-                askConfirm?.(
-                  d.locked ? `Open ${deskWordLower}?` : `Close ${deskWordLower}?`,
-                  d.locked
-                    ? `${d.name} is currently closed for new joining. Opening it will let visitors join this ${deskWordLower} again.`
-                    : `${d.name} is currently open for joining. Closing it will stop new visitors from joining this ${deskWordLower}.`,
-                  () => toggleDeskLock?.(d.id),
-                  {
-                    confirmLabel: d.locked ? `Open ${deskWordLower}` : `Close ${deskWordLower}`,
-                    variant: d.locked ? "success" : "danger",
-                  }
-                )
-              }
+              onClick={openStatusDialog}
               className="qp-focusable flex min-w-0 items-center gap-1 rounded-full px-1 py-0.5 text-left transition-colors hover:bg-white/5"
-              title={d.locked ? "Currently closed for new joining" : "Currently open for joining"}
+              title={availability.label}
             >
               <span
                 className={`${isServing ? "qp-livedot" : ""} h-1.5 w-1.5 shrink-0 rounded-full`}
                 aria-hidden="true"
-                style={{ background: isLocked ? C.coral : C.teal }}
+                style={{ background: availability.dot }}
               />
               <span className="shrink-0 text-xs font-semibold uppercase tracking-wider" style={{ color: C.textMuted }}>
                 {d.name}
               </span>
-              <span className="sr-only">{isLocked ? "Closed for new joining" : "Open for joining"}</span>
+              <span className="sr-only">{availability.label}</span>
             </button>
           </div>
 
@@ -310,6 +424,93 @@ export function DeskConsoleCard({
 
         {!t ? renderDeskActions() : null}
       </div>
+
+      {statusOpen ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setStatusOpen(false)}>
+          <div
+            className="qp-modal w-full max-w-sm p-5"
+            style={{ background: C.ink800, borderRadius: 14, boxShadow: "0 22px 60px rgba(0,0,0,0.45)" }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: C.textMuted }}>
+                Counter status
+              </div>
+              <h3 className="mt-1 text-lg font-semibold" style={{ color: C.textLight }}>
+                {d.name}
+              </h3>
+              <div className="mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" style={{ color: availability.dot, background: `${availability.dot}24` }}>
+                {availability.label}
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <button
+                type="button"
+                onClick={() => setDraftStatusMode("always_open")}
+                className="qp-focusable flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-white/5"
+                style={{ borderColor: C.ink600, color: C.textLight }}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Unlock size={15} style={{ color: C.teal }} />
+                  Open
+                </span>
+                {draftStatusMode === "always_open" ? <Check size={15} style={{ color: C.teal }} /> : null}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDraftStatusMode("always_closed")}
+                className="qp-focusable flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-white/5"
+                style={{ borderColor: C.ink600, color: C.textLight }}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Lock size={15} style={{ color: C.coral }} />
+                  Closed
+                </span>
+                {draftStatusMode === "always_closed" ? <Check size={15} style={{ color: C.coral }} /> : null}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDraftStatusMode("scheduled")}
+                className="qp-focusable flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-white/5"
+                style={{ borderColor: C.ink600, color: C.textLight }}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <CalendarDays size={15} style={{ color: C.amber }} />
+                  Scheduled
+                </span>
+                <span className="ml-auto inline-flex shrink-0 items-center gap-2">
+                  {draftStatusMode === "scheduled" ? (
+                    <span className="qp-mono text-[11px]" style={{ color: C.textMuted }}>
+                      {todayScheduleLabel}
+                    </span>
+                  ) : null}
+                  {draftStatusMode === "scheduled" ? <Check size={15} style={{ color: C.amber }} /> : null}
+                </span>
+              </button>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setStatusOpen(false)}
+                className="qp-focusable rounded-md px-3 py-2 text-xs"
+                style={{ background: "rgba(255,255,255,0.08)", color: C.textMuted }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => updateDeskAvailability(draftStatusMode)}
+                className="qp-focusable rounded-md px-3 py-2 text-xs font-medium"
+                style={{ background: C.teal, color: C.paper }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -57,9 +57,10 @@ function statusForAvailabilityMode(mode) {
 }
 
 function availabilityModeForDesk(desk) {
-  if (desk?.availabilityMode) return desk.availabilityMode;
   if (desk?.status === "Scheduled") return "scheduled";
   if (desk?.status === "Unavailable") return "always_closed";
+  if (desk?.status === "Available") return "always_open";
+  if (desk?.availabilityMode) return desk.availabilityMode;
   return "always_open";
 }
 
@@ -571,7 +572,7 @@ function CounterCard({ desk, index, services, members, labels, theme, getDeskPat
   const available = scheduled ? isScheduleOpenNow(desk.schedule) : availabilityMode !== "always_closed" && desk.status !== "Unavailable";
   const statusColor = scheduled && !available ? "#f59e0b" : available ? "#22c55e" : "#ef4444";
   const statusBackground = scheduled && !available ? "rgba(245,158,11,0.15)" : available ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)";
-  const StatusIcon = scheduled && !available ? CalendarDays : available ? Check : X;
+  const StatusIcon = scheduled ? CalendarDays : available ? Check : X;
 
   return (
     <div className="flex flex-col gap-3 border p-4 lg:flex-row lg:items-start" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.2 }}>

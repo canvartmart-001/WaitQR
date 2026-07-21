@@ -169,7 +169,7 @@ function ThemeSwitch({ theme, onChange }) {
   );
 }
 
-function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme, onThemeChange, onNavigate, onLogout }) {
+export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme, subtitle = "Member profile", onThemeChange, onNavigate, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const activeMember = loggedInMember || null;
@@ -208,7 +208,7 @@ function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme,
               {systemName}
             </span>
             <span className="hidden text-xs sm:block" style={{ color: withAlpha(theme.fontColor, "80") }}>
-              Member profile
+              {subtitle}
             </span>
           </span>
         </button>

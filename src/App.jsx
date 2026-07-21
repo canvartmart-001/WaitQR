@@ -25,7 +25,7 @@ import { AdminCountersPage } from "./components/admin/counters/AdminCountersPage
 import { AdminServicesPage } from "./components/admin/services/AdminServicesPage";
 import { AdminMembersPage } from "./components/admin/members/AdminMembersPage";
 import { AdminSettingsPage } from "./components/admin/settings/AdminSettingsPage";
-import { MemberProfilePage } from "./components/profile/MemberProfilePage";
+import { MemberProfilePage, ProfileHeader } from "./components/profile/MemberProfilePage";
 import { ConfirmDialog } from "./components/modals/ConfirmDialog";
 import { IssueToast } from "./components/shared/IssueToast";
 import { C } from "./lib/theme";
@@ -331,6 +331,13 @@ function normalizeServicesForSettings(services = []) {
     .map((service) => ({ ...service, isDefault: false }));
 }
 
+function availabilityModeForDeskStatus(desk = {}) {
+  if (desk.status === "Scheduled") return "scheduled";
+  if (desk.status === "Unavailable") return "always_closed";
+  if (desk.status === "Available") return "always_open";
+  return desk.availabilityMode || "always_open";
+}
+
 function normalizeDesksForSettings(desks = [], services = DEFAULT_SERVICES, { preserveCurrent = false } = {}) {
   const savedDesks = (Array.isArray(desks) ? desks : []).filter((desk) => desk && desk.id !== DEFAULT_DESK_ID && !desk.isDefault);
   const serviceIds = new Set(normalizeServicesForSettings(services).map((service) => service.id));
@@ -342,13 +349,19 @@ function normalizeDesksForSettings(desks = [], services = DEFAULT_SERVICES, { pr
     return Array.from(new Set(desk.services)).filter((serviceId) => serviceIds.has(serviceId));
   };
 
-  return savedDesks.map((desk) => ({
-    ...desk,
-    services: normalizeDeskServices(desk),
-    status: desk.status || "Available",
-    current: preserveCurrent ? desk.current || null : null,
-    isDefault: Boolean(desk.isDefault),
-  }));
+  return savedDesks.map((desk) => {
+    const availabilityMode = availabilityModeForDeskStatus(desk);
+    const status = availabilityMode === "scheduled" ? "Scheduled" : availabilityMode === "always_closed" ? "Unavailable" : "Available";
+
+    return {
+      ...desk,
+      services: normalizeDeskServices(desk),
+      status,
+      availabilityMode,
+      current: preserveCurrent ? desk.current || null : null,
+      isDefault: Boolean(desk.isDefault),
+    };
+  });
 }
 
 function reconcileDeskServiceAssignments(desks, services, options) {
@@ -356,17 +369,23 @@ function reconcileDeskServiceAssignments(desks, services, options) {
 }
 
 function sanitizeDesksForSettings(desks, services) {
-  return reconcileDeskServiceAssignments(desks, services).map((desk) => ({
-    id: desk.id,
-    name: desk.name,
-    services: desk.services || [],
-    locked: Boolean(desk.locked),
-    status: desk.status || "Available",
-    availabilityMode: desk.availabilityMode || (desk.status === "Scheduled" ? "scheduled" : desk.status === "Unavailable" ? "always_closed" : "always_open"),
-    schedule: desk.schedule || null,
-    current: null,
-    isDefault: Boolean(desk.isDefault),
-  }));
+  return reconcileDeskServiceAssignments(desks, services).map((desk) => {
+    const availabilityMode = availabilityModeForDeskStatus(desk);
+    const status = availabilityMode === "scheduled" ? "Scheduled" : availabilityMode === "always_closed" ? "Unavailable" : "Available";
+    const locked = availabilityMode === "always_closed" ? true : availabilityMode === "always_open" ? false : Boolean(desk.locked);
+
+    return {
+      id: desk.id,
+      name: desk.name,
+      services: desk.services || [],
+      locked,
+      status,
+      availabilityMode,
+      schedule: availabilityMode === "scheduled" ? desk.schedule || null : null,
+      current: null,
+      isDefault: Boolean(desk.isDefault),
+    };
+  });
 }
 
 function normalizeMembersForSettings(members = [], desks = [], services = DEFAULT_SERVICES) {
@@ -674,6 +693,11 @@ export default function App() {
     };
 
     const syncSettings = () => {
+      if (settingsSavingRef.current) {
+        pendingSettingsSyncRef.current = true;
+        return;
+      }
+
       loadSettings({ preferRemote: true })
         .then((settings) => {
           if (cancelled) return;
@@ -757,6 +781,8 @@ export default function App() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaveError, setSettingsSaveError] = useState("");
   const [lastSavedSettingsSignature, setLastSavedSettingsSignature] = useState("");
+  const settingsSavingRef = useRef(false);
+  const pendingSettingsSyncRef = useRef(false);
   const settingsPayload = useMemo(
     () => createSettingsPayload({ services, desks, members: memberHooks.members, appearance: appearanceSettings }),
     [services, desks, memberHooks.members, appearanceSettings]
@@ -825,6 +851,10 @@ export default function App() {
 
     return () => media.removeEventListener?.("change", handleChange);
   }, [appearanceSettings]);
+
+  useEffect(() => {
+    settingsSavingRef.current = settingsSaving;
+  }, [settingsSaving]);
 
   useEffect(() => {
     if (!settingsLoaded || !settingsSaveReady || !settingsDirty) return;
@@ -899,10 +929,12 @@ export default function App() {
     if (!settingsLoaded || !settingsSaveReady || settingsSaving || !settingsDirty) return false;
 
     setSettingsSaving(true);
+    settingsSavingRef.current = true;
     setSettingsSaveError("");
 
     try {
-      await saveSettings(JSON.parse(settingsPayloadSignature));
+      const savedSettings = await saveSettings(JSON.parse(settingsPayloadSignature));
+      applyLoadedSettings(savedSettings);
       setLastSavedSettingsSignature(settingsPayloadSignature);
       return true;
     } catch (error) {
@@ -910,8 +942,39 @@ export default function App() {
       return false;
     } finally {
       setSettingsSaving(false);
+      settingsSavingRef.current = false;
+      if (pendingSettingsSyncRef.current) {
+        pendingSettingsSyncRef.current = false;
+        loadSettings({ preferRemote: true })
+          .then((settings) => {
+            applyLoadedSettings(settings);
+            setSettingsLoaded(true);
+          })
+          .catch((error) => {
+            console.warn(error.message);
+          });
+      }
     }
   };
+
+  useEffect(() => {
+    if (!settingsLoaded) return undefined;
+
+    const syncTimer = window.setInterval(() => {
+      if (settingsSavingRef.current || settingsDirty) return;
+
+      loadSettings({ preferRemote: true })
+        .then((settings) => {
+          applyLoadedSettings(settings);
+          setSettingsLoaded(true);
+        })
+        .catch((error) => {
+          console.warn(error.message);
+        });
+    }, 5000);
+
+    return () => window.clearInterval(syncTimer);
+  }, [settingsDirty, settingsLoaded]);
 
   const matchedMemberFromPath = findMemberByProfilePath(pathname, memberHooks.members);
   const memberProfilePathRequested = /^\/members\/[^/]+\/?$/i.test(pathname);
@@ -1022,7 +1085,7 @@ export default function App() {
   }, [activeLoggedInMember, adminAuthenticated, adminOnlyPage, authenticated, memberHooks.members, pathname, settingsLoaded]);
 
   useEffect(() => {
-    if (!["counters", "login", "members", "profile", "services"].includes(currentPage) || !settingsDirty || settingsSaving) return undefined;
+    if (!["counters", "desk", "login", "members", "profile", "services"].includes(currentPage) || !settingsDirty || settingsSaving) return undefined;
 
     const saveTimer = window.setTimeout(() => {
       saveCurrentSettings();
@@ -1272,6 +1335,31 @@ export default function App() {
     },
     members: { editingMember, setEditingMember, editingMemberLabel, setEditingMemberLabel, showAddMember, setShowAddMember },
   };
+  const handleContentThemeChange = (nextTheme) => {
+    const currentMode = resolveAppearanceThemeMode(appearanceSettings.themeMode);
+    const nextMode = resolveAppearanceThemeMode(nextTheme);
+    const themeColors = appearanceSettings.themeColors || DEFAULT_APPEARANCE_SETTINGS.themeColors;
+    const currentColors = {
+      ...(themeColors[currentMode] || DEFAULT_APPEARANCE_SETTINGS.themeColors[currentMode]),
+      accentColor: appearanceSettings.accentColor,
+      bgColor: appearanceSettings.bgColor,
+      fontColor: appearanceSettings.fontColor,
+      borderColor: appearanceSettings.borderColor,
+      separatorColor: appearanceSettings.separatorColor,
+    };
+    const nextColors = themeColors[nextMode] || DEFAULT_APPEARANCE_SETTINGS.themeColors[nextMode] || DEFAULT_APPEARANCE_SETTINGS.themeColors.Dark;
+
+    setAppearanceSettings({
+      ...appearanceSettings,
+      themeMode: nextTheme,
+      ...nextColors,
+      themeColors: {
+        ...themeColors,
+        [currentMode]: currentColors,
+        [nextMode]: nextColors,
+      },
+    });
+  };
   const activeDeskPageContent = activeDesk ? (
     <DeskPage
       desk={activeDesk}
@@ -1291,7 +1379,6 @@ export default function App() {
       deskActions={deskHooks}
       ticketLogs={ticketLogsWithStatus}
       returnToQueue={returnToQueue}
-      askConfirm={askConfirm}
       onNavigate={navigate}
     />
   ) : null;
@@ -1342,7 +1429,19 @@ export default function App() {
       ) : currentPage === "desk" && activeDesk && !canAccessActiveDesk ? (
         <CounterPermissionDenied desk={activeDesk} member={activeLoggedInMember} members={memberHooks.members} theme={appearanceSettings} onNavigate={navigate} />
       ) : currentPage === "desk" && activeDesk && !adminAuthenticated ? (
-        activeDeskPageContent
+        <div className="flex min-h-screen w-full flex-col" style={{ backgroundColor: appearanceSettings.bgColor, color: appearanceSettings.fontColor }}>
+          <ProfileHeader
+            loggedInMember={activeLoggedInMember}
+            masterLoggedIn={masterLoggedIn}
+            members={memberHooks.members}
+            theme={appearanceSettings}
+            subtitle="Counter"
+            onThemeChange={handleContentThemeChange}
+            onNavigate={navigate}
+            onLogout={logoutMember}
+          />
+          {activeDeskPageContent}
+        </div>
       ) : currentPage === "create" ? (
         <CreatePage ticketIssuer={ticketIssuer} desks={desks} services={services} labels={labels} />
       ) : currentPage === "ticket" ? (
