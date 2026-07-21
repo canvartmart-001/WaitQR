@@ -16,6 +16,11 @@ const WEEK_DAYS = [
   { value: 0, label: "Sun" },
 ];
 
+function withAlpha(hex, alphaHex) {
+  if (typeof hex !== "string" || !/^#?[0-9a-f]{6}$/i.test(hex)) return hex;
+  return `${hex.startsWith("#") ? hex : `#${hex}`}${alphaHex}`;
+}
+
 function normalizeSchedule(schedule) {
   const source = schedule && typeof schedule === "object" ? schedule : {};
   const sourceEntries = Array.isArray(source.entries) && source.entries.length
@@ -118,6 +123,7 @@ export function DeskConsoleCard({
   onToggleExpanded,
   services,
   serviceName,
+  theme,
   serviceWord,
   serviceWordLower,
   serviceWordPluralLower,
@@ -161,11 +167,22 @@ export function DeskConsoleCard({
   const stateLabel = d.current ? (d.current.startedAt ? "Now Serving" : "Called") : previewTicket ? "Next in line" : null;
   const primaryLabel = !d.current ? "Call Next" : !d.current.startedAt ? "Start Serving" : "Mark Complete";
   const primaryIcon = d.current?.startedAt ? <Check size={15} /> : <ArrowRight size={15} />;
-  const primaryBg = !d.current ? "#2663eb" : !d.current.startedAt ? "#E8A33D" : "#4FB286";
   const timerLabel = d.current?.startedAt ? elapsedTimerLabel(now - d.current.startedAt) : null;
   const scheduleRows = scheduleDayRows(d.schedule);
   const currentScheduleDay = new Date(now).getDay();
   const currentScheduleColor = isScheduleOpenNow(d.schedule, new Date(now)) ? C.teal : C.amber;
+  const surfaceTheme = {
+    accentColor: theme?.accentColor || C.blue,
+    bgColor: theme?.bgColor || C.ink900,
+    fontColor: theme?.fontColor || C.textLight,
+    borderColor: theme?.borderColor || C.ink700,
+    radius: theme?.radius || 8,
+  };
+  const mutedColor = withAlpha(surfaceTheme.fontColor, "80");
+  const faintColor = withAlpha(surfaceTheme.fontColor, "55");
+  const subtleBackground = withAlpha(surfaceTheme.fontColor, "08");
+  const controlBackground = withAlpha(surfaceTheme.fontColor, "12");
+  const primaryBg = !d.current ? surfaceTheme.accentColor : !d.current.startedAt ? C.amber : C.teal;
 
   const handlePrimaryAction = () => {
     if (!d.current) {
@@ -233,6 +250,7 @@ export function DeskConsoleCard({
           borderColor: "transparent",
           color: C.textLight,
           background: primaryBg,
+          borderRadius: surfaceTheme.radius,
         }}
       >
         <span>{primaryLabel}</span>
@@ -246,9 +264,10 @@ export function DeskConsoleCard({
           title="Break"
           className="qp-focusable flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition-colors disabled:opacity-30"
           style={{
-            borderColor: C.ink600,
-            color: C.textLight,
-            background: "rgba(38,44,54,0.92)",
+            borderColor: surfaceTheme.borderColor,
+            color: mutedColor,
+            background: controlBackground,
+            borderRadius: surfaceTheme.radius,
           }}
         >
           <Coffee size={15} />
@@ -259,8 +278,8 @@ export function DeskConsoleCard({
           onClick={() => skipTicket(d.id)}
           disabled={skippingDesk === d.id}
           title="Mark absent / no-show"
-          className="qp-focusable flex h-10 w-10 shrink-0 items-center justify-center rounded-md border bg-[rgba(38,44,54,0.92)] text-[#E2614F] transition-colors hover:bg-[#E2614F] hover:text-[#F2EFE7] disabled:cursor-not-allowed disabled:opacity-30"
-          style={{ borderColor: "transparent" }}
+          className="qp-focusable flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition-colors hover:bg-[#E2614F] hover:text-[#F2EFE7] disabled:cursor-not-allowed disabled:opacity-30"
+          style={{ borderColor: "transparent", background: controlBackground, color: C.coral, borderRadius: surfaceTheme.radius }}
         >
           <X size={15} />
         </button>
@@ -269,9 +288,14 @@ export function DeskConsoleCard({
       <button
         type="button"
         onClick={onToggleExpanded}
-        className={`qp-focusable flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition-colors hover:bg-[rgba(255,255,255,0.06)] hover:text-[#F2EFE7] ${isExpanded ? "bg-[rgba(255,255,255,0.08)] text-[#F2EFE7]" : "bg-[rgba(38,44,54,0.92)] text-[#5B6270]"}`}
+        className="qp-focusable flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition-colors hover:bg-white/10"
         title={isExpanded ? "Hide detail" : "Show detail"}
-        style={{ borderColor: "transparent" }}
+        style={{
+          borderColor: "transparent",
+          background: isExpanded ? withAlpha(surfaceTheme.accentColor, "1f") : controlBackground,
+          color: isExpanded ? surfaceTheme.accentColor : mutedColor,
+          borderRadius: surfaceTheme.radius,
+        }}
       >
         <Info size={14} />
       </button>
@@ -279,13 +303,21 @@ export function DeskConsoleCard({
   );
 
   const renderExpandedDetails = () => (
-    <div className="qp-desk-expanded-details">
-      <div className="flex flex-col gap-1">
+    <div className="qp-desk-expanded-details" style={{ borderColor: surfaceTheme.borderColor }}>
+      <div className="qp-desk-expanded-content">
+        <div className="qp-desk-service-header" style={{ color: faintColor }}>
+          <span>Service</span>
+          <span className="qp-desk-service-count-labels">
+            <span>Served</span>
+            <span>Absent</span>
+            <span>Removed</span>
+          </span>
+        </div>
         {(() => {
           const list = services.filter((s) => d.services.includes(s.id));
           if (list.length === 0) {
             return (
-              <div className="py-1 text-xs" style={{ color: C.textFaint }}>
+              <div className="py-1 text-xs" style={{ color: faintColor }}>
                 No {serviceWordPluralLower} assigned yet.
               </div>
             );
@@ -297,14 +329,14 @@ export function DeskConsoleCard({
             const ab = absentByDeskService[key] || 0;
             const rm = removedByDeskService[key] || 0;
             return (
-              <div key={s.id} className="flex items-center justify-between border-b py-1.5 last:border-b-0" style={{ borderColor: C.ink700 }}>
-                <span className="truncate text-xs" style={{ color: C.textLight }}>
+              <div key={s.id} className="qp-desk-service-row" style={{ borderColor: withAlpha(surfaceTheme.borderColor, "66") }}>
+                <span className="qp-desk-service-name truncate" style={{ color: surfaceTheme.fontColor }}>
                   {s.name}
                 </span>
-                <span className="qp-mono flex shrink-0 items-center gap-3 text-[11px]">
-                  <span style={{ color: C.teal }}>{sv}</span>
-                  <span style={{ color: C.coral }}>{ab}</span>
-                  <span style={{ color: C.textFaint }}>{rm}</span>
+                <span className="qp-desk-service-counts">
+                  <span className="qp-mono text-center" style={{ color: C.teal }}>{sv}</span>
+                  <span className="qp-mono text-center" style={{ color: C.coral }}>{ab}</span>
+                  <span className="qp-mono text-center" style={{ color: faintColor }}>{rm}</span>
                 </span>
               </div>
             );
@@ -314,54 +346,60 @@ export function DeskConsoleCard({
     </div>
   );
 
+  const renderDeskStatusButton = () => (
+    <button
+      type="button"
+      onClick={openStatusDialog}
+      className="qp-focusable flex min-w-0 items-center gap-1 rounded-full px-1 py-0.5 text-left transition-colors hover:bg-white/5"
+      title={availability.label}
+    >
+      <span
+        className={`${isServing ? "qp-livedot" : ""} h-1.5 w-1.5 shrink-0 rounded-full`}
+        aria-hidden="true"
+        style={{ background: availability.dot }}
+      />
+      <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wider" style={{ color: mutedColor }}>
+        {d.name}
+      </span>
+      <span className="sr-only">{availability.label}</span>
+    </button>
+  );
+
   return (
     <div className="qp-console-card">
       <div>
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-2" onClick={(e) => e.stopPropagation()}>
-          <div className="flex min-w-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={openStatusDialog}
-              className="qp-focusable flex min-w-0 items-center gap-1 rounded-full px-1 py-0.5 text-left transition-colors hover:bg-white/5"
-              title={availability.label}
-            >
-              <span
-                className={`${isServing ? "qp-livedot" : ""} h-1.5 w-1.5 shrink-0 rounded-full`}
-                aria-hidden="true"
-                style={{ background: availability.dot }}
-              />
-              <span className="shrink-0 text-xs font-semibold uppercase tracking-wider" style={{ color: C.textMuted }}>
-                {d.name}
-              </span>
-              <span className="sr-only">{availability.label}</span>
-            </button>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            {timerLabel && (
-              <span className="qp-mono text-sm font-semibold tracking-wide" style={{ color: C.teal }}>
-                {timerLabel}
-              </span>
-            )}
-          </div>
-        </div>
-
         <div className="flex flex-col gap-4">
           {t ? (
             <>
               <div
                 className={`qp-desk-ticket-frame ${d.current?.startedAt ? "qp-serving" : ""} ${skippingDesk === d.id ? "qp-skip-out" : ""} ${revealAnim}`}
                 style={{
-                  background: C.ink800,
-                  borderColor: isCalledNotStarted ? C.amber : d.current?.startedAt ? C.teal : C.ink700,
+                  background: subtleBackground,
+                  borderColor: isCalledNotStarted ? C.amber : d.current?.startedAt ? C.teal : surfaceTheme.borderColor,
+                  borderRadius: surfaceTheme.radius * 1.2,
                 }}
               >
                 <div className="px-4 py-4">
-                  {stateLabel ? (
-                    <div className="qp-desk-ticket-status" style={{ color: d.current?.startedAt ? C.teal : C.amber }}>
-                      {stateLabel}
+                  <div className="qp-desk-ticket-header" onClick={(e) => e.stopPropagation()}>
+                    <div className="qp-desk-ticket-header-left">
+                      <div className="qp-desk-ticket-title-row">
+                        {renderDeskStatusButton()}
+                      </div>
                     </div>
-                  ) : null}
+
+                    <div className="qp-desk-ticket-header-right">
+                      {stateLabel ? (
+                        <div className="qp-desk-ticket-status qp-desk-info-status" style={{ color: d.current?.startedAt ? C.teal : C.amber }}>
+                          {stateLabel}
+                        </div>
+                      ) : null}
+                      {timerLabel && (
+                        <span className="qp-mono shrink-0 text-sm font-semibold tracking-wide" style={{ color: C.teal }}>
+                          {timerLabel}
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
                   <div className="qp-desk-ticket-layout">
                     <div className="qp-desk-ticket-left">
@@ -378,44 +416,54 @@ export function DeskConsoleCard({
                       </div>
                     </div>
 
-                    <div className="qp-desk-ticket-info min-w-0 py-1">
-                      <div className="qp-desk-info-column">
-                        <div className="min-w-0">
-                          <div className="qp-desk-info-label uppercase" style={{ color: C.textFaint }}>
-                            Name
-                          </div>
-                          <div className="qp-desk-info-value truncate font-semibold leading-tight" style={{ color: dim ? C.textMuted : C.textLight }}>
-                            {name || "—"}
-                          </div>
+                    <div className="qp-desk-ticket-info min-w-0">
+                      {(stateLabel || timerLabel) ? (
+                        <div className="qp-desk-mobile-info-header">
+                          {stateLabel ? (
+                            <div className="qp-desk-mobile-info-status qp-desk-ticket-status" style={{ color: d.current?.startedAt ? C.teal : C.amber }}>
+                              {stateLabel}
+                            </div>
+                          ) : <span />}
+                          {timerLabel ? (
+                            <span className="qp-desk-mobile-info-timer qp-mono shrink-0 text-sm font-semibold tracking-wide" style={{ color: C.teal }}>
+                              {timerLabel}
+                            </span>
+                          ) : null}
                         </div>
-
-                        <div className="min-w-0">
-                          <div className="qp-desk-info-label uppercase" style={{ color: C.textFaint }}>
-                            Phone
-                          </div>
-                          <div className="qp-desk-info-value qp-mono truncate font-medium" style={{ color: dim ? C.textMuted : C.textLight }}>
-                            {phone || "—"}
-                          </div>
+                      ) : null}
+                      <div className="qp-desk-info-item">
+                        <div className="qp-desk-info-label uppercase" style={{ color: faintColor }}>
+                          Name
+                        </div>
+                        <div className="qp-desk-info-value truncate font-semibold leading-tight" style={{ color: dim ? C.ink600 : C.inkText }}>
+                          {name || "—"}
                         </div>
                       </div>
 
-                      <div className="qp-desk-info-column">
-                        <div className="min-w-0">
-                          <div className="qp-desk-info-label uppercase" style={{ color: C.textFaint }}>
-                            Joined
-                          </div>
-                          <div className="qp-desk-info-value qp-mono truncate" style={{ color: C.textMuted }}>
-                            {t?.createdAt ? `${elapsedLabel(now - t.createdAt)} ago` : "—"}
-                          </div>
+                      <div className="qp-desk-info-item">
+                        <div className="qp-desk-info-label uppercase" style={{ color: faintColor }}>
+                          Joined
                         </div>
+                        <div className="qp-desk-info-value qp-mono truncate" style={{ color: C.ink600 }}>
+                          {t?.createdAt ? `${elapsedLabel(now - t.createdAt)} ago` : "—"}
+                        </div>
+                      </div>
 
-                        <div className="min-w-0">
-                          <div className="qp-desk-info-label uppercase" style={{ color: C.textFaint }}>
-                            {serviceWord}
-                          </div>
-                          <div className="qp-desk-info-value truncate font-semibold leading-tight" style={{ color: dim ? C.textMuted : C.textLight }}>
-                            {svcId ? serviceName(svcId) : "—"}
-                          </div>
+                      <div className="qp-desk-info-item">
+                        <div className="qp-desk-info-label uppercase" style={{ color: faintColor }}>
+                          Phone
+                        </div>
+                        <div className="qp-desk-info-value qp-mono truncate font-medium" style={{ color: dim ? C.ink600 : C.inkText }}>
+                          {phone || "—"}
+                        </div>
+                      </div>
+
+                      <div className="qp-desk-info-item">
+                        <div className="qp-desk-info-label uppercase" style={{ color: faintColor }}>
+                          {serviceWord}
+                        </div>
+                        <div className="qp-desk-info-value truncate font-semibold leading-tight" style={{ color: dim ? C.ink600 : C.inkText }}>
+                          {svcId ? serviceName(svcId) : "—"}
                         </div>
                       </div>
                     </div>
@@ -428,10 +476,17 @@ export function DeskConsoleCard({
               </div>
             </>
           ) : (
-            <div className="qp-desk-ticket-frame" style={{ background: C.ink800, borderColor: C.ink700 }}>
+            <div
+              className="qp-desk-ticket-frame"
+              style={{
+                background: subtleBackground,
+                borderColor: surfaceTheme.borderColor,
+                borderRadius: surfaceTheme.radius * 1.2,
+              }}
+            >
               <div className="flex w-full flex-col items-center gap-0.5 px-4 py-4">
                 <SnoozingCat />
-                <span className="text-[10px] tracking-wide" style={{ color: C.textFaint }}>
+                <span className="text-[10px] tracking-wide" style={{ color: faintColor }}>
                   No one in queue
                 </span>
               </div>
@@ -447,14 +502,14 @@ export function DeskConsoleCard({
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setStatusOpen(false)}>
           <div
             className="qp-modal w-full max-w-sm p-5"
-            style={{ background: C.ink800, borderRadius: 14, boxShadow: "0 22px 60px rgba(0,0,0,0.45)" }}
+            style={{ background: surfaceTheme.bgColor, borderRadius: surfaceTheme.radius * 1.4, boxShadow: "0 22px 60px rgba(0,0,0,0.45)" }}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: C.textMuted }}>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: mutedColor }}>
                 Counter status
               </div>
-              <h3 className="mt-1 text-lg font-semibold" style={{ color: C.textLight }}>
+              <h3 className="mt-1 text-lg font-semibold" style={{ color: surfaceTheme.fontColor }}>
                 {d.name}
               </h3>
               <div className="mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" style={{ color: availability.dot, background: `${availability.dot}24` }}>
@@ -467,7 +522,7 @@ export function DeskConsoleCard({
                 type="button"
                 onClick={() => setDraftStatusMode("always_open")}
                 className="qp-focusable flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-white/5"
-                style={{ borderColor: C.ink600, color: C.textLight }}
+                style={{ borderColor: surfaceTheme.borderColor, color: surfaceTheme.fontColor, borderRadius: surfaceTheme.radius }}
               >
                 <span className="inline-flex items-center gap-2">
                   <Unlock size={15} style={{ color: C.teal }} />
@@ -479,7 +534,7 @@ export function DeskConsoleCard({
                 type="button"
                 onClick={() => setDraftStatusMode("always_closed")}
                 className="qp-focusable flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-white/5"
-                style={{ borderColor: C.ink600, color: C.textLight }}
+                style={{ borderColor: surfaceTheme.borderColor, color: surfaceTheme.fontColor, borderRadius: surfaceTheme.radius }}
               >
                 <span className="inline-flex items-center gap-2">
                   <Lock size={15} style={{ color: C.coral }} />
@@ -491,7 +546,7 @@ export function DeskConsoleCard({
                 type="button"
                 onClick={() => setDraftStatusMode("scheduled")}
                 className="qp-focusable w-full rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-white/5"
-                style={{ borderColor: C.ink600, color: C.textLight }}
+                style={{ borderColor: surfaceTheme.borderColor, color: surfaceTheme.fontColor, borderRadius: surfaceTheme.radius }}
               >
                 <span className="flex items-center justify-between gap-3">
                   <span className="inline-flex items-center gap-2">
@@ -511,7 +566,7 @@ export function DeskConsoleCard({
                   <span className="grid gap-1.5">
                     {scheduleRows.map((row) => {
                       const isCurrentDay = row.value === currentScheduleDay;
-                      const rowColor = isCurrentDay ? currentScheduleColor : C.textFaint;
+                      const rowColor = isCurrentDay ? currentScheduleColor : faintColor;
 
                       return (
                         <span key={row.value} className="grid grid-cols-[2.25rem_minmax(0,1fr)] items-center gap-3 text-xs">
@@ -534,7 +589,7 @@ export function DeskConsoleCard({
                 type="button"
                 onClick={() => setStatusOpen(false)}
                 className="qp-focusable rounded-md px-3 py-2 text-xs"
-                style={{ background: "rgba(255,255,255,0.08)", color: C.textMuted }}
+                style={{ background: controlBackground, color: mutedColor, borderRadius: surfaceTheme.radius }}
               >
                 Cancel
               </button>
@@ -542,7 +597,7 @@ export function DeskConsoleCard({
                 type="button"
                 onClick={() => updateDeskAvailability(draftStatusMode)}
                 className="qp-focusable rounded-md px-3 py-2 text-xs font-medium"
-                style={{ background: C.teal, color: C.paper }}
+                style={{ background: surfaceTheme.accentColor, color: C.textLight, borderRadius: surfaceTheme.radius }}
               >
                 Save
               </button>

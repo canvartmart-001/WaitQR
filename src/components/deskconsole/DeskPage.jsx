@@ -7,6 +7,7 @@ export function DeskPage({
   services,
   serviceName,
   labels,
+  theme,
   now,
   queue,
   sortedQueue,
@@ -23,9 +24,9 @@ export function DeskPage({
   const { servedByDesk, absentByDesk, removedByDesk, servedByDeskService, absentByDeskService, removedByDeskService, absentList, sortedServed, removeAbsent } = ticketLogs;
 
   return (
-    <main className="qp-page-shell">
-      <section className="grid gap-5">
-        <div className="grid gap-4">
+    <main className="qp-page-shell qp-desk-page-shell">
+      <section className="qp-desk-page-layout">
+        <div className="qp-desk-page-counter">
           <DeskConsoleCard
             desk={desk}
             now={now}
@@ -33,6 +34,7 @@ export function DeskPage({
             onToggleExpanded={() => setExpandedDeskControl(expandedDeskControl === desk.id ? null : desk.id)}
             services={services}
             serviceName={serviceName}
+            theme={theme}
             serviceWord={serviceWord}
             serviceWordLower={serviceWordLower}
             serviceWordPluralLower={serviceWordPluralLower}
@@ -55,10 +57,12 @@ export function DeskPage({
             absentByDeskService={absentByDeskService}
             removedByDeskService={removedByDeskService}
           />
+        </div>
 
+        <div className="qp-desk-page-waiting">
           <TicketTabsPanel
             desks={desks}
-            selectedDeskFilter={String(desk.id)}
+            theme={theme}
             deskDetailTab={deskDetailTab}
             setDeskDetailTab={setDeskDetailTab}
             sortedQueue={sortedQueue}

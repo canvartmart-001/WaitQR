@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Condensed:wght@700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -18,9 +18,12 @@
      ink900 = #12151B   ink600 = #333B47   amber = #E8A33D   textFaint = #5B6270
 */
 
-.qp-mono { font-family: 'IBM Plex Mono', monospace; }
+.qp-mono {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
 .qp-ticket-face {
-  font-family: 'IBM Plex Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
 }
@@ -35,6 +38,7 @@ body {
   margin: 0;
   background: #12151B; /* C.ink900 */
   color: #F2EFE7; /* C.textLight */
+  font-family: 'Inter', 'Segoe UI', sans-serif;
   overflow-wrap: break-word;
 }
 
@@ -148,6 +152,19 @@ svg {
     @apply flex flex-col gap-5;
   }
 
+  .qp-desk-page-shell {
+    align-content: start;
+  }
+
+  .qp-desk-page-layout {
+    @apply grid min-w-0 gap-5;
+  }
+
+  .qp-desk-page-counter,
+  .qp-desk-page-waiting {
+    @apply min-w-0;
+  }
+
   .qp-filter-row {
     @apply flex items-center gap-2;
   }
@@ -166,45 +183,95 @@ svg {
 
   .qp-desk-ticket-frame {
     @apply overflow-hidden rounded-lg border;
+    container-type: inline-size;
+    --qp-ticket-rail-width: min(100%, clamp(324px, 34cqw, 380px));
+    --qp-ticket-number-size: clamp(124px, 13.2cqw, 152px);
+    --qp-ticket-number-line: 1;
   }
 
   .qp-desk-ticket-layout {
-    --qp-ticket-number-size: 108px;
-    --qp-ticket-number-line: 0.78;
-    @apply grid items-start gap-5;
-    grid-template-columns: minmax(260px, 0.95fr) minmax(0, 1fr);
+    @apply grid items-stretch gap-6;
+    grid-template-columns: minmax(0, var(--qp-ticket-rail-width)) minmax(0, 1fr);
+  }
+
+  .qp-desk-ticket-header {
+    @apply grid items-center gap-6;
+    grid-template-columns: minmax(0, var(--qp-ticket-rail-width)) minmax(0, 1fr);
+    margin-bottom: 8px;
+  }
+
+  .qp-desk-ticket-header-left {
+    @apply min-w-0 flex items-center;
+  }
+
+  .qp-desk-ticket-title-row {
+    @apply flex min-w-0 items-center justify-between gap-3;
+    width: var(--qp-ticket-rail-width);
+  }
+
+  .qp-desk-ticket-header-right {
+    @apply flex min-w-0 items-center justify-between gap-3;
+    padding-left: 24px;
   }
 
   .qp-desk-ticket-left {
-    @apply flex min-w-0 flex-col items-start justify-start;
+    @apply flex min-w-0 flex-col items-start justify-stretch;
   }
 
   .qp-desk-ticket-status {
-    margin-bottom: 10px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     line-height: 1;
     letter-spacing: 0.14em;
     text-transform: uppercase;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .qp-desk-info-status {
+    margin-bottom: 0;
+  }
+
+  .qp-desk-mobile-info-status {
+    display: none;
+  }
+
+  .qp-desk-mobile-info-header {
+    display: none;
   }
 
   .qp-desk-ticket-stack {
-    width: fit-content;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    height: 100%;
+    width: var(--qp-ticket-rail-width);
     max-width: 100%;
   }
 
   .qp-desk-ticket-number {
     display: block;
+    font-family: 'Roboto Condensed', 'Arial Narrow', 'IBM Plex Sans', sans-serif;
     font-size: var(--qp-ticket-number-size);
-    line-height: var(--qp-ticket-number-line);
+    font-stretch: condensed;
+    line-height: 0.82;
     letter-spacing: 0;
+    pointer-events: none;
+    position: relative;
+    grid-row: 1;
+    align-self: center;
+    text-align: right;
+    z-index: 0;
+    width: 100%;
   }
 
   .qp-desk-ticket-actions {
     @apply grid w-full items-stretch gap-2;
     grid-template-columns: minmax(0, 1fr) 40px 40px;
+    grid-row: 2;
     max-width: 100%;
-    margin-top: 18px;
+    margin-top: 0;
+    position: relative;
+    z-index: 5;
   }
 
   .qp-desk-ticket-actions-mobile {
@@ -212,31 +279,76 @@ svg {
   }
 
   .qp-desk-ticket-info {
-    @apply grid min-w-0 items-stretch;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    column-gap: 28px;
-    min-height: calc(var(--qp-ticket-number-size) * var(--qp-ticket-number-line));
+    @apply flex min-w-0 flex-col justify-start;
+    padding-left: 24px;
   }
 
-  .qp-desk-info-column {
-    @apply flex min-w-0 flex-col justify-between;
+  .qp-desk-info-item {
+    @apply min-w-0;
+    padding: 7px 0;
   }
 
   .qp-desk-info-label {
-    margin-bottom: 4px;
-    font-size: 10px;
+    margin-bottom: 8px;
+    font-size: 12px;
     line-height: 1;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
   }
 
   .qp-desk-info-value {
-    font-size: 16px;
+    font-size: 22px;
     line-height: 1.2;
   }
 
   .qp-desk-expanded-details {
     @apply border-t px-4 pb-3 pt-2.5;
-    border-color: #333B47;
+  }
+
+  .qp-desk-expanded-content {
+    @apply min-w-0;
+  }
+
+  .qp-desk-service-header {
+    @apply grid min-w-0 items-center gap-6 pb-1.5 text-[10px] font-semibold uppercase;
+    grid-template-columns: minmax(0, var(--qp-ticket-rail-width)) minmax(0, 1fr);
+    letter-spacing: 0.08em;
+  }
+
+  .qp-desk-service-row {
+    @apply grid min-w-0 items-center gap-6 border-b py-1.5 text-xs last:border-b-0;
+    grid-template-columns: minmax(0, var(--qp-ticket-rail-width)) minmax(0, 1fr);
+  }
+
+  .qp-desk-service-name {
+    @apply min-w-0 text-xs;
+  }
+
+  .qp-desk-service-count-labels,
+  .qp-desk-service-counts {
+    @apply grid min-w-0 gap-3;
+    grid-template-columns: repeat(3, minmax(42px, 1fr));
+    padding-left: 24px;
+  }
+
+  .qp-desk-service-count-labels {
+    text-align: left;
+  }
+
+  .qp-desk-service-counts {
+    text-align: center;
+  }
+
+  /* Keep values centered under their differently sized headings without moving
+     the heading start away from the guest-info column. */
+  .qp-desk-service-counts > :nth-child(1),
+  .qp-desk-service-counts > :nth-child(2) {
+    justify-self: start;
+    width: 42px;
+  }
+
+  .qp-desk-service-counts > :nth-child(3) {
+    justify-self: start;
+    width: 52px;
   }
 
   .qp-tabbar {
@@ -257,32 +369,86 @@ svg {
 }
 
 @media (min-width: 1024px) {
-  .qp-desk-ticket-layout {
-    --qp-ticket-number-size: 128px;
+  .qp-desk-page-layout {
+    grid-template-columns: minmax(540px, 0.95fr) minmax(440px, 1.05fr);
+    align-items: start;
+    column-gap: 24px;
+  }
+
+  .qp-desk-page-counter {
+    position: sticky;
+    top: 18px;
+  }
+
+  .qp-desk-page-waiting {
+    min-height: min(620px, calc(100vh - 150px));
+  }
+
+  .qp-desk-ticket-frame {
+    --qp-ticket-rail-width: min(100%, clamp(360px, 38cqw, 430px));
+    --qp-ticket-number-size: clamp(138px, 14.2cqw, 166px);
   }
 
   .qp-desk-ticket-info {
-    column-gap: 34px;
+    padding-left: 24px;
+  }
+
+  .qp-desk-ticket-header-right {
+    padding-left: 24px;
+  }
+
+  .qp-desk-info-item {
+    padding: 8px 0;
   }
 
   .qp-desk-info-label {
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .qp-desk-info-value {
-    font-size: 20px;
+    font-size: 24px;
   }
 }
 
 @media (max-width: 560px) {
+  .qp-desk-ticket-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    margin-bottom: 40px;
+  }
+
+  .qp-desk-ticket-header > :last-child {
+    justify-content: flex-end;
+  }
+
+  .qp-desk-ticket-header-right {
+    border-left: 0;
+    margin-left: 0;
+    padding-left: 0;
+    display: none;
+  }
+
+  .qp-desk-ticket-status {
+    text-align: right;
+  }
+
   .qp-desk-ticket-layout {
-    --qp-ticket-number-size: 88px;
+    --qp-ticket-number-size: clamp(84px, 31vw, 104px);
     grid-template-columns: minmax(0, 1fr);
-    gap: 18px;
+    gap: 20px;
   }
 
   .qp-desk-ticket-stack {
     width: 100%;
+    min-height: 92px;
+    gap: 20px;
+  }
+
+  .qp-desk-ticket-number {
+    line-height: 0.8;
+    text-align: left;
+    align-self: end;
+    padding-bottom: 4px;
   }
 
   .qp-desk-ticket-actions-desktop {
@@ -292,28 +458,135 @@ svg {
   .qp-desk-ticket-actions {
     width: 100%;
     max-width: 100%;
-    margin-top: 14px;
+    margin-top: 0;
   }
 
   .qp-desk-ticket-actions-mobile {
     display: grid;
     grid-column: 1 / -1;
+    grid-row: 3;
   }
 
   .qp-desk-ticket-info {
-    column-gap: 16px;
-    min-height: auto;
-    row-gap: 14px;
+    border-left: 0;
+    padding-left: 0;
+    grid-row: 2;
   }
 
-  .qp-desk-info-column {
-    gap: 14px;
+  .qp-desk-mobile-info-status {
+    display: block;
+    margin-bottom: 0;
+  }
+
+  .qp-desk-mobile-info-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .qp-desk-service-header,
+  .qp-desk-service-row {
+    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) minmax(124px, auto);
+  }
+
+  .qp-desk-service-count-labels,
+  .qp-desk-service-counts {
+    grid-template-columns: repeat(3, minmax(30px, 1fr));
+    padding-left: 0;
   }
 
   .qp-chart-axis-text {
     font-size: 11px;
   }
 
+}
+
+@container (max-width: 420px) {
+  .qp-desk-ticket-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    margin-bottom: 40px;
+  }
+
+  .qp-desk-ticket-header > :last-child {
+    justify-content: flex-end;
+  }
+
+  .qp-desk-ticket-header-right {
+    border-left: 0;
+    margin-left: 0;
+    padding-left: 0;
+    display: none;
+  }
+
+  .qp-desk-ticket-status {
+    text-align: right;
+  }
+
+  .qp-desk-ticket-layout {
+    --qp-ticket-number-size: clamp(82px, 31cqw, 104px);
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .qp-desk-ticket-stack {
+    width: 100%;
+    min-height: 92px;
+    gap: 20px;
+  }
+
+  .qp-desk-ticket-number {
+    line-height: 0.8;
+    text-align: left;
+    align-self: end;
+    padding-bottom: 4px;
+  }
+
+  .qp-desk-ticket-actions-desktop {
+    display: none;
+  }
+
+  .qp-desk-ticket-actions-mobile {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  .qp-desk-ticket-info {
+    grid-row: 2;
+  }
+
+  .qp-desk-mobile-info-status {
+    display: block;
+    margin-bottom: 0;
+  }
+
+  .qp-desk-mobile-info-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .qp-desk-info-label {
+    margin-bottom: 6px;
+  }
+
+  .qp-desk-service-header,
+  .qp-desk-service-row {
+    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) minmax(112px, auto);
+  }
+
+  .qp-desk-service-count-labels,
+  .qp-desk-service-counts {
+    grid-template-columns: repeat(3, minmax(28px, 1fr));
+    padding-left: 0;
+  }
 }
 
 .qp-page-shell > *,

@@ -20,7 +20,7 @@ export function IssueToast({ toast, serviceName }) {
           </div>
           <div className="qp-ticket-face text-xl font-semibold leading-tight">{toast.label}</div>
           {toast.name && (
-            <div className="text-xs mt-0.5 opacity-70 truncate" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+            <div className="text-xs mt-0.5 opacity-70 truncate" style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
               {toast.name}
               {toast.serviceId ? ` · ${serviceName(toast.serviceId)}` : ""}
             </div>

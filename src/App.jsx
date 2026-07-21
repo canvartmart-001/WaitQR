@@ -1709,6 +1709,7 @@ export default function App() {
       services={services}
       serviceName={serviceName}
       labels={labels}
+      theme={activeAppearanceSettings}
       now={now}
       queue={queue}
       sortedQueue={sortedQueue}
@@ -1724,7 +1725,7 @@ export default function App() {
     />
   ) : null;
   return (
-    <div className="flex min-h-screen w-full flex-col" style={{ background: C.ink900, color: C.textLight, fontFamily: "'IBM Plex Sans', sans-serif" }}>
+    <div className="flex min-h-screen w-full flex-col" style={{ background: C.ink900, color: C.textLight, fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
       {protectedPage && !authenticated && !settingsLoaded ? (
         <main className="flex min-h-screen w-full items-center justify-center px-4 py-6" style={{ backgroundColor: activeAppearanceSettings.bgColor, color: activeAppearanceSettings.fontColor }}>
           <div className="text-center">
@@ -1783,6 +1784,8 @@ export default function App() {
             onClearNotifications={confirmClearCounterNotifications}
             onMarkNotificationsRead={markCounterNotificationsRead}
             subtitle={null}
+            brandTitle={activeDesk.name}
+            hideBrandMark
             fullWidth
             onThemeChange={handleActiveThemeChange}
             onNavigate={navigate}
