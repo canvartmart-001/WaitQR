@@ -47,8 +47,20 @@ svg {
   max-width: 100%;
 }
 
+.qp-time-input {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
 .qp-time-input::-webkit-calendar-picker-indicator {
   display: none;
+  -webkit-appearance: none;
+}
+
+.qp-time-input::-webkit-inner-spin-button,
+.qp-time-input::-webkit-clear-button {
+  display: none;
+  -webkit-appearance: none;
 }
 
 .qp-time-input::-webkit-date-and-time-value {

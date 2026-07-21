@@ -156,6 +156,13 @@ function TextInput({ value, onChange, placeholder, theme }) {
 function TimeInput({ value, onChange, theme }) {
   const darkIcon = String(theme.fontColor || "").toLowerCase() !== "#0f172a";
   const inputRef = useRef(null);
+  const formattedValue = (() => {
+    const [hourValue, minuteValue] = String(value || "").split(":").map(Number);
+    if (!Number.isFinite(hourValue) || !Number.isFinite(minuteValue)) return value || "";
+    const period = hourValue >= 12 ? "PM" : "AM";
+    const displayHour = hourValue % 12 || 12;
+    return `${String(displayHour).padStart(2, "0")}:${String(minuteValue).padStart(2, "0")} ${period}`;
+  })();
   const openPicker = () => {
     const input = inputRef.current;
     if (!input) return;
@@ -173,9 +180,15 @@ function TimeInput({ value, onChange, theme }) {
         value={value}
         onChange={(event) => onChange(event.target.value)}
         {...focusHandlers(theme)}
-        className="qp-time-input h-10 min-w-0 w-full border px-2 pr-8 text-sm outline-none transition-colors sm:px-3 sm:pr-9"
-        style={{ ...fieldStyle(theme), colorScheme: darkIcon ? "dark" : "light" }}
+        className="qp-time-input h-10 min-w-0 w-full appearance-none border px-2 pr-8 text-sm text-transparent outline-none transition-colors sm:px-3 sm:pr-9"
+        style={{ ...fieldStyle(theme), color: "transparent", caretColor: theme.fontColor, colorScheme: darkIcon ? "dark" : "light" }}
       />
+      <span
+        className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 whitespace-nowrap text-[13px] sm:left-3 sm:text-sm"
+        style={{ color: theme.fontColor }}
+      >
+        {formattedValue}
+      </span>
       <button
         type="button"
         onClick={openPicker}
@@ -349,8 +362,8 @@ function CounterForm({ desks, theme, editingDesk, isSaving, onCancel, onSave }) 
                 {schedule.entries.map((entry, index) => {
                   const selectedByOtherRows = new Set(schedule.entries.filter((_, entryIndex) => entryIndex !== index).flatMap((item) => item.days || []).map(Number));
                   return (
-                    <div key={`${entry.days.join("-")}-${index}`} className="grid grid-cols-2 gap-x-2 gap-y-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:grid-cols-[minmax(20rem,1fr)_minmax(8rem,0.35fr)_minmax(8rem,0.35fr)_auto]">
-                      <div className="col-span-2 grid grid-cols-7 gap-1 md:col-span-3 md:flex md:flex-wrap md:gap-2 xl:col-span-1">
+                    <div key={`${entry.days.join("-")}-${index}`} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.5rem] gap-x-2 gap-y-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:grid-cols-[minmax(20rem,1fr)_minmax(8rem,0.35fr)_minmax(8rem,0.35fr)_auto]">
+                      <div className="col-span-3 grid grid-cols-7 gap-1 md:col-span-3 md:flex md:flex-wrap md:gap-2 xl:col-span-1">
                         {WEEK_DAYS.map((day) => {
                           const active = entry.days.includes(day.value);
                           const disabled = selectedByOtherRows.has(day.value);
@@ -379,7 +392,7 @@ function CounterForm({ desks, theme, editingDesk, isSaving, onCancel, onSave }) 
                         type="button"
                         onClick={() => removeScheduleEntry(index)}
                         disabled={schedule.entries.length <= 1}
-                        className="col-span-2 flex h-10 w-full items-center justify-center border transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35 md:col-span-1 md:w-10"
+                        className="flex h-10 w-10 items-center justify-center border transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
                         style={{ color: "#f87171", borderColor: theme.borderColor, borderRadius: theme.radius }}
                         aria-label="Remove schedule row"
                       >
