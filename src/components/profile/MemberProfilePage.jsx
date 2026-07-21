@@ -170,7 +170,7 @@ function ThemeSwitch({ theme, onChange }) {
   );
 }
 
-export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme, notifications = [], onClearNotifications, subtitle = "Member profile", onThemeChange, onNavigate, onLogout }) {
+export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme, notifications = [], onClearNotifications, onMarkNotificationsRead, subtitle = "Member profile", onThemeChange, onNavigate, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const activeMember = loggedInMember || null;
@@ -228,7 +228,7 @@ export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members,
           ) : null}
 
           <ThemeSwitch theme={theme} onChange={onThemeChange} />
-          {signedIn ? <NotificationMenu notifications={notifications} theme={theme} onClear={onClearNotifications} /> : null}
+          {signedIn ? <NotificationMenu notifications={notifications} theme={theme} onClear={onClearNotifications} onMarkRead={onMarkNotificationsRead} /> : null}
 
           <div className="relative" ref={ref}>
             <button
@@ -306,7 +306,7 @@ export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members,
   );
 }
 
-export function MemberProfilePage({ member, desks, services, labels, theme, loading = false, loggedInMember, masterLoggedIn = false, members = [], notifications = [], onClearNotifications, onAppearanceChange, onUpdateMember, onLogout, onNavigate }) {
+export function MemberProfilePage({ member, desks, services, labels, theme, loading = false, loggedInMember, masterLoggedIn = false, members = [], notifications = [], onClearNotifications, onMarkNotificationsRead, onAppearanceChange, onUpdateMember, onLogout, onNavigate }) {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", about: "", photo: null });
   const [editError, setEditError] = useState("");
@@ -428,6 +428,7 @@ export function MemberProfilePage({ member, desks, services, labels, theme, load
         theme={theme}
         notifications={notifications}
         onClearNotifications={onClearNotifications}
+        onMarkNotificationsRead={onMarkNotificationsRead}
         onThemeChange={handleThemeChange}
         onNavigate={onNavigate}
         onLogout={onLogout}

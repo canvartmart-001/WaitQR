@@ -405,16 +405,104 @@ function makeCounterNotification(payload = {}, context = {}) {
 
   const status = counterStatusDetails(desk);
   const actor = payload.changedBy?.name || (payload.changedBy?.role === "master" ? "Master login" : "Counter status");
-
-  return {
-    id: `${payload.changedAt || Date.now()}-${desk.id}-${status.label}`,
+  const time = payload.changedAt || Date.now();
+  const event = {
+    id: `${time}-${desk.id}-${status.label}`,
     title: `${desk.name || "Counter"} is ${status.label}`,
     message: `${actor} updated counter status.`,
-    time: payload.changedAt || Date.now(),
+    time,
+    mode: status.mode,
+    color: status.color,
+  };
+
+  return {
+    id: `counter-${desk.id}`,
+    title: event.title,
+    message: event.message,
+    time,
+    readAt: null,
     mode: status.mode,
     color: status.color,
     deskId: desk.id,
+    counterName: desk.name || "Counter",
+    events: [event],
   };
+}
+
+function normalizeCounterNotificationEvent(event = {}, fallback = {}) {
+  const mode = event.mode === "scheduled" || event.mode === "closed" ? event.mode : fallback.mode || "open";
+  const color = event.color || fallback.color || "#22c55e";
+  const time = Number(event.time) || fallback.time || Date.now();
+
+  return {
+    id: String(event.id || `${time}-${mode}`),
+    title: String(event.title || fallback.title || "Counter updated"),
+    message: String(event.message || fallback.message || "Counter status changed."),
+    time,
+    mode,
+    color,
+  };
+}
+
+function normalizeCounterNotification(item = {}) {
+  const fallback = {
+    title: String(item.title || "Counter updated"),
+    message: String(item.message || "Counter status changed."),
+    time: Number(item.time) || Date.now(),
+    mode: item.mode === "scheduled" || item.mode === "closed" ? item.mode : "open",
+    color: item.color || "#22c55e",
+  };
+  const events = (Array.isArray(item.events) && item.events.length ? item.events : [item])
+    .map((event) => normalizeCounterNotificationEvent(event, fallback))
+    .sort((a, b) => b.time - a.time)
+    .slice(0, 20);
+  const latest = events[0] || normalizeCounterNotificationEvent({}, fallback);
+  const deskId = item.deskId;
+
+  return {
+    id: `counter-${deskId}`,
+    title: latest.title,
+    message: latest.message,
+    time: latest.time,
+    readAt: Number(item.readAt) || null,
+    mode: latest.mode,
+    color: latest.color,
+    deskId,
+    counterName: String(item.counterName || fallback.title.replace(/\s+is\s+.+$/i, "") || "Counter"),
+    events,
+  };
+}
+
+function mergeCounterNotification(items = [], notification, { markUnread = true } = {}) {
+  const notificationId = String(notification?.id || "");
+  if (!notificationId) return items;
+
+  const existing = items.find((item) => String(item.id) === notificationId);
+  if (!existing) return [notification, ...items].sort((a, b) => b.time - a.time).slice(0, 30);
+
+  const nextEvents = [...notification.events, ...(existing.events || [])]
+    .filter((event, index, events) => events.findIndex((candidate) => String(candidate.id) === String(event.id)) === index)
+    .sort((a, b) => b.time - a.time)
+    .slice(0, 20);
+  const latest = nextEvents[0] || notification;
+  const readAt = markUnread
+    ? null
+    : existing.readAt && notification.readAt
+      ? Math.max(existing.readAt, notification.readAt)
+      : null;
+  const merged = {
+    ...existing,
+    ...notification,
+    title: latest.title,
+    message: latest.message,
+    time: latest.time,
+    mode: latest.mode,
+    color: latest.color,
+    readAt,
+    events: nextEvents,
+  };
+
+  return [merged, ...items.filter((item) => String(item.id) !== notificationId)].sort((a, b) => b.time - a.time).slice(0, 30);
 }
 
 function loadStoredCounterNotifications() {
@@ -425,15 +513,8 @@ function loadStoredCounterNotifications() {
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter((item) => item && item.id && item.deskId != null)
-      .map((item) => ({
-        id: String(item.id),
-        title: String(item.title || "Counter updated"),
-        message: String(item.message || "Counter status changed."),
-        time: Number(item.time) || Date.now(),
-        mode: item.mode === "scheduled" || item.mode === "closed" ? item.mode : "open",
-        color: item.color || "#22c55e",
-        deskId: item.deskId,
-      }))
+      .map(normalizeCounterNotification)
+      .reduce((items, item) => mergeCounterNotification(items, item, { markUnread: false }), [])
       .slice(0, 30);
   } catch (error) {
     console.warn("Failed to load counter notifications.", error);
@@ -813,7 +894,7 @@ export default function App() {
     const syncSettings = (payload = {}) => {
       const notification = makeCounterNotification(payload, counterNotificationContextRef.current);
       if (notification) {
-        setCounterNotifications((items) => [notification, ...items.filter((item) => item.id !== notification.id)].slice(0, 30));
+        setCounterNotifications((items) => mergeCounterNotification(items, notification));
       }
 
       if (settingsSavingRef.current) {
@@ -935,6 +1016,34 @@ export default function App() {
       return canReceiveCounterNotification({ member: activeLoggedInMember, masterLoggedIn: activeMasterLogin, desk });
     });
   }, [activeLoggedInMember, authenticated, counterNotifications, desks, masterLoggedIn]);
+
+  const markCounterNotificationsRead = (notificationIds = []) => {
+    const ids = new Set((Array.isArray(notificationIds) ? notificationIds : []).map(String));
+    if (!ids.size) return;
+
+    setCounterNotifications((items) => {
+      const readAt = Date.now();
+      let changed = false;
+      const nextItems = items.map((item) => {
+        if (!ids.has(String(item.id)) || item.readAt) return item;
+        changed = true;
+        return { ...item, readAt };
+      });
+      return changed ? nextItems : items;
+    });
+  };
+
+  const confirmClearCounterNotifications = () => {
+    const visibleIds = new Set(visibleCounterNotifications.map((item) => String(item.id)));
+    if (!visibleIds.size) return;
+
+    askConfirm(
+      "Clear notifications?",
+      "This will remove the notifications currently visible to you.",
+      () => setCounterNotifications((items) => items.filter((item) => !visibleIds.has(String(item.id)))),
+      { variant: "destructive", confirmLabel: "Clear" }
+    );
+  };
 
   useEffect(() => {
     counterNotificationContextRef.current = {
@@ -1623,7 +1732,8 @@ export default function App() {
           masterLoggedIn={masterLoggedIn}
           members={memberHooks.members}
           notifications={visibleCounterNotifications}
-          onClearNotifications={() => setCounterNotifications([])}
+          onClearNotifications={confirmClearCounterNotifications}
+          onMarkNotificationsRead={markCounterNotificationsRead}
           onUpdateMember={memberHooks.updateMember}
           onAppearanceChange={(nextAppearance) => handleActiveThemeChange(nextAppearance?.themeMode)}
           onLogout={logoutMember}
@@ -1639,7 +1749,8 @@ export default function App() {
             members={memberHooks.members}
             theme={activeAppearanceSettings}
             notifications={visibleCounterNotifications}
-            onClearNotifications={() => setCounterNotifications([])}
+            onClearNotifications={confirmClearCounterNotifications}
+            onMarkNotificationsRead={markCounterNotificationsRead}
             subtitle="Counter"
             onThemeChange={handleActiveThemeChange}
             onNavigate={navigate}
@@ -1671,7 +1782,8 @@ export default function App() {
           masterLoggedIn={masterLoggedIn}
           members={memberHooks.members}
           notifications={visibleCounterNotifications}
-          onClearNotifications={() => setCounterNotifications([])}
+          onClearNotifications={confirmClearCounterNotifications}
+          onMarkNotificationsRead={markCounterNotificationsRead}
           initialIdentifier={authIdentifierFromQuery}
           onUpdateMember={memberHooks.updateMember}
           onAppearanceChange={(nextAppearance) => handleActiveThemeChange(nextAppearance?.themeMode)}
@@ -1714,7 +1826,8 @@ export default function App() {
           masterLoggedIn={masterLoggedIn}
           members={memberHooks.members}
           notifications={visibleCounterNotifications}
-          onClearNotifications={() => setCounterNotifications([])}
+          onClearNotifications={confirmClearCounterNotifications}
+          onMarkNotificationsRead={markCounterNotificationsRead}
           onLogoutMember={logoutMember}
         >
           {(adminTheme) => (
@@ -1757,7 +1870,8 @@ export default function App() {
           masterLoggedIn={masterLoggedIn}
           members={memberHooks.members}
           notifications={visibleCounterNotifications}
-          onClearNotifications={() => setCounterNotifications([])}
+          onClearNotifications={confirmClearCounterNotifications}
+          onMarkNotificationsRead={markCounterNotificationsRead}
           onUpdateMember={memberHooks.updateMember}
           onAppearanceChange={(nextAppearance) => handleActiveThemeChange(nextAppearance?.themeMode)}
           onLogout={logoutMember}

@@ -337,7 +337,7 @@ function Sidebar({ variant, open, onClose, currentPage, onNavigate, theme, colla
   );
 }
 
-export function AdminShell({ currentPage, children, onNavigate, appearance, onAppearanceChange, onThemeChange, loggedInMember, masterLoggedIn = false, members = [], notifications = [], onClearNotifications, onLogoutMember }) {
+export function AdminShell({ currentPage, children, onNavigate, appearance, onAppearanceChange, onThemeChange, loggedInMember, masterLoggedIn = false, members = [], notifications = [], onClearNotifications, onMarkNotificationsRead, onLogoutMember }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const {
@@ -473,7 +473,7 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
               bgColor={bgColor}
               radius={radius}
             />
-            <NotificationMenu notifications={notifications} theme={{ bgColor, fontColor, borderColor, radius }} onClear={onClearNotifications} />
+            <NotificationMenu notifications={notifications} theme={{ bgColor, fontColor, borderColor, radius }} onClear={onClearNotifications} onMarkRead={onMarkNotificationsRead} />
             <ProfileMenu
               member={loggedInMember}
               masterLoggedIn={masterLoggedIn}
