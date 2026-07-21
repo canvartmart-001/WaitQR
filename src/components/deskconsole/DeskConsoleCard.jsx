@@ -45,7 +45,7 @@ function currentDayScheduleLabel(schedule, now = new Date()) {
   const date = new Date(now);
   const currentDay = Number.isFinite(date.getTime()) ? date.getDay() : new Date().getDay();
   const entry = normalized.entries.find((item) => item.days.includes(currentDay));
-  if (!entry) return "No time today";
+  if (!entry) return "Closed today";
   return `${formatScheduleTime(entry.startTime)} - ${formatScheduleTime(entry.endTime)}`;
 }
 
