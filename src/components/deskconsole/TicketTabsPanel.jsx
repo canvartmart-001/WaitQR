@@ -125,15 +125,15 @@ export function TicketTabsPanel({
             <button
               key={tab.key}
               onClick={() => setDeskDetailTab(tab.key)}
-              className="qp-focusable inline-flex h-8 min-w-0 items-center justify-center gap-1.5 px-2.5 text-xs font-medium transition-colors hover:bg-white/5 sm:px-3"
+              className="qp-focusable inline-flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 px-2.5 py-2 text-xs font-medium transition-colors hover:bg-white/5 sm:h-8 sm:min-h-0 sm:flex-row sm:gap-1.5 sm:px-3 sm:py-0"
               style={{
                 background: deskDetailTab === tab.key ? activeTabBackground : "transparent",
                 color: deskDetailTab === tab.key ? surfaceTheme.fontColor : faintColor,
                 borderRadius: surfaceTheme.radius,
               }}
             >
-              {tab.label}
-              <span className="qp-mono text-[10px]" style={{ color: deskDetailTab === tab.key ? tab.countColor : faintColor }}>
+              <span className="leading-none">{tab.label}</span>
+              <span className="qp-mono text-xs font-bold leading-none sm:text-[10px]" style={{ color: deskDetailTab === tab.key ? tab.countColor : faintColor }}>
                 {tab.count}
               </span>
             </button>

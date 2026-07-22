@@ -47,10 +47,7 @@ export function ServiceTab({ selectedDesk, services = [], servedByDeskService = 
             style={{ borderColor: surfaceTheme.borderColor, background: rowBackground, borderRadius: surfaceTheme.radius }}
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: C.tealSoft }}>
-                  <Check size={16} style={{ color: C.teal }} />
-                </div>
+              <div className="flex min-w-0 flex-1 items-center">
                 <div className="min-w-0">
                   <div className="text-sm font-medium truncate" style={{ color: surfaceTheme.fontColor }}>
                     {service.name}
