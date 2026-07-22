@@ -74,28 +74,29 @@ function AbsentRow({ ticket: t, desks, now, serviceName, recallAbsent, removeAbs
                 {t.name}
               </span>
             </div>
-            <span className="text-xs qp-mono shrink-0" style={{ color: faintColor }}>
-              {elapsedLabel(now - t.skippedAt)} ago
-            </span>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                onClick={() => recallAbsent(t.id)}
+                disabled={recallDisabled}
+                title={recallDisabled ? "Counter unavailable" : "Recall ticket"}
+                aria-label="Recall ticket"
+                className="qp-focusable p-1.5 rounded-md shrink-0 disabled:cursor-not-allowed disabled:opacity-35"
+                style={{ color: C.amber, background: C.amberSoft, borderRadius: surfaceTheme.radius }}
+              >
+                <Undo2 size={13} />
+              </button>
+              <button onClick={confirmRemove} className="qp-focusable p-1.5 rounded-md border shrink-0" style={{ borderColor: surfaceTheme.borderColor, color: faintColor, background: withAlpha(surfaceTheme.fontColor, "12"), borderRadius: surfaceTheme.radius }}>
+                <Trash2 size={13} />
+              </button>
+            </div>
           </div>
           <div className="text-xs mt-1 truncate" style={{ color: mutedColor }}>
             {t.phone} · {serviceName(t.serviceId)}
           </div>
+          <div className="text-[10px] mt-1 truncate qp-mono" style={{ color: faintColor }}>
+            {elapsedLabel(now - t.skippedAt)} ago
+          </div>
         </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-1.5 pl-12">
-        <button
-          onClick={() => recallAbsent(t.id)}
-          disabled={recallDisabled}
-          title={recallDisabled ? "Counter unavailable" : "Recall ticket"}
-          className="qp-focusable flex items-center gap-1 text-[11px] px-2 py-1.5 rounded-md border disabled:cursor-not-allowed disabled:opacity-35"
-          style={{ borderColor: C.amber, color: C.amber, borderRadius: surfaceTheme.radius }}
-        >
-          <Undo2 size={12} /> Recall
-        </button>
-        <button onClick={confirmRemove} className="qp-focusable p-1.5 rounded-md border shrink-0 sm:ml-auto" style={{ borderColor: surfaceTheme.borderColor, color: faintColor, background: withAlpha(surfaceTheme.fontColor, "12"), borderRadius: surfaceTheme.radius }}>
-          <Trash2 size={13} />
-        </button>
       </div>
     </div>
   );

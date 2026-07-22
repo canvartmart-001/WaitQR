@@ -80,9 +80,18 @@ function ServedRow({ entry: e, now, serviceName, desks, deskWord, recallServed, 
                 {e.name}
               </span>
             </div>
-            <span className="text-xs qp-mono shrink-0" style={{ color: faintColor }}>
-              {elapsedLabel(now - e.completedAt)} ago
-            </span>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                onClick={confirmRecall}
+                disabled={recallDisabled}
+                title={recallDisabled ? "Counter unavailable" : "Recall ticket"}
+                aria-label="Recall ticket"
+                className="qp-focusable p-1.5 rounded-md shrink-0 disabled:cursor-not-allowed disabled:opacity-35"
+                style={{ color: C.amber, background: C.amberSoft, borderRadius: surfaceTheme.radius }}
+              >
+                <Undo2 size={13} />
+              </button>
+            </div>
           </div>
           <div className="text-xs mt-1 truncate" style={{ color: mutedColor }}>
             {e.phone} · {serviceName(e.serviceId)}
@@ -90,23 +99,15 @@ function ServedRow({ entry: e, now, serviceName, desks, deskWord, recallServed, 
           <div className="text-[10px] mt-0.5 truncate qp-mono" style={{ color: faintColor }}>
             {recallDesk?.name || deskWord} · waited {elapsedLabel(e.waitMs)}
           </div>
+          <div className="text-[10px] mt-0.5 truncate qp-mono" style={{ color: faintColor }}>
+            {elapsedLabel(now - e.completedAt)} ago
+          </div>
           {servedByName ? (
             <div className="text-[10px] mt-0.5 truncate" style={{ color: faintColor }}>
               Served by {servedByName}
             </div>
           ) : null}
         </div>
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-12">
-        <button
-          onClick={confirmRecall}
-          disabled={recallDisabled}
-          title={recallDisabled ? "Counter unavailable" : "Recall ticket"}
-          className="qp-focusable flex items-center gap-1 text-[11px] px-2 py-1.5 rounded-md border disabled:cursor-not-allowed disabled:opacity-35"
-          style={{ borderColor: C.amber, color: C.amber, borderRadius: surfaceTheme.radius }}
-        >
-          <Undo2 size={12} /> Recall
-        </button>
       </div>
     </div>
   );

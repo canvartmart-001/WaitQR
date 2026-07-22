@@ -73,33 +73,32 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
                   </span>
                 )}
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center gap-1.5">
                 {isActive && (
                   <span className="text-[10px] shrink-0" style={{ color: faintColor }}>
                     {desks.find((desk) => String(desk.id) === String(t._activeFromDeskId))?.name || deskWord}
                   </span>
                 )}
-                <span className="qp-ticket-face text-xs shrink-0" style={{ color: faintColor, fontVariantNumeric: "tabular-nums" }}>
-                  {elapsedLabel(now - t.createdAt)}
-                </span>
+                {canCall ? (
+                  <button
+                    type="button"
+                    onClick={() => callTicket?.(selectedDesk.id, t.id)}
+                    className="qp-focusable p-1.5 rounded-md shrink-0"
+                    style={{ color: C.blue, background: withAlpha(surfaceTheme.accentColor, "16"), borderRadius: surfaceTheme.radius }}
+                    title="Call this ticket"
+                    aria-label="Call this ticket"
+                  >
+                    <Volume2 size={13} />
+                  </button>
+                ) : null}
               </div>
             </div>
             <div className="text-xs mt-1 truncate" style={{ color: mutedColor }}>
               {t.phone} · {serviceName(t.serviceId)}
             </div>
-            {canCall ? (
-              <div className="mt-2">
-                <button
-                  type="button"
-                  onClick={() => callTicket?.(selectedDesk.id, t.id)}
-                  className="qp-focusable inline-flex items-center gap-1 rounded-md border px-2 py-1.5 text-[11px] font-medium"
-                  style={{ borderColor: C.blue, color: C.blue, borderRadius: surfaceTheme.radius }}
-                  title="Call this ticket"
-                >
-                  <Volume2 size={12} /> Call
-                </button>
-              </div>
-            ) : null}
+            <div className="qp-ticket-face text-[10px] mt-1 truncate" style={{ color: faintColor, fontVariantNumeric: "tabular-nums" }}>
+              {elapsedLabel(now - t.createdAt)}
+            </div>
           </div>
         </div>
       );
