@@ -616,7 +616,8 @@ svg {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  padding: 17px 22px 19px;
+  /* Match the Queue Details panel and service table's 16px content gutter. */
+  padding: 17px 16px 19px;
   color: var(--qp-serving-panel-fg);
   background-color: var(--qp-serving-panel-bg);
   background-image: radial-gradient(circle at 100% 0%, rgba(255,255,255,.12), transparent 45%);
@@ -634,6 +635,14 @@ svg {
 
 .qp-desk-serving-panel--now-serving {
   --qp-serving-panel-bg: #4FB286;
+}
+
+.qp-desk-serving-panel--break {
+  --qp-serving-panel-bg: #8B919C;
+  --qp-serving-panel-subtle: rgba(255, 255, 255, .14);
+  --qp-serving-panel-pill-bg: rgba(255, 255, 255, .18);
+  --qp-serving-panel-pill-fg: #fff;
+  transition: background-color .38s ease, color .28s ease;
 }
 
 .qp-desk-serving-header {
@@ -733,7 +742,7 @@ svg {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  padding: 17px 15px 14px;
+  padding: 17px 16px 14px;
   color: #111827;
   background: #fff;
 }
@@ -806,6 +815,12 @@ svg {
   gap: 8px;
   margin-top: auto;
   padding-top: 11px;
+  position: relative;
+  transition: grid-template-columns .28s cubic-bezier(.2, .8, .2, 1);
+}
+
+.qp-desk-ticket-actions--break {
+  grid-template-columns: minmax(0, 0fr) minmax(0, 1fr) 40px;
 }
 
 .qp-desk-primary-action {
@@ -820,7 +835,17 @@ svg {
   color: #fff;
   font-size: 11px;
   font-weight: 600;
-  transition: background-color .32s ease, filter .15s ease, transform .15s ease;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity .18s ease, padding .24s ease, background-color .18s ease;
+}
+
+.qp-desk-primary-action--break-hidden {
+  padding-right: 0;
+  padding-left: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease .1s, padding .28s cubic-bezier(.2, .8, .2, 1), background-color .18s ease;
 }
 
 .qp-desk-primary-action:not(:disabled):hover {
@@ -838,6 +863,7 @@ svg {
 
 .qp-desk-secondary-action {
   display: flex;
+  box-sizing: border-box;
   width: 40px;
   height: 40px;
   flex-shrink: 0;
@@ -846,7 +872,89 @@ svg {
   border: 1px solid #e7ebf0 !important;
   color: #667085 !important;
   background: #fff !important;
-  transition: background .15s ease, color .15s ease;
+  transition: width .28s cubic-bezier(.2, .8, .2, 1), background .18s ease, color .18s ease, transform .16s ease;
+}
+
+.qp-desk-more-action {
+  position: absolute;
+  top: 11px;
+  right: 0;
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  margin: 0;
+  transform: none;
+  transition: background-color .2s ease, color .2s ease;
+  z-index: 1;
+}
+
+.qp-desk-ticket-actions--break .qp-desk-more-action {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  margin: 0;
+  transform: none;
+}
+
+.qp-desk-break-action {
+  grid-column: 2;
+  justify-self: end;
+  transform-origin: right center;
+  gap: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.qp-desk-break-action span {
+  display: inline-block;
+  max-width: 0;
+  min-width: 0;
+  opacity: 0;
+  transform: translateX(-4px);
+  font-size: 11px;
+  font-weight: 600;
+  transition: max-width .24s ease, opacity .18s ease, transform .24s ease;
+}
+
+.qp-desk-break-action--active {
+  width: 100%;
+  gap: 8px;
+  justify-content: center;
+  color: #2563eb !important;
+  background: #eff6ff !important;
+}
+
+.qp-desk-break-action--active span {
+  max-width: 80px;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.qp-desk-details-reveal {
+  display: grid;
+  grid-template-rows: minmax(0, 0fr);
+  min-height: 0;
+  opacity: 0;
+  transition: grid-template-rows .28s cubic-bezier(.2, .8, .2, 1), opacity .18s ease;
+}
+
+.qp-desk-details-reveal > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.qp-desk-details-reveal--open {
+  grid-template-rows: minmax(0, 1fr);
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qp-desk-ticket-actions,
+  .qp-desk-secondary-action,
+  .qp-desk-break-action span,
+  .qp-desk-details-reveal {
+    transition: none;
+  }
 }
 
 .qp-desk-secondary-action:hover {

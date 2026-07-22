@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, Check, Clock3, Coffee, Layers3, Lock, MoreHorizontal, Phone, Unlock, UserRound, UsersRound, Volume2, X } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, Clock3, Coffee, Layers3, Lock, MoreHorizontal, Phone, Ticket, Unlock, UserRound, Volume2, X } from "lucide-react";
 import { useState } from "react";
 import { C } from "../../lib/theme";
 import { elapsedLabel, elapsedTimerLabel } from "../../lib/format";
@@ -158,6 +158,7 @@ export function DeskConsoleCard({
 }) {
   const [statusOpen, setStatusOpen] = useState(false);
   const [draftStatusMode, setDraftStatusMode] = useState("always_open");
+  const [isOnBreak, setIsOnBreak] = useState(false);
   const canCallNext = !d.current && queue.some(eligibleForDesk(d));
   const previewTicket = !d.current ? selectNextTicketForDesk(queue, d) : null;
 
@@ -190,7 +191,13 @@ export function DeskConsoleCard({
   const faintColor = withAlpha(surfaceTheme.fontColor, "55");
   const subtleBackground = withAlpha(surfaceTheme.fontColor, "08");
   const controlBackground = withAlpha(surfaceTheme.fontColor, "12");
-  const primaryBg = !d.current ? surfaceTheme.accentColor : !d.current.startedAt ? C.amber : C.teal;
+  const primaryBg = isOnBreak && !d.current
+    ? "#8B919C"
+    : !d.current
+      ? surfaceTheme.accentColor
+      : !d.current.startedAt
+        ? C.amber
+        : C.teal;
 
   const handlePrimaryAction = () => {
     if (!d.current) {
@@ -245,39 +252,42 @@ export function DeskConsoleCard({
       : <Lock size={14} />;
 
   const renderDeskActions = (className = "qp-desk-ticket-actions") => (
-    <div className={className} onClick={(e) => e.stopPropagation()}>
+    <div className={`${className} ${isOnBreak && !d.current ? "qp-desk-ticket-actions--break" : ""}`} onClick={(e) => e.stopPropagation()}>
       <button
-        type="button"
-        onClick={handlePrimaryAction}
-        disabled={!d.current ? !canCallNext || isPrimaryBusy : isPrimaryBusy}
-        title={
-          !d.current
-            ? canCallNext
-              ? "Call next"
-              : `No waiting tickets match this ${deskWordLower}'s ${serviceWordPluralLower}`
-            : !d.current.startedAt
-              ? "Start serving this ticket"
-              : "Mark ticket complete"
-        }
-        className="qp-focusable qp-desk-primary-action disabled:cursor-not-allowed disabled:opacity-30"
-        style={{
-          borderColor: "transparent",
-          color: C.textLight,
-          backgroundColor: primaryBg,
-          borderRadius: surfaceTheme.radius,
-        }}
-      >
-        {!d.current ? <Volume2 size={16} /> : null}
-        <span>{primaryLabel}</span>
-        <span className="qp-desk-primary-arrow">{primaryIcon}</span>
+          type="button"
+          onClick={handlePrimaryAction}
+          disabled={!d.current ? !canCallNext || isPrimaryBusy || isOnBreak : isPrimaryBusy}
+          title={
+            !d.current
+              ? canCallNext
+                ? "Call next"
+                : `No waiting tickets match this ${deskWordLower}'s ${serviceWordPluralLower}`
+              : !d.current.startedAt
+                ? "Start serving this ticket"
+                : "Mark ticket complete"
+          }
+          aria-hidden={isOnBreak && !d.current}
+          tabIndex={isOnBreak && !d.current ? -1 : undefined}
+          className={`qp-focusable qp-desk-primary-action disabled:cursor-not-allowed disabled:opacity-30 ${isOnBreak && !d.current ? "qp-desk-primary-action--break-hidden" : ""}`}
+          style={{
+            borderColor: "transparent",
+            color: C.textLight,
+            backgroundColor: primaryBg,
+            borderRadius: surfaceTheme.radius,
+          }}
+        >
+          {!d.current ? <Volume2 size={16} /> : null}
+          <span>{primaryLabel}</span>
+          <span className="qp-desk-primary-arrow">{primaryIcon}</span>
       </button>
 
       {!d.current ? (
         <button
           type="button"
-          onClick={() => {}}
-          title="Break"
-          className="qp-focusable qp-desk-secondary-action disabled:opacity-30"
+          onClick={() => setIsOnBreak((value) => !value)}
+          aria-pressed={isOnBreak}
+          title={isOnBreak ? "End break" : "Take a break"}
+          className={`qp-focusable qp-desk-secondary-action qp-desk-break-action disabled:opacity-30 ${isOnBreak ? "qp-desk-break-action--active" : ""}`}
           style={{
             borderColor: surfaceTheme.borderColor,
             color: mutedColor,
@@ -286,6 +296,7 @@ export function DeskConsoleCard({
           }}
         >
           <Coffee size={15} />
+          <span>On Break</span>
         </button>
       ) : (
         <button
@@ -303,7 +314,7 @@ export function DeskConsoleCard({
       <button
         type="button"
         onClick={onToggleExpanded}
-        className="qp-focusable qp-desk-secondary-action"
+        className={`qp-focusable qp-desk-secondary-action qp-desk-more-action ${isExpanded ? "qp-desk-more-action--expanded" : ""}`}
         title={isExpanded ? "Hide detail" : "Show detail"}
         style={{
           borderColor: "transparent",
@@ -397,13 +408,13 @@ export function DeskConsoleCard({
               }}
             >
               <div className="qp-desk-ticket-main">
-                <section className={`qp-desk-serving-panel qp-desk-serving-panel--${servingPanelTone}`}>
+                <section className={`qp-desk-serving-panel qp-desk-serving-panel--${servingPanelTone} ${isOnBreak && !d.current ? "qp-desk-serving-panel--break" : ""}`}>
                   <div className="qp-desk-serving-header" onClick={(e) => e.stopPropagation()}>
                     {renderDeskStatusButton(true)}
                   </div>
 
                   <div className="qp-desk-serving-caption">
-                    <span className="qp-desk-caption-icon"><UsersRound size={15} /></span>
+                    <span className="qp-desk-caption-icon"><Ticket size={15} /></span>
                     <span>{servingPanelLabel}</span>
                   </div>
 
@@ -453,7 +464,9 @@ export function DeskConsoleCard({
                 </section>
               </div>
 
-              {isExpanded ? renderExpandedDetails() : null}
+              <div className={`qp-desk-details-reveal ${isExpanded ? "qp-desk-details-reveal--open" : ""}`} aria-hidden={!isExpanded}>
+                {renderExpandedDetails()}
+              </div>
             </div>
           ) : (
             <div
@@ -470,7 +483,9 @@ export function DeskConsoleCard({
                   No one in queue
                 </span>
               </div>
-              {isExpanded ? renderExpandedDetails() : null}
+              <div className={`qp-desk-details-reveal ${isExpanded ? "qp-desk-details-reveal--open" : ""}`} aria-hidden={!isExpanded}>
+                {renderExpandedDetails()}
+              </div>
             </div>
           )}
         </div>
