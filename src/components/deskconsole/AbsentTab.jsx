@@ -48,7 +48,7 @@ export function AbsentTab({ filteredAbsent, desks = [], now, serviceName, recall
 
 function AbsentRow({ ticket: t, desks, now, serviceName, recallAbsent, removeAbsent, askConfirm, surfaceTheme, mutedColor, faintColor, rowBackground }) {
   const recallDesk = desks.find((desk) => String(desk.id) === String(t.skippedFromDesk));
-  const recallDisabled = !recallAbsent || !recallDesk || Boolean(recallDesk.current);
+  const recallDisabled = !recallAbsent || !recallDesk;
   const confirmRemove = () => {
     askConfirm?.(
       "Delete absent ticket?",
@@ -87,7 +87,7 @@ function AbsentRow({ ticket: t, desks, now, serviceName, recallAbsent, removeAbs
         <button
           onClick={() => recallAbsent(t.id)}
           disabled={recallDisabled}
-          title={recallDisabled ? "Counter must be free before recall" : "Recall ticket"}
+          title={recallDisabled ? "Counter unavailable" : "Recall ticket"}
           className="qp-focusable flex items-center gap-1 text-[11px] px-2 py-1.5 rounded-md border disabled:cursor-not-allowed disabled:opacity-35"
           style={{ borderColor: C.amber, color: C.amber, borderRadius: surfaceTheme.radius }}
         >

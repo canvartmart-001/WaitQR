@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, Check, Clock3, Coffee, Layers3, Lock, MoreHorizontal, Phone, Ticket, Unlock, UserRound, Volume2, X } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, Clock3, Coffee, Layers3, Lock, Phone, Ticket, Unlock, UserRound, Volume2, X } from "lucide-react";
 import { useState } from "react";
 import { C } from "../../lib/theme";
 import { elapsedLabel, elapsedTimerLabel } from "../../lib/format";
@@ -129,9 +129,6 @@ function deskAvailability(desk, now) {
 export function DeskConsoleCard({
   desk: d,
   now,
-  isExpanded,
-  onToggleExpanded,
-  services,
   serviceName,
   theme,
   serviceWord,
@@ -151,15 +148,13 @@ export function DeskConsoleCard({
   completeTicket,
   skipTicket,
   updateDesk,
-  servedByDesk,
-  absentByDesk,
-  removedByDesk,
-  servedByDeskService,
-  absentByDeskService,
-  removedByDeskService,
   readOnlyQueued = false,
   actionDeskId = d.id,
   actionTicketId = null,
+  allowCounterStatusControls = true,
+  showCounterStatusButton = true,
+  hideInCardCounterStatus = false,
+  showCounterStatusAbove = false,
 }) {
   const [statusOpen, setStatusOpen] = useState(false);
   const [draftStatusMode, setDraftStatusMode] = useState("always_open");
@@ -260,6 +255,7 @@ export function DeskConsoleCard({
   };
 
   const openStatusDialog = () => {
+    if (!allowCounterStatusControls) return;
     setDraftStatusMode(availability.mode);
     setStatusOpen(true);
   };
@@ -331,75 +327,16 @@ export function DeskConsoleCard({
           <X size={15} />
         </button>
       )}
-
-      <button
-        type="button"
-        onClick={onToggleExpanded}
-        disabled={readOnlyQueued}
-        className={`qp-focusable qp-desk-secondary-action qp-desk-more-action ${isExpanded ? "qp-desk-more-action--expanded" : ""}`}
-        title={readOnlyQueued ? "Details are available when this ticket becomes active" : isExpanded ? "Hide detail" : "Show detail"}
-        style={{
-          borderColor: "transparent",
-          background: isExpanded ? withAlpha(surfaceTheme.accentColor, "1f") : controlBackground,
-          color: isExpanded ? surfaceTheme.accentColor : mutedColor,
-          borderRadius: surfaceTheme.radius,
-        }}
-      >
-        <MoreHorizontal size={17} />
-      </button>
-    </div>
-  );
-
-  const renderExpandedDetails = () => (
-    <div className="qp-desk-expanded-details" style={{ borderColor: surfaceTheme.borderColor }}>
-      <div className="qp-desk-expanded-content">
-        <div className="qp-desk-service-header" style={{ color: faintColor }}>
-          <span>Service</span>
-          <span className="qp-desk-service-count-labels">
-            <span>Served</span>
-            <span>Absent</span>
-            <span>Removed</span>
-          </span>
-        </div>
-        {(() => {
-          const list = services.filter((s) => d.services.includes(s.id));
-          if (list.length === 0) {
-            return (
-              <div className="py-1 text-xs" style={{ color: faintColor }}>
-                No {serviceWordPluralLower} assigned yet.
-              </div>
-            );
-          }
-
-          return list.map((s) => {
-            const key = `${d.id}|${s.id}`;
-            const sv = servedByDeskService[key] || 0;
-            const ab = absentByDeskService[key] || 0;
-            const rm = removedByDeskService[key] || 0;
-            return (
-              <div key={s.id} className="qp-desk-service-row" style={{ borderColor: withAlpha(surfaceTheme.borderColor, "66") }}>
-                <span className="qp-desk-service-name truncate" style={{ color: surfaceTheme.fontColor }}>
-                  {s.name}
-                </span>
-                <span className="qp-desk-service-counts">
-                  <span className="qp-mono text-center" style={{ color: C.teal }}>{sv}</span>
-                  <span className="qp-mono text-center" style={{ color: C.coral }}>{ab}</span>
-                  <span className="qp-mono text-center" style={{ color: faintColor }}>{rm}</span>
-                </span>
-              </div>
-            );
-          });
-        })()}
-      </div>
     </div>
   );
 
   const renderDeskStatusButton = (onAccent = false) => (
+    showCounterStatusButton ? (
     <button
       type="button"
-      onClick={readOnlyQueued ? undefined : openStatusDialog}
-      disabled={readOnlyQueued}
-      className={`qp-focusable flex min-w-0 items-center gap-1.5 rounded-full py-0.5 text-left transition-colors ${readOnlyQueued ? "cursor-default" : "hover:bg-white/5"}`}
+      onClick={readOnlyQueued || !allowCounterStatusControls ? undefined : openStatusDialog}
+      disabled={readOnlyQueued || !allowCounterStatusControls}
+      className={`qp-focusable flex min-w-0 items-center gap-1.5 rounded-full py-0.5 text-left transition-colors ${readOnlyQueued || !allowCounterStatusControls ? "cursor-default" : "hover:bg-white/5"}`}
       title={availability.label}
     >
       <span
@@ -414,10 +351,16 @@ export function DeskConsoleCard({
       </span>
       <span className="sr-only">{availability.label}</span>
     </button>
+    ) : null
   );
 
   return (
     <div className="qp-console-card">
+      {showCounterStatusAbove ? (
+        <div className="qp-desk-top-status-row" onClick={(e) => e.stopPropagation()}>
+          {renderDeskStatusButton(false)}
+        </div>
+      ) : null}
       <div>
         <div className="flex flex-col gap-4">
           {t ? (
@@ -432,9 +375,11 @@ export function DeskConsoleCard({
             >
               <div className="qp-desk-ticket-main">
                 <section className={`qp-desk-serving-panel qp-desk-serving-panel--${servingPanelTone} ${isOnBreak && !d.current ? "qp-desk-serving-panel--break" : ""}`}>
-                  <div className="qp-desk-serving-header" onClick={(e) => e.stopPropagation()}>
-                    {renderDeskStatusButton(true)}
-                  </div>
+                  {hideInCardCounterStatus ? null : (
+                    <div className="qp-desk-serving-header" onClick={(e) => e.stopPropagation()}>
+                      {renderDeskStatusButton(true)}
+                    </div>
+                  )}
 
                   <div className="qp-desk-serving-caption">
                     <span className="qp-desk-caption-icon"><Ticket size={15} /></span>
@@ -486,10 +431,6 @@ export function DeskConsoleCard({
                   {renderDeskActions()}
                 </section>
               </div>
-
-              <div className={`qp-desk-details-reveal ${isExpanded ? "qp-desk-details-reveal--open" : ""}`} aria-hidden={!isExpanded}>
-                {renderExpandedDetails()}
-              </div>
             </div>
           ) : (
             <div
@@ -505,9 +446,6 @@ export function DeskConsoleCard({
                 <span className="text-[10px] tracking-wide" style={{ color: faintColor }}>
                   No one in queue
                 </span>
-              </div>
-              <div className={`qp-desk-details-reveal ${isExpanded ? "qp-desk-details-reveal--open" : ""}`} aria-hidden={!isExpanded}>
-                {renderExpandedDetails()}
               </div>
             </div>
           )}

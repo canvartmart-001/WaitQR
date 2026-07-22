@@ -34,7 +34,7 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
         return (
         <div
           key={t.id}
-          className="flex items-center gap-3 rounded-lg border px-3 py-3"
+          className="flex items-start gap-3 rounded-lg border px-3 py-3"
           style={{
             borderColor: surfaceTheme.borderColor,
             background: rowBackground,
@@ -87,18 +87,20 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
             <div className="text-xs mt-1 truncate" style={{ color: mutedColor }}>
               {t.phone} · {serviceName(t.serviceId)}
             </div>
+            {canCall ? (
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={() => callTicket?.(selectedDesk.id, t.id)}
+                  className="qp-focusable inline-flex items-center gap-1 rounded-md border px-2 py-1.5 text-[11px] font-medium"
+                  style={{ borderColor: C.blue, color: C.blue, borderRadius: surfaceTheme.radius }}
+                  title="Call this ticket"
+                >
+                  <Volume2 size={12} /> Call
+                </button>
+              </div>
+            ) : null}
           </div>
-          {canCall ? (
-            <button
-              type="button"
-              onClick={() => callTicket?.(selectedDesk.id, t.id)}
-              className="qp-focusable flex shrink-0 items-center gap-1 rounded-md border px-2 py-1.5 text-[11px] font-medium"
-              style={{ borderColor: C.blue, color: C.blue, borderRadius: surfaceTheme.radius }}
-              title="Call this ticket"
-            >
-              <Volume2 size={12} /> Call
-            </button>
-          ) : null}
         </div>
       );
       })}

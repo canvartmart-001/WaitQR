@@ -154,6 +154,9 @@ svg {
 
   .qp-desk-page-shell {
     align-content: start;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 4px;
   }
 
   .qp-desk-page-layout {
@@ -266,7 +269,7 @@ svg {
 
   .qp-desk-ticket-actions {
     @apply grid w-full items-stretch gap-2;
-    grid-template-columns: minmax(0, 1fr) 40px 40px;
+    grid-template-columns: minmax(0, 1fr) 40px;
     grid-row: 2;
     max-width: 100%;
     margin-top: 0;
@@ -298,14 +301,6 @@ svg {
   .qp-desk-info-value {
     font-size: 22px;
     line-height: 1.2;
-  }
-
-  .qp-desk-expanded-details {
-    @apply border-t px-4 pb-3 pt-2.5;
-  }
-
-  .qp-desk-expanded-content {
-    @apply min-w-0;
   }
 
   .qp-desk-service-header {
@@ -368,6 +363,13 @@ svg {
   }
 }
 
+@media (min-width: 640px) {
+  .qp-desk-page-shell {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
 @media (min-width: 1024px) {
   .qp-desk-page-layout {
     grid-template-columns: minmax(540px, 0.95fr) minmax(440px, 1.05fr);
@@ -381,7 +383,9 @@ svg {
   }
 
   .qp-desk-page-waiting {
-    min-height: min(620px, calc(100vh - 150px));
+    height: min(620px, calc(100vh - 104px));
+    min-height: 0;
+    overflow: hidden;
   }
 
   .qp-desk-ticket-frame {
@@ -653,6 +657,13 @@ svg {
   gap: 12px;
 }
 
+.qp-desk-top-status-row {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
 .qp-desk-status-icon {
   transition: color .28s ease;
 }
@@ -661,7 +672,7 @@ svg {
   display: flex;
   align-items: center;
   gap: 9px;
-  margin-top: 30px;
+  min-height: 18px;
   color: var(--qp-serving-panel-muted);
   font-size: 10px;
   font-weight: 600;
@@ -687,12 +698,12 @@ svg {
   width: auto;
   align-self: flex-start;
   justify-self: start;
-  margin-top: 11px;
+  margin-top: 18px;
   padding: 0;
   position: static;
   color: var(--qp-serving-panel-fg);
   font-family: 'Inter', sans-serif;
-  font-size: clamp(48px, 11cqw, 61px);
+  font-size: clamp(58px, 13cqw, 78px);
   font-weight: 700;
   line-height: .95;
   letter-spacing: .02em;
@@ -810,7 +821,7 @@ svg {
 .qp-desk-ticket-actions {
   display: grid;
   width: 100%;
-  grid-template-columns: minmax(0, 1fr) 40px 40px;
+  grid-template-columns: minmax(0, 1fr) 40px;
   align-items: stretch;
   gap: 8px;
   margin-top: auto;
@@ -820,7 +831,7 @@ svg {
 }
 
 .qp-desk-ticket-actions--break {
-  grid-template-columns: minmax(0, 0fr) minmax(0, 1fr) 40px;
+  grid-template-columns: minmax(0, 0fr) minmax(0, 1fr);
 }
 
 .qp-desk-primary-action {
@@ -875,27 +886,6 @@ svg {
   transition: width .28s cubic-bezier(.2, .8, .2, 1), background .18s ease, color .18s ease, transform .16s ease;
 }
 
-.qp-desk-more-action {
-  position: absolute;
-  top: 11px;
-  right: 0;
-  width: 40px;
-  min-width: 40px;
-  max-width: 40px;
-  margin: 0;
-  transform: none;
-  transition: background-color .2s ease, color .2s ease;
-  z-index: 1;
-}
-
-.qp-desk-ticket-actions--break .qp-desk-more-action {
-  width: 40px;
-  min-width: 40px;
-  max-width: 40px;
-  margin: 0;
-  transform: none;
-}
-
 .qp-desk-break-action {
   grid-column: 2;
   justify-self: end;
@@ -930,29 +920,10 @@ svg {
   transform: translateX(0);
 }
 
-.qp-desk-details-reveal {
-  display: grid;
-  grid-template-rows: minmax(0, 0fr);
-  min-height: 0;
-  opacity: 0;
-  transition: grid-template-rows .28s cubic-bezier(.2, .8, .2, 1), opacity .18s ease;
-}
-
-.qp-desk-details-reveal > * {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.qp-desk-details-reveal--open {
-  grid-template-rows: minmax(0, 1fr);
-  opacity: 1;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .qp-desk-ticket-actions,
   .qp-desk-secondary-action,
-  .qp-desk-break-action span,
-  .qp-desk-details-reveal {
+  .qp-desk-break-action span {
     transition: none;
   }
 }
@@ -960,12 +931,6 @@ svg {
 .qp-desk-secondary-action:hover {
   color: #2563eb !important;
   background: #f8fafc !important;
-}
-
-.qp-desk-expanded-details {
-  border-color: #e7ebf0 !important;
-  color: #344054;
-  background: #fff;
 }
 
 @container (max-width: 440px) {

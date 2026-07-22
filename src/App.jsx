@@ -877,26 +877,31 @@ export default function App() {
     if (!ticket || deskId == null) return;
 
     const recallDesk = desks.find((desk) => String(desk.id) === deskId);
-    if (!recallDesk || recallDesk.current) return;
+    if (!recallDesk) return;
 
     const recallTime = Date.now();
+    const recalledTicket = {
+      id: ticket.id,
+      label: ticket.label,
+      type: ticket.type,
+      name: ticket.name,
+      phone: ticket.phone,
+      serviceId: ticket.serviceId,
+      deskId,
+      createdAt: ticket.createdAt,
+      calledAt: recallTime,
+      startedAt: null,
+    };
+
     setDesks((currentDesks) =>
       currentDesks.map((desk) =>
         String(desk.id) === deskId
           ? {
               ...desk,
-              current: {
-                id: ticket.id,
-                label: ticket.label,
-                type: ticket.type,
-                name: ticket.name,
-                phone: ticket.phone,
-                serviceId: ticket.serviceId,
-                deskId,
-                createdAt: ticket.createdAt,
-                calledAt: recallTime,
-                startedAt: null,
-              },
+              current: desk.current || recalledTicket,
+              calledTickets: desk.current
+                ? [...(desk.calledTickets || []).filter((item) => item.id !== ticket.id), recalledTicket]
+                : desk.calledTickets || [],
               lastServiceId: ticket.serviceId || "__general__",
             }
           : desk
@@ -913,26 +918,31 @@ export default function App() {
     if (!ticket || deskId == null) return;
 
     const recallDesk = desks.find((desk) => String(desk.id) === deskId);
-    if (!recallDesk || recallDesk.current) return;
+    if (!recallDesk) return;
 
     const recallTime = Date.now();
+    const recalledTicket = {
+      id: ticket.id,
+      label: ticket.label,
+      type: ticket.type,
+      name: ticket.name,
+      phone: ticket.phone,
+      serviceId: ticket.serviceId,
+      deskId,
+      createdAt: ticket.createdAt || ticket.completedAt || recallTime,
+      calledAt: recallTime,
+      startedAt: null,
+    };
+
     setDesks((currentDesks) =>
       currentDesks.map((desk) =>
         String(desk.id) === deskId
           ? {
               ...desk,
-              current: {
-                id: ticket.id,
-                label: ticket.label,
-                type: ticket.type,
-                name: ticket.name,
-                phone: ticket.phone,
-                serviceId: ticket.serviceId,
-                deskId,
-                createdAt: ticket.createdAt || ticket.completedAt || recallTime,
-                calledAt: recallTime,
-                startedAt: null,
-              },
+              current: desk.current || recalledTicket,
+              calledTickets: desk.current
+                ? [...(desk.calledTickets || []).filter((item) => item.id !== ticket.id), recalledTicket]
+                : desk.calledTickets || [],
               lastServiceId: ticket.serviceId || "__general__",
             }
           : desk
@@ -1131,7 +1141,6 @@ export default function App() {
   const [newServiceName, setNewServiceName] = useState("");
   const [newServiceDeskIds, setNewServiceDeskIds] = useState([]);
   const [newServiceDeskError, setNewServiceDeskError] = useState("");
-  const [expandedDeskControl, setExpandedDeskControl] = useState(null);
   const [deskDetailTab, setDeskDetailTab] = useState("waiting");
   const [appearanceSettings, setAppearanceSettings] = useState(loadStoredAppearance);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
@@ -1856,8 +1865,6 @@ export default function App() {
       queue={queue}
       sortedQueue={sortedQueue}
       eligibleForDesk={eligibleForDesk}
-      expandedDeskControl={expandedDeskControl}
-      setExpandedDeskControl={setExpandedDeskControl}
       deskDetailTab={deskDetailTab}
       setDeskDetailTab={setDeskDetailTab}
       deskActions={deskPageActions}

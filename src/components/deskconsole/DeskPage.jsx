@@ -12,8 +12,6 @@ export function DeskPage({
   queue,
   sortedQueue,
   eligibleForDesk,
-  expandedDeskControl,
-  setExpandedDeskControl,
   deskDetailTab,
   setDeskDetailTab,
   deskActions,
@@ -23,7 +21,7 @@ export function DeskPage({
   askConfirm,
 }) {
   const { deskWord, deskWordLower, serviceWord, serviceWordLower, serviceWordPluralLower } = labels;
-  const { servedByDesk, absentByDesk, removedByDesk, servedByDeskService, absentByDeskService, removedByDeskService, absentList, sortedServed, removeAbsent } = ticketLogs;
+  const { servedByDeskService, absentByDeskService, removedByDeskService, absentList, sortedServed, removeAbsent } = ticketLogs;
   const queuedCalledTickets = Array.isArray(desk.calledTickets) ? desk.calledTickets : [];
 
   return (
@@ -33,9 +31,6 @@ export function DeskPage({
           <DeskConsoleCard
             desk={desk}
             now={now}
-            isExpanded={expandedDeskControl === desk.id}
-            onToggleExpanded={() => setExpandedDeskControl(expandedDeskControl === desk.id ? null : desk.id)}
-            services={services}
             serviceName={serviceName}
             theme={theme}
             serviceWord={serviceWord}
@@ -55,12 +50,8 @@ export function DeskPage({
             completeTicket={deskActions.completeActiveTicket}
             skipTicket={deskActions.skipActiveTicket}
             updateDesk={deskActions.updateDesk}
-            servedByDesk={servedByDesk}
-            absentByDesk={absentByDesk}
-            removedByDesk={removedByDesk}
-            servedByDeskService={servedByDeskService}
-            absentByDeskService={absentByDeskService}
-            removedByDeskService={removedByDeskService}
+            hideInCardCounterStatus
+            showCounterStatusAbove
           />
           {queuedCalledTickets.length > 0 ? (
             <div className="mt-4 flex flex-col gap-4">
@@ -74,9 +65,6 @@ export function DeskPage({
                     calledTickets: [],
                   }}
                   now={now}
-                  isExpanded={false}
-                  onToggleExpanded={() => {}}
-                  services={services}
                   serviceName={serviceName}
                   theme={theme}
                   serviceWord={serviceWord}
@@ -96,14 +84,10 @@ export function DeskPage({
                   completeTicket={deskActions.completeActiveTicket}
                   skipTicket={deskActions.skipActiveTicket}
                   updateDesk={() => {}}
-                  servedByDesk={servedByDesk}
-                  absentByDesk={absentByDesk}
-                  removedByDesk={removedByDesk}
-                  servedByDeskService={servedByDeskService}
-                  absentByDeskService={absentByDeskService}
-                  removedByDeskService={removedByDeskService}
                   actionDeskId={desk.id}
                   actionTicketId={ticket.id}
+                  allowCounterStatusControls={false}
+                  showCounterStatusButton={false}
                 />
               ))}
             </div>
@@ -120,15 +104,20 @@ export function DeskPage({
             sortedQueue={sortedQueue}
             absentList={absentList}
             sortedServed={sortedServed}
+            services={services}
             eligibleForDesk={eligibleForDesk}
             now={now}
             serviceName={serviceName}
+            serviceWordPluralLower={serviceWordPluralLower}
             deskWord={deskWord}
             callTicket={deskActions.callTicket}
             recallAbsent={recallAbsent}
             recallServed={recallServed}
             removeAbsent={removeAbsent}
             askConfirm={askConfirm}
+            servedByDeskService={servedByDeskService}
+            absentByDeskService={absentByDeskService}
+            removedByDeskService={removedByDeskService}
           />
         </div>
       </section>

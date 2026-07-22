@@ -48,7 +48,7 @@ export function ServedTab({ filteredServed, now, serviceName, desks, deskWord, r
 
 function ServedRow({ entry: e, now, serviceName, desks, deskWord, recallServed, askConfirm, surfaceTheme, mutedColor, faintColor, rowBackground }) {
   const recallDesk = desks.find((desk) => String(desk.id) === String(e.deskId));
-  const recallDisabled = !recallServed || !recallDesk || Boolean(recallDesk.current);
+  const recallDisabled = !recallServed || !recallDesk;
   const servedByName = e.servedByMemberName || "";
   const confirmRecall = () => {
     if (!askConfirm) {
@@ -101,7 +101,7 @@ function ServedRow({ entry: e, now, serviceName, desks, deskWord, recallServed, 
         <button
           onClick={confirmRecall}
           disabled={recallDisabled}
-          title={recallDisabled ? "Counter must be free before recall" : "Recall ticket"}
+          title={recallDisabled ? "Counter unavailable" : "Recall ticket"}
           className="qp-focusable flex items-center gap-1 text-[11px] px-2 py-1.5 rounded-md border disabled:cursor-not-allowed disabled:opacity-35"
           style={{ borderColor: C.amber, color: C.amber, borderRadius: surfaceTheme.radius }}
         >

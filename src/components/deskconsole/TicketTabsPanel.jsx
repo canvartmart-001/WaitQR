@@ -2,6 +2,7 @@ import { C } from "../../lib/theme";
 import { WaitingTab } from "./WaitingTab";
 import { AbsentTab } from "./AbsentTab";
 import { ServedTab } from "./ServedTab";
+import { ServiceTab } from "./ServiceTab";
 
 function withAlpha(hex, alphaHex) {
   if (typeof hex !== "string" || !/^#?[0-9a-f]{6}$/i.test(hex)) return hex;
@@ -17,15 +18,20 @@ export function TicketTabsPanel({
   sortedQueue,
   absentList,
   sortedServed,
+  services,
   eligibleForDesk,
   now,
   serviceName,
+  serviceWordPluralLower,
   deskWord,
   callTicket,
   recallAbsent,
   recallServed,
   removeAbsent,
   askConfirm,
+  servedByDeskService,
+  absentByDeskService,
+  removedByDeskService,
 }) {
   const queueList = sortedQueue || [];
   const selectedDesk = selectedDeskFilter ? desks.find((desk) => String(desk.id) === String(selectedDeskFilter)) || null : null;
@@ -53,7 +59,9 @@ export function TicketTabsPanel({
     ? <WaitingTab filteredWaiting={filteredWaiting} queuedWaiting={queuedWaiting} selectedDesk={selectedDesk} now={now} serviceName={serviceName} desks={desks} deskWord={deskWord} callTicket={callTicket} theme={surfaceTheme} />
     : deskDetailTab === "absent"
       ? <AbsentTab filteredAbsent={filteredAbsent} desks={desks} now={now} serviceName={serviceName} recallAbsent={recallAbsent} removeAbsent={removeAbsent} askConfirm={askConfirm} theme={surfaceTheme} />
-      : <ServedTab filteredServed={filteredServed} now={now} serviceName={serviceName} desks={desks} deskWord={deskWord} recallServed={recallServed} askConfirm={askConfirm} theme={surfaceTheme} />;
+      : deskDetailTab === "served"
+        ? <ServedTab filteredServed={filteredServed} now={now} serviceName={serviceName} desks={desks} deskWord={deskWord} recallServed={recallServed} askConfirm={askConfirm} theme={surfaceTheme} />
+        : <ServiceTab selectedDesk={selectedDesk} services={services} servedByDeskService={servedByDeskService} absentByDeskService={absentByDeskService} removedByDeskService={removedByDeskService} serviceWordPluralLower={serviceWordPluralLower} theme={surfaceTheme} />;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -62,6 +70,7 @@ export function TicketTabsPanel({
           { key: "waiting", label: "Waiting", count: waitingCount, countColor: C.blue },
           { key: "absent", label: "Absent", count: filteredAbsent.length, countColor: C.coral },
           { key: "served", label: "Served", count: filteredServed.length, countColor: C.teal },
+          { key: "service", label: "Service", count: selectedDesk ? (selectedDesk.services || []).length : services.length, countColor: surfaceTheme.accentColor },
         ].map((tab) => (
           <button
             key={tab.key}
