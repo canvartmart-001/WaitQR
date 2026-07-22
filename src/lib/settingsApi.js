@@ -157,5 +157,6 @@ export async function updateDeskStatus(deskId, updates = {}) {
   return {
     desk: data.desk || null,
     settings,
+    changedAt: Number(data.changedAt) || Date.now(),
   };
 }

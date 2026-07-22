@@ -283,18 +283,23 @@ app.patch("/api/desks/:id/status", async (req, res) => {
       || previousDesk.availabilityMode !== savedDesk.availabilityMode
       || Boolean(previousDesk.locked) !== Boolean(savedDesk.locked)
       || JSON.stringify(previousDesk.schedule || null) !== JSON.stringify(savedDesk.schedule || null);
+    const breakChanged = Boolean(previousDesk?.onBreak) !== Boolean(savedDesk.onBreak);
+    const changeType = breakChanged ? "desk-break" : statusChanged ? "desk-status" : "desk-updated";
+    const changedAt = Date.now();
 
     emitSettingsChange(savedSettings, {
-      type: statusChanged ? "desk-status" : "desk-updated",
+      type: changeType,
+      changedAt,
       deskId,
       desk: savedDesk,
       changedBy: changedBy && typeof changedBy === "object" ? changedBy : null,
     });
     emitDeskStatusChange(savedDesk, {
-      type: statusChanged ? "desk-status" : "desk-updated",
+      type: changeType,
+      changedAt,
       changedBy: changedBy && typeof changedBy === "object" ? changedBy : null,
     });
-    res.json({ desk: savedDesk, settings: savedSettings });
+    res.json({ desk: savedDesk, settings: savedSettings, changedAt });
   } catch (error) {
     console.error("Failed to update counter status", error);
     res.status(500).json({ error: "Failed to update counter status." });

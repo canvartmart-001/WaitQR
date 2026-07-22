@@ -1,4 +1,4 @@
-import { Bell, CalendarClock, CheckCircle2, ChevronDown, X, XCircle } from "lucide-react";
+import { Bell, CalendarClock, ChevronDown, Coffee, Lock, Unlock, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 function withAlpha(hex, alphaHex) {
@@ -8,8 +8,9 @@ function withAlpha(hex, alphaHex) {
 
 function StatusIcon({ mode, color }) {
   if (mode === "scheduled") return <CalendarClock size={15} style={{ color }} />;
-  if (mode === "closed") return <XCircle size={15} style={{ color }} />;
-  return <CheckCircle2 size={15} style={{ color }} />;
+  if (mode === "closed") return <Lock size={15} style={{ color }} />;
+  if (mode === "break") return <Coffee size={15} style={{ color }} />;
+  return <Unlock size={15} style={{ color }} />;
 }
 
 function formatTime(value) {

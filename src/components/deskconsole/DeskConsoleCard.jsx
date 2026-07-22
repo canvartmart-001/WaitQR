@@ -158,7 +158,9 @@ export function DeskConsoleCard({
 }) {
   const [statusOpen, setStatusOpen] = useState(false);
   const [draftStatusMode, setDraftStatusMode] = useState("always_open");
-  const [isOnBreak, setIsOnBreak] = useState(false);
+  // Break state belongs to the shared desk record so every counter and the
+  // public live board receive it through the real-time desk-status update.
+  const isOnBreak = Boolean(d.onBreak);
   const canCallNext = !d.current && queue.some(eligibleForDesk(d));
   const previewTicket = !d.current ? selectNextTicketForDesk(queue, d) : null;
 
@@ -284,7 +286,7 @@ export function DeskConsoleCard({
       {!d.current ? (
         <button
           type="button"
-          onClick={() => setIsOnBreak((value) => !value)}
+          onClick={() => updateDesk?.(d.id, { onBreak: !isOnBreak })}
           aria-pressed={isOnBreak}
           title={isOnBreak ? "End break" : "Take a break"}
           className={`qp-focusable qp-desk-secondary-action qp-desk-break-action disabled:opacity-30 ${isOnBreak ? "qp-desk-break-action--active" : ""}`}

@@ -378,6 +378,9 @@ function availabilityModeForDeskStatus(desk = {}) {
 }
 
 function counterStatusDetails(desk = {}) {
+  if (desk.onBreak) {
+    return { label: "On break", mode: "break", color: "#f59e0b" };
+  }
   const availabilityMode = availabilityModeForDeskStatus(desk);
   if (availabilityMode === "scheduled") {
     return { label: "Scheduled", mode: "scheduled", color: "#f59e0b" };
@@ -396,23 +399,28 @@ function canReceiveCounterNotification({ member, masterLoggedIn, desk }) {
 }
 
 function makeCounterNotification(payload = {}, context = {}) {
-  if (payload.type !== "desk-status" || !payload.desk) return null;
+  if (!["desk-status", "desk-break"].includes(payload.type) || !payload.desk) return null;
   const desk = payload.desk;
   const currentMember = context.member || null;
   const masterLoggedIn = Boolean(context.masterLoggedIn);
 
   if (!canReceiveCounterNotification({ member: currentMember, masterLoggedIn, desk })) return null;
 
+  const isBreakUpdate = payload.type === "desk-break";
   const status = counterStatusDetails(desk);
   const actor = payload.changedBy?.name || (payload.changedBy?.role === "master" ? "Master login" : "Counter status");
   const time = payload.changedAt || Date.now();
   const event = {
-    id: `${time}-${desk.id}-${status.label}`,
-    title: `${desk.name || "Counter"} is ${status.label}`,
-    message: `${actor} updated counter status.`,
+    id: `${time}-${desk.id}-${isBreakUpdate ? "break" : status.label}`,
+    title: isBreakUpdate
+      ? `${desk.name || "Counter"} ${desk.onBreak ? "is on break" : "returned from break"}`
+      : `${desk.name || "Counter"} is ${status.label}`,
+    message: isBreakUpdate
+      ? `${actor} ${desk.onBreak ? "started a break." : "ended the break."}`
+      : `${actor} updated counter status.`,
     time,
-    mode: status.mode,
-    color: status.color,
+    mode: isBreakUpdate ? "break" : status.mode,
+    color: isBreakUpdate ? (desk.onBreak ? "#f59e0b" : "#22c55e") : status.color,
   };
 
   return {
@@ -430,7 +438,7 @@ function makeCounterNotification(payload = {}, context = {}) {
 }
 
 function normalizeCounterNotificationEvent(event = {}, fallback = {}) {
-  const mode = event.mode === "scheduled" || event.mode === "closed" ? event.mode : fallback.mode || "open";
+  const mode = ["scheduled", "closed", "break"].includes(event.mode) ? event.mode : fallback.mode || "open";
   const color = event.color || fallback.color || "#22c55e";
   const time = Number(event.time) || fallback.time || Date.now();
 
@@ -449,7 +457,7 @@ function normalizeCounterNotification(item = {}) {
     title: String(item.title || "Counter updated"),
     message: String(item.message || "Counter status changed."),
     time: Number(item.time) || Date.now(),
-    mode: item.mode === "scheduled" || item.mode === "closed" ? item.mode : "open",
+    mode: ["scheduled", "closed", "break"].includes(item.mode) ? item.mode : "open",
     color: item.color || "#22c55e",
   };
   const events = (Array.isArray(item.events) && item.events.length ? item.events : [item])
@@ -576,6 +584,7 @@ function sanitizeDesksForSettings(desks, services) {
       status,
       availabilityMode,
       schedule: desk.schedule || null,
+      onBreak: Boolean(desk.onBreak),
       current: null,
       isDefault: Boolean(desk.isDefault),
     };
@@ -946,6 +955,12 @@ export default function App() {
 
     const syncDeskStatus = (payload = {}) => {
       if (cancelled || !payload.desk) return;
+
+      const notification = makeCounterNotification(payload, counterNotificationContextRef.current);
+      if (notification) {
+        setCounterNotifications((items) => mergeCounterNotification(items, notification));
+      }
+
       applyDeskStatusUpdate(payload.desk);
     };
 
@@ -1271,6 +1286,21 @@ export default function App() {
 
     try {
       const result = await updateDeskStatus(deskId, nextDesk);
+      const isBreakUpdate = Object.prototype.hasOwnProperty.call(updates, "onBreak");
+      if (isBreakUpdate && result.desk) {
+        const notification = makeCounterNotification(
+          {
+            type: "desk-break",
+            desk: result.desk,
+            changedBy: nextDesk.changedBy,
+            changedAt: result.changedAt,
+          },
+          { member: activeLoggedInMember, masterLoggedIn: Boolean(masterLoggedIn || isMasterLoggedIn()) }
+        );
+        if (notification) {
+          setCounterNotifications((items) => mergeCounterNotification(items, notification));
+        }
+      }
       if (result.settings && Object.keys(result.settings).length > 0) {
         applyLoadedSettings(result.settings);
         setSettingsLoaded(true);
@@ -1410,7 +1440,8 @@ export default function App() {
     : activeDesk
       ? "desk"
       : "dashboard";
-  const protectedPage = !["create", "create-password", "login", "profile", "reset-password", "ticket"].includes(currentPage);
+  // The live board is intentionally public for guests to view without a login.
+  const protectedPage = !["create", "create-password", "login", "profile", "reset-password", "ticket", "live"].includes(currentPage);
   const adminOnlyPage = protectedPage && currentPage !== "desk";
   const canAccessActiveDesk = Boolean(!activeDesk || adminAuthenticated || (activeLoggedInMember && memberHasDesk(activeLoggedInMember, activeDesk.id)));
 
