@@ -36,10 +36,10 @@ export function TicketTabsPanel({
       ]
     : [...calledNotStartedTickets, ...queueList];
   const filteredAbsent = selectedDesk
-    ? absentList.filter((ticket) => ticket.skippedFromDesk == null || String(ticket.skippedFromDesk) === String(selectedDesk.id))
+    ? absentList.filter((ticket) => ticket.skippedFromDesk != null && String(ticket.skippedFromDesk) === String(selectedDesk.id))
     : absentList;
   const filteredServed = selectedDesk
-    ? sortedServed.filter((ticket) => ticket.deskId == null || String(ticket.deskId) === String(selectedDesk.id))
+    ? sortedServed.filter((ticket) => ticket.deskId != null && String(ticket.deskId) === String(selectedDesk.id))
     : sortedServed;
   const waitingCount = filteredWaiting.length;
   const surfaceTheme = {

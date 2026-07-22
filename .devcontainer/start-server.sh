@@ -7,4 +7,13 @@ if [ ! -d node_modules ]; then
   npm install
 fi
 
-exec npm start
+node server/index.js &
+backend_pid=$!
+
+cleanup() {
+  kill "$backend_pid" 2>/dev/null || true
+}
+
+trap cleanup EXIT INT TERM
+
+npm start

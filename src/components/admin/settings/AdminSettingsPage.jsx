@@ -21,7 +21,7 @@ const DEFAULT_SETTINGS = {
   twoFA: false,
 };
 
-export function AdminSettingsPage({ theme, defaultAppearance, onSaveSettings }) {
+export function AdminSettingsPage({ theme, defaultAppearance, onSaveSettings, onResetQueue }) {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [savedAt, setSavedAt] = useState(null);
   const set = (key) => (value) => setSettings((current) => ({ ...current, [key]: value }));
@@ -64,6 +64,7 @@ export function AdminSettingsPage({ theme, defaultAppearance, onSaveSettings }) 
           savedAt,
           handleSave,
           handleReset,
+          handleResetQueue: onResetQueue,
         }}
         theme={theme}
       />

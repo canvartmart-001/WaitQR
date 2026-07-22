@@ -175,6 +175,7 @@ export function useMembers(initialMembers) {
     const targetMemberIds = new Set((Array.isArray(memberIds) ? memberIds : []).map(String));
     commitMembers(
       membersRef.current.map((m) => {
+        if (!memberCanBeAssignedToService(m)) return m;
         const currentServices = uniqueIds(m.serviceIds);
         const shouldHaveService = targetMemberIds.has(String(m.id)) && memberCanBeAssignedToService(m);
         const hasService = currentServices.map(String).includes(String(serviceId));
@@ -195,6 +196,7 @@ export function useMembers(initialMembers) {
     const targetMemberIds = new Set((Array.isArray(memberIds) ? memberIds : []).map(String));
     commitMembers(
       membersRef.current.map((m) => {
+        if (!memberCanBeAssignedToDesk(m)) return m;
         const currentDesks = uniqueIds(m.deskIds);
         const shouldHaveDesk = targetMemberIds.has(String(m.id)) && memberCanBeAssignedToDesk(m);
         const hasDesk = currentDesks.map(String).includes(String(deskId));

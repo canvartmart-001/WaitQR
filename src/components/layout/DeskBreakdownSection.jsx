@@ -37,7 +37,7 @@ function normalizeDeskTickets({ desk, sortedQueue, sortedServed, absentList, rem
     }));
 
   const servedCards = sortedServed
-    .filter((ticket) => ticket.deskId == null || String(ticket.deskId) === String(desk.id))
+    .filter((ticket) => ticket.deskId != null && String(ticket.deskId) === String(desk.id))
     .map((ticket, index) => ({
       ...ticket,
       _deskCardKey: `served-${desk.id}-${ticket.id || ticket.label}-${ticket.completedAt || index}`,
@@ -48,7 +48,7 @@ function normalizeDeskTickets({ desk, sortedQueue, sortedServed, absentList, rem
     }));
 
   const absentCards = absentList
-    .filter((ticket) => ticket.skippedFromDesk == null || String(ticket.skippedFromDesk) === String(desk.id))
+    .filter((ticket) => ticket.skippedFromDesk != null && String(ticket.skippedFromDesk) === String(desk.id))
     .map((ticket, index) => ({
       ...ticket,
       _deskCardKey: `absent-${desk.id}-${ticket.id || ticket.label}-${ticket.skippedAt || index}`,
@@ -59,7 +59,7 @@ function normalizeDeskTickets({ desk, sortedQueue, sortedServed, absentList, rem
     }));
 
   const removedCards = removedLog
-    .filter((ticket) => ticket.deskId == null || String(ticket.deskId) === String(desk.id))
+    .filter((ticket) => ticket.deskId != null && String(ticket.deskId) === String(desk.id))
     .map((ticket, index) => ({
       ...ticket,
       _deskCardKey: `removed-${desk.id}-${ticket.id || ticket.label}-${ticket.removedAt || index}`,

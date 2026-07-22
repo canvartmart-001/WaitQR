@@ -18,6 +18,9 @@ export async function createSubmission(payload) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    if (response.status === 409) {
+      throw new Error(data.error || "No counter is currently assigned to this service.");
+    }
     if (response.status >= 500) {
       throw new Error(data.error || "Backend could not save the submission. Check DATABASE_URL and that PostgreSQL is running.");
     }

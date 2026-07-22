@@ -97,6 +97,7 @@ export function useTicketIssuer({ services, queue, desks, setQueue, serviceWordL
         name: submission.name,
         phone: submission.phone,
         serviceId: submission.serviceId || "",
+        deskId: submission.deskId == null ? null : String(submission.deskId),
         createdAt: submission.createdAt,
       };
 

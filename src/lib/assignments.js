@@ -36,11 +36,50 @@ export function memberCanBeAssignedToDesk(member) {
 }
 
 export function assignedMembersForService(members = [], serviceId) {
-  return (Array.isArray(members) ? members : []).filter((member) => memberHasService(member, serviceId));
+  return (Array.isArray(members) ? members : []).filter(
+    (member) => memberCanBeAssignedToService(member) && memberHasService(member, serviceId)
+  );
 }
 
 export function assignedMembersForDesk(members = [], deskId) {
-  return (Array.isArray(members) ? members : []).filter((member) => memberHasDesk(member, deskId));
+  return (Array.isArray(members) ? members : []).filter(
+    (member) => memberCanBeAssignedToDesk(member) && memberHasDesk(member, deskId)
+  );
+}
+
+export function eligibleDeskIdsForService(members = [], serviceId, validDeskIds = []) {
+  const valid = new Map((Array.isArray(validDeskIds) ? validDeskIds : []).map((id) => [String(id), id]));
+
+  return uniqueIds(
+    (Array.isArray(members) ? members : [])
+      .filter((member) => member?.status !== "Inactive" && memberCanBeAssignedToService(member))
+      .filter((member) => memberHasService(member, serviceId))
+      .flatMap((member) => uniqueIds(member?.deskIds))
+      .map((deskId) => valid.get(String(deskId)))
+      .filter((deskId) => deskId != null)
+  );
+}
+
+export function selectDeskByLoad(eligibleDeskIds = [], loads = {}, lastDeskId = null) {
+  const deskIds = uniqueIds(eligibleDeskIds).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+  if (deskIds.length === 0) return null;
+
+  const minimumLoad = Math.min(...deskIds.map((deskId) => Number(loads[String(deskId)] || 0)));
+  const leastLoaded = deskIds.filter((deskId) => Number(loads[String(deskId)] || 0) === minimumLoad);
+  const lastIndex = leastLoaded.findIndex((deskId) => String(deskId) === String(lastDeskId));
+  return leastLoaded[(lastIndex + 1) % leastLoaded.length];
+}
+
+export function selectDeskByWorkload(eligibleDeskIds = [], serviceLoads = {}, totalLoads = {}, lastDeskId = null) {
+  const deskIds = uniqueIds(eligibleDeskIds).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+  if (deskIds.length === 0) return null;
+
+  const minimumTotalLoad = Math.min(...deskIds.map((deskId) => Number(totalLoads[String(deskId)] || 0)));
+  const leastBusy = deskIds.filter((deskId) => Number(totalLoads[String(deskId)] || 0) === minimumTotalLoad);
+  const minimumServiceLoad = Math.min(...leastBusy.map((deskId) => Number(serviceLoads[String(deskId)] || 0)));
+  const best = leastBusy.filter((deskId) => Number(serviceLoads[String(deskId)] || 0) === minimumServiceLoad);
+  const lastIndex = best.findIndex((deskId) => String(deskId) === String(lastDeskId));
+  return best[(lastIndex + 1) % best.length];
 }
 
 export function deriveDeskServicesFromMembers(desks = [], members = [], services = [], { preserveWithoutMembers = true } = {}) {
@@ -49,7 +88,7 @@ export function deriveDeskServicesFromMembers(desks = [], members = [], services
   let hasMemberCoverage = false;
 
   (Array.isArray(members) ? members : [])
-    .filter((member) => member?.status !== "Inactive")
+    .filter((member) => member?.status !== "Inactive" && memberCanBeAssignedToService(member))
     .forEach((member) => {
       const memberServiceIds = uniqueIds(member.serviceIds)
         .map((serviceId) => validServiceIds.get(String(serviceId)))

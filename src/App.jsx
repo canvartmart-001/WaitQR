@@ -221,6 +221,7 @@ function submissionToTicket(submission) {
     name: submission.name,
     phone: submission.phone,
     serviceId: submission.serviceId || "",
+    deskId: submission.deskId == null ? null : String(submission.deskId),
     createdAt: submission.createdAt,
   };
 }
@@ -1594,6 +1595,15 @@ export default function App() {
       .catch((error) => console.warn(error.message));
   };
 
+  const confirmQueueReset = () => {
+    askConfirm(
+      "Reset queue?",
+      "This permanently clears all waiting, called, served, absent, and removed tickets and restarts queue numbers from the beginning. Member, service, and counter settings will not be changed.",
+      clearData,
+      { confirmLabel: "Reset queue", variant: "destructive" }
+    );
+  };
+
   // --- Derived stats that cross hook boundaries -------------------------------------------------
   const localCalledNotStarted = desks.filter((d) => d.current && !d.current.startedAt).length;
   const localWaitingNow = queue.length + localCalledNotStarted;
@@ -2006,6 +2016,7 @@ export default function App() {
           theme={adminTheme}
           defaultAppearance={DEFAULT_APPEARANCE_SETTINGS}
           onSaveSettings={saveCurrentSettings}
+          onResetQueue={confirmQueueReset}
         />
       ) : currentPage === "desk" && activeDesk ? (
         activeDeskPageContent

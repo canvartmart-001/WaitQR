@@ -350,8 +350,10 @@ function MemberForm({ members, desks, services, labels, theme, brandName, editin
     const result = onSave({
       ...form,
       employeeId: memberId,
-      deskIds: canAssignDesks ? form.deskIds : [],
-      serviceIds: canAssignServices ? form.serviceIds : [],
+      // Keep incompatible assignments stored while this role is selected. They
+      // remain inactive and become active again if the old role is restored.
+      deskIds: form.deskIds,
+      serviceIds: form.serviceIds,
     });
     if (result?.ok === false) {
       setSubmitError(
@@ -443,14 +445,7 @@ function MemberForm({ members, desks, services, labels, theme, brandName, editin
         <FormField label="Role" theme={theme}>
           <SelectInput
             value={form.role}
-            onChange={(role) =>
-              setForm((current) => ({
-                ...current,
-                role,
-                deskIds: memberCanBeAssignedToDesk({ role }) ? current.deskIds : [],
-                serviceIds: memberCanBeAssignedToService({ role }) ? current.serviceIds : [],
-              }))
-            }
+            onChange={(role) => setForm((current) => ({ ...current, role }))}
             options={ROLES}
             theme={theme}
           />

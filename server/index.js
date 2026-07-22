@@ -16,6 +16,7 @@ import {
   listQueueCountEvents,
   getAppSettings,
   saveAppSettings,
+  assignUnassignedQueuedSubmissions,
 } from "./store.js";
 
 dotenv.config();
@@ -233,7 +234,9 @@ app.put("/api/settings", async (req, res) => {
     }
     await saveAppSettings(settings);
     const savedSettings = await loadNormalizedSettings();
+    const repairedTickets = await assignUnassignedQueuedSubmissions();
     emitSettingsChange(savedSettings);
+    if (repairedTickets > 0) emitSubmissionChange("assignments-repaired");
     res.json({ settings: savedSettings });
   } catch (error) {
     console.error("Failed to save settings", error);
@@ -340,6 +343,10 @@ app.post("/api/submissions", async (req, res) => {
     await emitLiveQueueCounts("created", submission);
   } catch (error) {
     console.error("Failed to create submission", error);
+    if (error.code === "SERVICE_COUNTER_UNAVAILABLE") {
+      res.status(409).json({ error: error.message });
+      return;
+    }
     res.status(500).json({ error: "Failed to save submission." });
   }
 });

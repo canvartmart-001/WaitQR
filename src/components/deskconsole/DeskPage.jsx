@@ -62,6 +62,7 @@ export function DeskPage({
         <div className="qp-desk-page-waiting">
           <TicketTabsPanel
             desks={desks}
+            selectedDeskFilter={desk.id}
             theme={theme}
             deskDetailTab={deskDetailTab}
             setDeskDetailTab={setDeskDetailTab}

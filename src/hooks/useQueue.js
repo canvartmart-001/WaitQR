@@ -10,7 +10,12 @@ import { useState } from "react";
 // ever needs to be authoritative there instead of client-computed.
 
 /** Service tickets require an explicit desk assignment; general tickets can use any desk. */
-export const eligibleForDesk = (desk) => (t) => !t.serviceId || desk.services.includes(t.serviceId);
+export const eligibleForDesk = (desk) => (t) => {
+  if (t.deskId != null) return String(t.deskId) === String(desk.id);
+  // A service ticket without an authoritative assignment must not be duplicated
+  // across every counter that offers the service.
+  return !t.serviceId;
+};
 
 // A ticket counts as priority-ranked unless it's been tagged _skipPriority — used when an
 // operator deliberately switches away from a called priority ticket, so it doesn't immediately
@@ -22,37 +27,24 @@ export const isPriorityRanked = (t) => t.type === "priority" && !t._skipPriority
 // operator just switched to, but a brand-new priority ticket still jumps ahead of a skipped one.
 export const queueRank = (t) => (isPriorityRanked(t) ? 0 : 1);
 
-const GENERAL_SERVICE_KEY = "__general__";
-
-function ticketServiceKey(ticket) {
-  return ticket.serviceId || GENERAL_SERVICE_KEY;
-}
-
-function serviceRotationOrder(desk) {
-  const assignedServices = Array.isArray(desk.services) ? desk.services : [];
-  return assignedServices.length > 0 ? assignedServices : [GENERAL_SERVICE_KEY];
-}
-
 export function selectNextTicketForDesk(queue, desk) {
   const candidates = queue.filter(eligibleForDesk(desk));
   if (candidates.length === 0) return null;
 
-  const rotationOrder = serviceRotationOrder(desk);
-  const lastServiceId = desk.lastServiceId || null;
-  const lastIndex = lastServiceId ? rotationOrder.indexOf(lastServiceId) : -1;
-  const orderedServices = [
-    ...rotationOrder.slice(lastIndex + 1),
-    ...rotationOrder.slice(0, lastIndex + 1),
-  ];
+  return candidates
+    .map((ticket, index) => ({ ticket, index }))
+    .sort((a, b) => {
+      const rankDifference = queueRank(a.ticket) - queueRank(b.ticket);
+      if (rankDifference !== 0) return rankDifference;
 
-  for (const serviceId of orderedServices) {
-    const serviceCandidates = candidates.filter((ticket) => ticketServiceKey(ticket) === serviceId);
-    if (serviceCandidates.length === 0) continue;
+      const aCreatedAt = Number(a.ticket.createdAt);
+      const bCreatedAt = Number(b.ticket.createdAt);
+      if (Number.isFinite(aCreatedAt) && Number.isFinite(bCreatedAt) && aCreatedAt !== bCreatedAt) {
+        return aCreatedAt - bCreatedAt;
+      }
 
-    return [...serviceCandidates].sort((a, b) => queueRank(a) - queueRank(b))[0];
-  }
-
-  return [...candidates].sort((a, b) => queueRank(a) - queueRank(b))[0];
+      return a.index - b.index;
+    })[0].ticket;
 }
 
 export function selectNextTicketsForDesk(queue, desk, count = 2) {
@@ -66,7 +58,7 @@ export function selectNextTicketsForDesk(queue, desk, count = 2) {
 
     selected.push(next);
     remainingQueue = remainingQueue.filter((ticket) => ticket.id !== next.id);
-    rotationDesk = { ...rotationDesk, lastServiceId: ticketServiceKey(next) };
+    rotationDesk = desk;
   }
 
   return selected;

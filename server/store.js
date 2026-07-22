@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { pool } from "./db.js";
 import { pad } from "../src/lib/format.js";
+import { eligibleDeskIdsForService, selectDeskByWorkload } from "../src/lib/assignments.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,6 +49,70 @@ function mapQueueCountEventRow(row) {
 export async function ensureSchema() {
   const sql = await fs.readFile(schemaPath, "utf8");
   await pool.query(sql);
+  await assignUnassignedQueuedSubmissions();
+}
+
+export async function assignUnassignedQueuedSubmissions() {
+  const client = await pool.connect();
+  let assignedCount = 0;
+
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["waitqr:assignment-backfill"]);
+
+    const settingsResult = await client.query(
+      "SELECT settings_key, value FROM app_settings WHERE settings_key IN ('desks', 'members')",
+    );
+    const settings = settingsResult.rows.reduce((result, row) => ({ ...result, [row.settings_key]: row.value }), {});
+    const desks = Array.isArray(settings.desks) ? settings.desks : [];
+    const members = Array.isArray(settings.members) ? settings.members : [];
+    const waitingResult = await client.query(
+      `SELECT id, service_id
+       FROM submissions
+       WHERE status = 'queued' AND desk_id IS NULL AND service_id IS NOT NULL
+       ORDER BY created_at, id`,
+    );
+
+    for (const submission of waitingResult.rows) {
+      const eligibleDeskIds = eligibleDeskIdsForService(members, submission.service_id, desks.map((desk) => desk.id));
+      if (eligibleDeskIds.length === 0) continue;
+
+      const loadResult = await client.query(
+        `SELECT desk_id,
+                COUNT(*)::int AS total_load,
+                COUNT(*) FILTER (WHERE service_id = $1)::int AS service_load
+         FROM submissions
+         WHERE desk_id = ANY($2::text[])
+           AND status IN ('queued', 'called', 'serving')
+         GROUP BY desk_id`,
+        [String(submission.service_id), eligibleDeskIds.map(String)],
+      );
+      const serviceLoads = Object.fromEntries(loadResult.rows.map((row) => [String(row.desk_id), Number(row.service_load)]));
+      const totalLoads = Object.fromEntries(loadResult.rows.map((row) => [String(row.desk_id), Number(row.total_load)]));
+      const stateResult = await client.query(
+        "SELECT last_desk_id FROM service_assignment_state WHERE service_id = $1",
+        [String(submission.service_id)],
+      );
+      const deskId = selectDeskByWorkload(eligibleDeskIds, serviceLoads, totalLoads, stateResult.rows[0]?.last_desk_id);
+
+      await client.query("UPDATE submissions SET desk_id = $2 WHERE id = $1", [submission.id, String(deskId)]);
+      assignedCount += 1;
+      await client.query(
+        `INSERT INTO service_assignment_state (service_id, last_desk_id, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (service_id) DO UPDATE SET last_desk_id = EXCLUDED.last_desk_id, updated_at = NOW()`,
+        [String(submission.service_id), String(deskId)],
+      );
+    }
+
+    await client.query("COMMIT");
+    return assignedCount;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function createSubmission({ name, phone, serviceId, type }) {
@@ -55,6 +120,54 @@ export async function createSubmission({ name, phone, serviceId, type }) {
 
   try {
     await client.query("BEGIN");
+    // Serialize routing decisions so simultaneous kiosk submissions cannot choose
+    // the same least-loaded counter from an identical snapshot.
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`waitqr:${serviceId || "__general__"}`]);
+
+    const settingsResult = await client.query(
+      "SELECT settings_key, value FROM app_settings WHERE settings_key IN ('desks', 'members')",
+    );
+    const settings = settingsResult.rows.reduce((result, row) => ({ ...result, [row.settings_key]: row.value }), {});
+    const desks = Array.isArray(settings.desks) ? settings.desks : [];
+    const members = Array.isArray(settings.members) ? settings.members : [];
+    const eligibleDeskIds = serviceId
+      ? eligibleDeskIdsForService(members, serviceId, desks.map((desk) => desk.id))
+      : [];
+
+    if (serviceId && eligibleDeskIds.length === 0) {
+      const assignmentError = new Error("No active member and counter assignment is available for this service.");
+      assignmentError.code = "SERVICE_COUNTER_UNAVAILABLE";
+      throw assignmentError;
+    }
+
+    let deskId = null;
+    if (eligibleDeskIds.length > 0) {
+      const loadResult = await client.query(
+        `SELECT desk_id,
+                COUNT(*)::int AS total_load,
+                COUNT(*) FILTER (WHERE service_id = $1)::int AS service_load
+         FROM submissions
+         WHERE desk_id = ANY($2::text[])
+           AND status IN ('queued', 'called', 'serving')
+         GROUP BY desk_id`,
+        [String(serviceId), eligibleDeskIds.map(String)],
+      );
+      // Total workload is primary so a counter busy with other services gets
+      // fewer assignments. Selected-service load breaks total-load ties.
+      const serviceLoads = Object.fromEntries(loadResult.rows.map((row) => [String(row.desk_id), Number(row.service_load)]));
+      const totalLoads = Object.fromEntries(loadResult.rows.map((row) => [String(row.desk_id), Number(row.total_load)]));
+      const stateResult = await client.query(
+        "SELECT last_desk_id FROM service_assignment_state WHERE service_id = $1",
+        [String(serviceId)],
+      );
+      deskId = selectDeskByWorkload(eligibleDeskIds, serviceLoads, totalLoads, stateResult.rows[0]?.last_desk_id);
+      await client.query(
+        `INSERT INTO service_assignment_state (service_id, last_desk_id, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (service_id) DO UPDATE SET last_desk_id = EXCLUDED.last_desk_id, updated_at = NOW()`,
+        [String(serviceId), String(deskId)],
+      );
+    }
     await client.query(
       "INSERT INTO ticket_counters (counter_key, value) VALUES ($1, 0) ON CONFLICT (counter_key) DO NOTHING",
       [type],
@@ -69,10 +182,10 @@ export async function createSubmission({ name, phone, serviceId, type }) {
     const phoneDigits = phone.replace(/\D/g, "");
 
     const insertResult = await client.query(
-      `INSERT INTO submissions (label, type, name, phone, phone_digits, service_id)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO submissions (label, type, name, phone, phone_digits, service_id, desk_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id, label, type, name, phone, phone_digits, service_id, desk_id, status, called_at, started_at, status_updated_at, created_at`,
-      [label, type, name, phone, phoneDigits, serviceId || null],
+      [label, type, name, phone, phoneDigits, serviceId || null, deskId == null ? null : String(deskId)],
     );
 
     await client.query("COMMIT");
@@ -90,6 +203,11 @@ export async function createSubmission({ name, phone, serviceId, type }) {
 }
 
 export async function listSubmissions(limit = 100) {
+  // Settings can be created or corrected after the backend starts. Repair any
+  // legacy waiting tickets before returning the queue so they do not disappear
+  // merely because their original row predates authoritative counter routing.
+  await assignUnassignedQueuedSubmissions();
+
   const result = await pool.query(
     `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, status, called_at, started_at, status_updated_at, created_at
      FROM submissions
@@ -130,7 +248,6 @@ export async function updateSubmissionStatus(id, status, deskId = null) {
     `UPDATE submissions
      SET status = $2,
          desk_id = CASE
-           WHEN $2 = 'queued' THEN NULL
            WHEN $3::text IS NOT NULL THEN $3::text
            ELSE desk_id
          END,
@@ -155,7 +272,7 @@ export async function updateSubmissionStatus(id, status, deskId = null) {
 }
 
 export async function clearSubmissions() {
-  await pool.query("TRUNCATE submissions, ticket_counters, queue_count_events RESTART IDENTITY");
+  await pool.query("TRUNCATE submissions, ticket_counters, queue_count_events, service_assignment_state RESTART IDENTITY");
 }
 
 export async function getSubmissionStats() {

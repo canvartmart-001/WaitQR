@@ -493,6 +493,19 @@ export function AdminSettingsContent({ s, theme }) {
             <Toggle checked={s.twoFA} onChange={s.setTwoFA} accent={accentColor} />
           </div>
         </Field>
+        <Field label="Reset Queue" hint="Clear all ticket history and restart queue numbers" inline fontColor={fontColor}>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={s.handleResetQueue}
+              className="flex items-center justify-center gap-2 border px-3 py-2 text-sm font-medium transition-colors hover:bg-red-500/10"
+              style={{ color: "#f87171", borderColor: "rgba(248,113,113,0.55)", borderRadius: radius }}
+            >
+              <RotateCcw size={14} />
+              Reset queue
+            </button>
+          </div>
+        </Field>
       </SectionCard>
 
       <div className="flex flex-col gap-2 pb-4">

@@ -4,6 +4,12 @@ CREATE TABLE IF NOT EXISTS ticket_counters (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS service_assignment_state (
+  service_id TEXT PRIMARY KEY,
+  last_desk_id TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS submissions (
   id BIGSERIAL PRIMARY KEY,
   label TEXT NOT NULL UNIQUE,
