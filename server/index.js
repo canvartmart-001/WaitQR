@@ -353,7 +353,7 @@ app.post("/api/submissions", async (req, res) => {
 
 app.patch("/api/submissions/:id/status", async (req, res) => {
   const allowedStatuses = new Set(["queued", "called", "serving", "completed", "skipped", "removed"]);
-  const { status, deskId = null } = req.body || {};
+  const { status, deskId = null, servedByMemberId = "", servedByMemberName = "" } = req.body || {};
   const normalizedDeskId = deskId == null || deskId === "" ? null : String(deskId);
 
   if (!allowedStatuses.has(status)) {
@@ -367,7 +367,10 @@ app.patch("/api/submissions/:id/status", async (req, res) => {
   }
 
   try {
-    const submission = await updateSubmissionStatus(req.params.id, status, normalizedDeskId);
+    const submission = await updateSubmissionStatus(req.params.id, status, normalizedDeskId, {
+      memberId: servedByMemberId,
+      memberName: servedByMemberName,
+    });
 
     if (!submission) {
       res.status(404).json({ error: "Submission not found." });

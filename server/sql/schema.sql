@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS submissions (
   status TEXT NOT NULL DEFAULT 'queued',
   called_at TIMESTAMPTZ,
   started_at TIMESTAMPTZ,
+  served_by_member_id TEXT,
+  served_by_member_name TEXT,
   status_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -29,6 +31,8 @@ CREATE TABLE IF NOT EXISTS submissions (
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS desk_id TEXT;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS called_at TIMESTAMPTZ;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS served_by_member_id TEXT;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS served_by_member_name TEXT;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 CREATE INDEX IF NOT EXISTS submissions_created_at_idx ON submissions (created_at DESC);

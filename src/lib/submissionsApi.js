@@ -128,7 +128,7 @@ export async function clearSubmissions() {
 
 export async function updateSubmissionStatus(id, status, options = {}) {
   if (!id) return null;
-  const { deskId = null } = options;
+  const { deskId = null, servedByMemberId = "", servedByMemberName = "" } = options;
 
   let response;
 
@@ -138,7 +138,7 @@ export async function updateSubmissionStatus(id, status, options = {}) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ status, deskId }),
+      body: JSON.stringify({ status, deskId, servedByMemberId, servedByMemberName }),
     });
   } catch (error) {
     throw new Error("Submission service is unavailable. Start the backend and confirm the API is reachable.");

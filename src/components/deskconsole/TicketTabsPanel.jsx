@@ -21,23 +21,22 @@ export function TicketTabsPanel({
   now,
   serviceName,
   deskWord,
-  returnToQueue,
+  callTicket,
+  recallAbsent,
+  recallServed,
   removeAbsent,
+  askConfirm,
 }) {
   const queueList = sortedQueue || [];
   const selectedDesk = selectedDeskFilter ? desks.find((desk) => String(desk.id) === String(selectedDeskFilter)) || null : null;
-  const calledNotStartedTickets = desks
-    .filter((d) => d.current && !d.current.startedAt)
-    .map((d) => ({ ...d.current, _calledFromDeskId: d.id, _isCalled: true }));
-  const filteredWaiting = selectedDesk
-    ? [
-        ...calledNotStartedTickets.filter((ticket) => ticket._calledFromDeskId === selectedDesk.id),
-        ...queueList.filter(eligibleForDesk ? eligibleForDesk(selectedDesk) : () => true),
-      ]
-    : [...calledNotStartedTickets, ...queueList];
-  const filteredAbsent = selectedDesk
+  const queuedWaiting = selectedDesk
+    ? queueList.filter(eligibleForDesk ? eligibleForDesk(selectedDesk) : () => true)
+    : queueList;
+  const filteredWaiting = queuedWaiting;
+  const filteredAbsent = (selectedDesk
     ? absentList.filter((ticket) => ticket.skippedFromDesk != null && String(ticket.skippedFromDesk) === String(selectedDesk.id))
-    : absentList;
+    : absentList
+  ).sort((a, b) => (a.skippedAt || 0) - (b.skippedAt || 0));
   const filteredServed = selectedDesk
     ? sortedServed.filter((ticket) => ticket.deskId != null && String(ticket.deskId) === String(selectedDesk.id))
     : sortedServed;
@@ -51,18 +50,18 @@ export function TicketTabsPanel({
   const faintColor = withAlpha(surfaceTheme.fontColor, "55");
   const activeTabBackground = withAlpha(surfaceTheme.fontColor, "12");
   const activePanel = deskDetailTab === "waiting"
-    ? <WaitingTab filteredWaiting={filteredWaiting} now={now} serviceName={serviceName} desks={desks} deskWord={deskWord} theme={surfaceTheme} />
+    ? <WaitingTab filteredWaiting={filteredWaiting} queuedWaiting={queuedWaiting} selectedDesk={selectedDesk} now={now} serviceName={serviceName} desks={desks} deskWord={deskWord} callTicket={callTicket} theme={surfaceTheme} />
     : deskDetailTab === "absent"
-      ? <AbsentTab filteredAbsent={filteredAbsent} now={now} serviceName={serviceName} returnToQueue={returnToQueue} removeAbsent={removeAbsent} theme={surfaceTheme} />
-      : <ServedTab filteredServed={filteredServed} now={now} serviceName={serviceName} desks={desks} deskWord={deskWord} theme={surfaceTheme} />;
+      ? <AbsentTab filteredAbsent={filteredAbsent} desks={desks} now={now} serviceName={serviceName} recallAbsent={recallAbsent} removeAbsent={removeAbsent} askConfirm={askConfirm} theme={surfaceTheme} />
+      : <ServedTab filteredServed={filteredServed} now={now} serviceName={serviceName} desks={desks} deskWord={deskWord} recallServed={recallServed} askConfirm={askConfirm} theme={surfaceTheme} />;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-3 flex flex-wrap items-center justify-start gap-1.5">
         {[
-          { key: "waiting", label: "Waiting", count: waitingCount },
-          { key: "absent", label: "Absent", count: filteredAbsent.length },
-          { key: "served", label: "Served", count: filteredServed.length },
+          { key: "waiting", label: "Waiting", count: waitingCount, countColor: C.blue },
+          { key: "absent", label: "Absent", count: filteredAbsent.length, countColor: C.coral },
+          { key: "served", label: "Served", count: filteredServed.length, countColor: C.teal },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -75,7 +74,7 @@ export function TicketTabsPanel({
             }}
           >
             {tab.label}
-            <span className="qp-mono text-[10px]" style={{ color: deskDetailTab === tab.key ? surfaceTheme.accentColor : faintColor }}>
+            <span className="qp-mono text-[10px]" style={{ color: deskDetailTab === tab.key ? tab.countColor : faintColor }}>
               {tab.count}
             </span>
           </button>

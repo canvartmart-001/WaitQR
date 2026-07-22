@@ -20,8 +20,8 @@ export function useTicketLogs(initialServedLog, initialAbsentList, initialRemove
     setRemovedLog(removed);
   };
 
-  /** Plain removal — no removed-log entry. Used by returnToQueue, where the ticket is going back
-   * into circulation rather than being discarded. Contrast with removeAbsent below, which is the
+  /** Plain removal — no removed-log entry. Used by recall flows, where the ticket is going back
+   * to a counter rather than being discarded. Contrast with removeAbsent below, which is the
    * "delete forever" action and does log to removedLog. */
   const removeAbsentSilently = (ticketId) => {
     setAbsentList((list) => list.filter((t) => t.id !== ticketId));
@@ -44,6 +44,10 @@ export function useTicketLogs(initialServedLog, initialAbsentList, initialRemove
     }
     setAbsentList((list) => list.filter((t) => t.id !== ticketId));
     return ticket;
+  };
+
+  const removeServedSilently = (ticketId) => {
+    setServedLog((log) => log.filter((ticket) => ticket.id !== ticketId));
   };
 
   const clearLogs = () => {
@@ -107,6 +111,7 @@ export function useTicketLogs(initialServedLog, initialAbsentList, initialRemove
     hydrateLogs,
     removeAbsent,
     removeAbsentSilently,
+    removeServedSilently,
     clearLogs,
     sortedServed,
     avgWaitMs,

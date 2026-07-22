@@ -1,4 +1,4 @@
-import { Lock, Trash2, Unlock } from "lucide-react";
+import { Lock, Trash2, Undo2, Unlock } from "lucide-react";
 import { C } from "../../lib/theme";
 
 function withAlpha(hex, alphaHex) {
@@ -10,6 +10,7 @@ export function ConfirmDialog({ confirmAction, onCancel, onConfirm, theme }) {
   if (!confirmAction) return null;
   const isSuccess = confirmAction.variant === "success";
   const isDestructive = confirmAction.variant === "destructive";
+  const isWarning = confirmAction.variant === "warning";
   const colors = {
     bgColor: theme?.bgColor || C.ink800,
     fontColor: theme?.fontColor || C.textLight,
@@ -21,9 +22,9 @@ export function ConfirmDialog({ confirmAction, onCancel, onConfirm, theme }) {
   const modalBg = isLight
     ? colors.bgColor
     : `color-mix(in srgb, ${colors.bgColor} 84%, ${colors.fontColor} 16%)`;
-  const toneBg = isSuccess ? C.tealSoft : C.coralSoft;
-  const toneColor = isSuccess ? C.teal : C.coral;
-  const Icon = isSuccess ? Unlock : isDestructive ? Trash2 : Lock;
+  const toneBg = isSuccess ? C.tealSoft : isWarning ? C.amberSoft : C.coralSoft;
+  const toneColor = isSuccess ? C.teal : isWarning ? C.amber : C.coral;
+  const Icon = isSuccess ? Unlock : isDestructive ? Trash2 : isWarning ? Undo2 : Lock;
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center p-4"
@@ -68,7 +69,7 @@ export function ConfirmDialog({ confirmAction, onCancel, onConfirm, theme }) {
           <button
             onClick={onConfirm}
             className="qp-focusable text-xs px-3 py-2 rounded-md font-medium"
-            style={{ background: isSuccess ? C.teal : C.coral, color: C.paper }}
+            style={{ background: isSuccess ? C.teal : isWarning ? C.amber : C.coral, color: C.paper }}
           >
             {confirmAction.confirmLabel || "Confirm"}
           </button>

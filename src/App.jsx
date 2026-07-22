@@ -7,7 +7,6 @@ import { useServices } from "./hooks/useServices";
 import { useMembers } from "./hooks/useMembers";
 import { useTicketLogs } from "./hooks/useTicketLogs";
 import { useTicketIssuer } from "./hooks/useTicketIssuer";
-import { useAbsentActions } from "./hooks/useAbsentActions";
 import { useLabels } from "./hooks/useLabels";
 import { useConfirmDialog } from "./hooks/useConfirmDialog";
 import { AdminShell } from "./components/admin/AdminShell";
@@ -267,6 +266,9 @@ function mapSubmissionToServedEntry(submission) {
     name: submission.name,
     phone: submission.phone,
     type: submission.type,
+    createdAt: submission.createdAt,
+    servedByMemberId: submission.servedByMemberId || "",
+    servedByMemberName: submission.servedByMemberName || "",
     completedAt,
     waitMs: Math.max(0, (submission.calledAt || completedAt) - submission.createdAt),
   };
@@ -301,20 +303,21 @@ function mapSubmissionToRemovedEntry(submission) {
 }
 
 function assignActiveTicketsToDesks(desks, activeSubmissions) {
-  if (activeSubmissions.length === 0) return desks;
-
   const activeTickets = activeSubmissions.map(submissionToDeskTicket);
-  const ticketsByDeskId = new Map(
-    activeTickets
-      .filter((ticket) => ticket.deskId != null)
-      .map((ticket) => [String(ticket.deskId), ticket]),
-  );
+  const ticketsByDeskId = activeTickets
+    .filter((ticket) => ticket.deskId != null)
+    .reduce((result, ticket) => {
+      const key = String(ticket.deskId);
+      result.set(key, [...(result.get(key) || []), ticket]);
+      return result;
+    }, new Map());
   const unassignedTickets = activeTickets.filter((ticket) => ticket.deskId == null);
 
   return desks.map((desk) => {
-    const ticket = ticketsByDeskId.get(String(desk.id)) || unassignedTickets.shift() || null;
-    if (!ticket) return desk;
-    return { ...desk, current: ticket };
+    const deskTickets = ticketsByDeskId.get(String(desk.id)) || [];
+    const activeDeskTickets = deskTickets.length ? deskTickets : (unassignedTickets.length ? [unassignedTickets.shift()] : []);
+    const [current = null, ...calledTickets] = activeDeskTickets;
+    return { ...desk, current, calledTickets };
   });
 }
 
@@ -323,8 +326,26 @@ function hydrateSubmissionSnapshot(submissions, { services, setSavedSubmissions,
   const summary = summarizeSubmissions(submissions);
   setSubmissionSummary(summary);
   setIssuedToday(summary.total);
+  const servedByFallbacks = new Map(
+    ticketLogs.servedLog.map((ticket) => [
+      String(ticket.id),
+      {
+        servedByMemberId: ticket.servedByMemberId || "",
+        servedByMemberName: ticket.servedByMemberName || "",
+      },
+    ])
+  );
+  const served = submissions
+    .filter((submission) => submission.status === "completed")
+    .map(mapSubmissionToServedEntry)
+    .map((ticket) => {
+      if (ticket.servedByMemberName) return ticket;
+      const fallback = servedByFallbacks.get(String(ticket.id));
+      return fallback ? { ...ticket, ...fallback } : ticket;
+    });
+
   ticketLogs.hydrateLogs({
-    served: submissions.filter((submission) => submission.status === "completed").map(mapSubmissionToServedEntry),
+    served,
     absent: submissions.filter((submission) => submission.status === "skipped").map(mapSubmissionToAbsentEntry),
     removed: submissions.filter((submission) => submission.status === "removed").map(mapSubmissionToRemovedEntry),
   });
@@ -666,8 +687,10 @@ function findSubmissionByLabel(label, { savedSubmissions, queue, desks }) {
   if (queueMatch) return queueMatch;
 
   for (const desk of desks) {
-    const ticket = desk.current;
-    if (ticket && String(ticket.label).toUpperCase() === normalized) return ticket;
+    const ticket = [desk.current, ...(Array.isArray(desk.calledTickets) ? desk.calledTickets : [])]
+      .filter(Boolean)
+      .find((item) => String(item.label).toUpperCase() === normalized);
+    if (ticket) return ticket;
   }
 
   return null;
@@ -681,24 +704,24 @@ function getTicketDeskQueueInfo(ticket, { desks, sortedQueue }) {
   const eligibleDesks = explicitDesk ? [explicitDesk] : desks.filter((desk) => eligibleForDesk(desk)(ticket));
 
   const deskMatches = eligibleDesks.map((desk, deskIndex) => {
-    const current = desk.current || null;
-    const currentMatches = current && String(current.label).toUpperCase() === normalized;
-    if (currentMatches) {
+    const activeTicket = [desk.current, ...(Array.isArray(desk.calledTickets) ? desk.calledTickets : [])]
+      .filter(Boolean)
+      .find((item) => String(item.label).toUpperCase() === normalized);
+    if (activeTicket) {
       return {
         desk,
         deskIndex,
-        position: current.startedAt ? 0 : 1,
+        position: 0,
       };
     }
 
-    const waitingStartOffset = current && !current.startedAt ? 1 : 0;
     const deskQueueIndex = orderTicketsForDesk(sortedQueue, desk)
       .findIndex((queuedTicket) => String(queuedTicket.label).toUpperCase() === normalized);
 
     return {
       desk,
       deskIndex,
-      position: deskQueueIndex >= 0 ? waitingStartOffset + deskQueueIndex + 1 : null,
+      position: deskQueueIndex >= 0 ? deskQueueIndex + 1 : null,
     };
   });
 
@@ -758,7 +781,14 @@ export default function App() {
         console.warn(error.message);
       });
   const updateTicketStatus = (ticketId, status, options = {}) => {
-    updateSubmissionStatus(ticketId, status, options)
+    const servedByOptions = status === "completed"
+      ? {
+          servedByMemberId: options.servedByMemberId || activeLoggedInMember?.id || "",
+          servedByMemberName: options.servedByMemberName || activeLoggedInMember?.name || "",
+        }
+      : {};
+
+    updateSubmissionStatus(ticketId, status, { ...options, ...servedByOptions })
       .then((updatedSubmission) => {
         if (!updatedSubmission) return;
 
@@ -782,7 +812,13 @@ export default function App() {
   const deskHooks = useDesks(seedDesks(initBase), {
     queue,
     setQueue,
-    onTicketCompleted: ticketLogs.addServedEntry,
+    onTicketCompleted: (entry) => {
+      ticketLogs.addServedEntry({
+        ...entry,
+        servedByMemberId: activeLoggedInMember?.id || "",
+        servedByMemberName: activeLoggedInMember?.name || "",
+      });
+    },
     onTicketSkipped: ticketLogs.addAbsentEntry,
     onTicketStatusChange: updateTicketStatus,
   });
@@ -835,12 +871,77 @@ export default function App() {
     ...ticketLogs,
     removeAbsent: removeAbsentWithStatus,
   };
-  const { returnToQueue } = useAbsentActions({
-    absentList: ticketLogs.absentList,
-    setQueue,
-    removeAbsentSilently: ticketLogs.removeAbsentSilently,
-    onTicketReturned: (ticketId) => updateTicketStatus(ticketId, "queued", { deskId: null }),
-  });
+  const recallAbsent = (ticketId) => {
+    const ticket = ticketLogs.absentList.find((item) => item.id === ticketId);
+    const deskId = ticket?.skippedFromDesk == null ? null : String(ticket.skippedFromDesk);
+    if (!ticket || deskId == null) return;
+
+    const recallDesk = desks.find((desk) => String(desk.id) === deskId);
+    if (!recallDesk || recallDesk.current) return;
+
+    const recallTime = Date.now();
+    setDesks((currentDesks) =>
+      currentDesks.map((desk) =>
+        String(desk.id) === deskId
+          ? {
+              ...desk,
+              current: {
+                id: ticket.id,
+                label: ticket.label,
+                type: ticket.type,
+                name: ticket.name,
+                phone: ticket.phone,
+                serviceId: ticket.serviceId,
+                deskId,
+                createdAt: ticket.createdAt,
+                calledAt: recallTime,
+                startedAt: null,
+              },
+              lastServiceId: ticket.serviceId || "__general__",
+            }
+          : desk
+      )
+    );
+
+    ticketLogs.removeAbsentSilently(ticket.id);
+    updateTicketStatus(ticket.id, "called", { deskId });
+  };
+
+  const recallServed = (ticketId) => {
+    const ticket = ticketLogs.servedLog.find((item) => item.id === ticketId);
+    const deskId = ticket?.deskId == null ? null : String(ticket.deskId);
+    if (!ticket || deskId == null) return;
+
+    const recallDesk = desks.find((desk) => String(desk.id) === deskId);
+    if (!recallDesk || recallDesk.current) return;
+
+    const recallTime = Date.now();
+    setDesks((currentDesks) =>
+      currentDesks.map((desk) =>
+        String(desk.id) === deskId
+          ? {
+              ...desk,
+              current: {
+                id: ticket.id,
+                label: ticket.label,
+                type: ticket.type,
+                name: ticket.name,
+                phone: ticket.phone,
+                serviceId: ticket.serviceId,
+                deskId,
+                createdAt: ticket.createdAt || ticket.completedAt || recallTime,
+                calledAt: recallTime,
+                startedAt: null,
+              },
+              lastServiceId: ticket.serviceId || "__general__",
+            }
+          : desk
+      )
+    );
+
+    ticketLogs.removeServedSilently(ticket.id);
+    updateTicketStatus(ticket.id, "called", { deskId });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -1761,7 +1862,9 @@ export default function App() {
       setDeskDetailTab={setDeskDetailTab}
       deskActions={deskPageActions}
       ticketLogs={ticketLogsWithStatus}
-      returnToQueue={returnToQueue}
+      recallAbsent={recallAbsent}
+      recallServed={recallServed}
+      askConfirm={askConfirm}
       onNavigate={navigate}
     />
   ) : null;

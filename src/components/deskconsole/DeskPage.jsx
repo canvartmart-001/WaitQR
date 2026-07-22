@@ -18,10 +18,13 @@ export function DeskPage({
   setDeskDetailTab,
   deskActions,
   ticketLogs,
-  returnToQueue,
+  recallAbsent,
+  recallServed,
+  askConfirm,
 }) {
   const { deskWord, deskWordLower, serviceWord, serviceWordLower, serviceWordPluralLower } = labels;
   const { servedByDesk, absentByDesk, removedByDesk, servedByDeskService, absentByDeskService, removedByDeskService, absentList, sortedServed, removeAbsent } = ticketLogs;
+  const queuedCalledTickets = Array.isArray(desk.calledTickets) ? desk.calledTickets : [];
 
   return (
     <main className="qp-page-shell qp-desk-page-shell">
@@ -42,13 +45,15 @@ export function DeskPage({
             queue={queue}
             eligibleForDesk={eligibleForDesk}
             completingDesk={deskActions.completingDesk}
+            completingTicket={deskActions.completingTicket}
             startingDesk={deskActions.startingDesk}
+            startingTicket={deskActions.startingTicket}
             skippingDesk={deskActions.skippingDesk}
-            justRevealedDesk={deskActions.justRevealedDesk}
+            skippingTicket={deskActions.skippingTicket}
             callNext={deskActions.callNext}
-            startService={deskActions.startService}
-            completeTicket={deskActions.completeTicket}
-            skipTicket={deskActions.skipTicket}
+            startService={deskActions.startTicketService}
+            completeTicket={deskActions.completeActiveTicket}
+            skipTicket={deskActions.skipActiveTicket}
             updateDesk={deskActions.updateDesk}
             servedByDesk={servedByDesk}
             absentByDesk={absentByDesk}
@@ -57,6 +62,52 @@ export function DeskPage({
             absentByDeskService={absentByDeskService}
             removedByDeskService={removedByDeskService}
           />
+          {queuedCalledTickets.length > 0 ? (
+            <div className="mt-4 flex flex-col gap-4">
+              {queuedCalledTickets.map((ticket) => (
+                <DeskConsoleCard
+                  key={ticket.id}
+                  desk={{
+                    ...desk,
+                    name: desk.name,
+                    current: ticket,
+                    calledTickets: [],
+                  }}
+                  now={now}
+                  isExpanded={false}
+                  onToggleExpanded={() => {}}
+                  services={services}
+                  serviceName={serviceName}
+                  theme={theme}
+                  serviceWord={serviceWord}
+                  serviceWordLower={serviceWordLower}
+                  serviceWordPluralLower={serviceWordPluralLower}
+                  deskWordLower={deskWordLower}
+                  queue={[]}
+                  eligibleForDesk={() => () => false}
+                  completingDesk={deskActions.completingDesk}
+                  completingTicket={deskActions.completingTicket}
+                  startingDesk={deskActions.startingDesk}
+                  startingTicket={deskActions.startingTicket}
+                  skippingDesk={deskActions.skippingDesk}
+                  skippingTicket={deskActions.skippingTicket}
+                  callNext={() => {}}
+                  startService={deskActions.startTicketService}
+                  completeTicket={deskActions.completeActiveTicket}
+                  skipTicket={deskActions.skipActiveTicket}
+                  updateDesk={() => {}}
+                  servedByDesk={servedByDesk}
+                  absentByDesk={absentByDesk}
+                  removedByDesk={removedByDesk}
+                  servedByDeskService={servedByDeskService}
+                  absentByDeskService={absentByDeskService}
+                  removedByDeskService={removedByDeskService}
+                  actionDeskId={desk.id}
+                  actionTicketId={ticket.id}
+                />
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="qp-desk-page-waiting">
@@ -73,8 +124,11 @@ export function DeskPage({
             now={now}
             serviceName={serviceName}
             deskWord={deskWord}
-            returnToQueue={returnToQueue}
+            callTicket={deskActions.callTicket}
+            recallAbsent={recallAbsent}
+            recallServed={recallServed}
             removeAbsent={removeAbsent}
+            askConfirm={askConfirm}
           />
         </div>
       </section>

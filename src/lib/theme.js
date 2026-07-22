@@ -11,6 +11,8 @@ export const C = {
   paper: "#EFEAD9",
   paperLine: "#D9D2BC",
   inkText: "#1B2028",
+  blue: "#2563EB",
+  blueSoft: "rgba(37,99,235,0.14)",
   amber: "#E8A33D",
   amberSoft: "rgba(232,163,61,0.14)",
   teal: "#4FB286",

@@ -141,9 +141,11 @@ export function DeskConsoleCard({
   queue,
   eligibleForDesk,
   completingDesk,
+  completingTicket,
   startingDesk,
+  startingTicket,
   skippingDesk,
-  justRevealedDesk,
+  skippingTicket,
   callNext,
   startService,
   completeTicket,
@@ -155,6 +157,9 @@ export function DeskConsoleCard({
   servedByDeskService,
   absentByDeskService,
   removedByDeskService,
+  readOnlyQueued = false,
+  actionDeskId = d.id,
+  actionTicketId = null,
 }) {
   const [statusOpen, setStatusOpen] = useState(false);
   const [draftStatusMode, setDraftStatusMode] = useState("always_open");
@@ -170,8 +175,18 @@ export function DeskConsoleCard({
   const phone = t ? t.phone : null;
   const svcId = t ? t.serviceId : null;
   const isPri = t?.type === "priority";
-  const revealAnim = justRevealedDesk === d.id ? "qp-card-in" : "";
-  const isPrimaryBusy = completingDesk === d.id || startingDesk === d.id;
+  const activeTicketId = actionTicketId || d.current?.id || null;
+  const isCompletingThisTicket = completingTicket != null
+    ? String(completingTicket) === String(activeTicketId)
+    : completingDesk === d.id;
+  const isStartingThisTicket = startingTicket != null
+    ? String(startingTicket) === String(activeTicketId)
+    : startingDesk === d.id;
+  const isSkippingThisTicket = skippingTicket != null
+    ? String(skippingTicket) === String(activeTicketId)
+    : skippingDesk === d.id;
+  const isPrimaryBusy = isCompletingThisTicket || isStartingThisTicket;
+  const actionsDisabled = readOnlyQueued;
   const availability = deskAvailability(d, now);
   const isServing = Boolean(d.current?.startedAt);
   const servingPanelLabel = d.current ? (d.current.startedAt ? "Now Serving" : "Called") : "Next Up";
@@ -202,17 +217,19 @@ export function DeskConsoleCard({
         : C.teal;
 
   const handlePrimaryAction = () => {
+    if (actionsDisabled) return;
+
     if (!d.current) {
-      callNext(d.id);
+      callNext(actionDeskId);
       return;
     }
 
     if (!d.current.startedAt) {
-      startService(d.id);
+      startService(actionDeskId, actionTicketId);
       return;
     }
 
-    completeTicket(d.id);
+    completeTicket(actionDeskId, actionTicketId);
   };
 
   const updateDeskAvailability = (mode) => {
@@ -258,9 +275,11 @@ export function DeskConsoleCard({
       <button
           type="button"
           onClick={handlePrimaryAction}
-          disabled={!d.current ? !canCallNext || isPrimaryBusy || isOnBreak : isPrimaryBusy}
+          disabled={actionsDisabled || (!d.current ? !canCallNext || isPrimaryBusy || isOnBreak : isPrimaryBusy)}
           title={
-            !d.current
+            actionsDisabled
+              ? "Finish the current ticket before starting this called ticket"
+              : !d.current
               ? canCallNext
                 ? "Call next"
                 : `No waiting tickets match this ${deskWordLower}'s ${serviceWordPluralLower}`
@@ -303,9 +322,9 @@ export function DeskConsoleCard({
       ) : (
         <button
           type="button"
-          onClick={() => skipTicket(d.id)}
-          disabled={skippingDesk === d.id}
-          title="Mark absent / no-show"
+          onClick={() => skipTicket(actionDeskId, actionTicketId)}
+          disabled={actionsDisabled || isSkippingThisTicket}
+          title={actionsDisabled ? "Finish the current ticket before marking this called ticket absent" : "Mark absent / no-show"}
           className="qp-focusable qp-desk-secondary-action hover:bg-[#E2614F] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
           style={{ borderColor: "transparent", background: controlBackground, color: C.coral, borderRadius: surfaceTheme.radius }}
         >
@@ -316,8 +335,9 @@ export function DeskConsoleCard({
       <button
         type="button"
         onClick={onToggleExpanded}
+        disabled={readOnlyQueued}
         className={`qp-focusable qp-desk-secondary-action qp-desk-more-action ${isExpanded ? "qp-desk-more-action--expanded" : ""}`}
-        title={isExpanded ? "Hide detail" : "Show detail"}
+        title={readOnlyQueued ? "Details are available when this ticket becomes active" : isExpanded ? "Hide detail" : "Show detail"}
         style={{
           borderColor: "transparent",
           background: isExpanded ? withAlpha(surfaceTheme.accentColor, "1f") : controlBackground,
@@ -377,8 +397,9 @@ export function DeskConsoleCard({
   const renderDeskStatusButton = (onAccent = false) => (
     <button
       type="button"
-      onClick={openStatusDialog}
-      className="qp-focusable flex min-w-0 items-center gap-1.5 rounded-full py-0.5 text-left transition-colors hover:bg-white/5"
+      onClick={readOnlyQueued ? undefined : openStatusDialog}
+      disabled={readOnlyQueued}
+      className={`qp-focusable flex min-w-0 items-center gap-1.5 rounded-full py-0.5 text-left transition-colors ${readOnlyQueued ? "cursor-default" : "hover:bg-white/5"}`}
       title={availability.label}
     >
       <span
@@ -401,7 +422,7 @@ export function DeskConsoleCard({
         <div className="flex flex-col gap-4">
           {t ? (
             <div
-              className={`qp-desk-ticket-frame ${d.current?.startedAt ? "qp-serving" : ""} ${skippingDesk === d.id ? "qp-skip-out" : ""} ${revealAnim}`}
+              className={`qp-desk-ticket-frame ${d.current?.startedAt ? "qp-serving" : ""}`}
               style={{
                 "--qp-desk-accent": surfaceTheme.accentColor,
                 "--qp-desk-status-accent": primaryBg,

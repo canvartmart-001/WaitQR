@@ -9,7 +9,10 @@ export function DeskConsoleSection({
   deskDetailTab,
   setDeskDetailTab,
   ticketLogs,
-  returnToQueue,
+  callTicket,
+  recallAbsent,
+  recallServed,
+  askConfirm,
 }) {
   const { deskWord } = labels;
   const { absentList, sortedServed, removeAbsent } = ticketLogs;
@@ -26,8 +29,11 @@ export function DeskConsoleSection({
         now={now}
         serviceName={serviceName}
         deskWord={deskWord}
-        returnToQueue={returnToQueue}
+        callTicket={callTicket}
+        recallAbsent={recallAbsent}
+        recallServed={recallServed}
         removeAbsent={removeAbsent}
+        askConfirm={askConfirm}
       />
     </section>
   );
