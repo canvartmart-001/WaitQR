@@ -1,4 +1,4 @@
-import { Trash2, Undo2, X } from "lucide-react";
+import { CircleAlert, Undo2, X } from "lucide-react";
 import { C } from "../../lib/theme";
 import { elapsedLabel } from "../../lib/format";
 
@@ -85,8 +85,14 @@ function AbsentRow({ ticket: t, desks, now, serviceName, recallAbsent, removeAbs
               >
                 <Undo2 size={13} />
               </button>
-              <button onClick={confirmRemove} className="qp-focusable p-1.5 rounded-md border shrink-0" style={{ borderColor: surfaceTheme.borderColor, color: faintColor, background: withAlpha(surfaceTheme.fontColor, "12"), borderRadius: surfaceTheme.radius }}>
-                <Trash2 size={13} />
+              <button
+                onClick={confirmRemove}
+                title="Delete ticket"
+                aria-label="Delete ticket"
+                className="qp-focusable p-1.5 rounded-md shrink-0"
+                style={{ color: C.coral, background: C.coralSoft, borderRadius: surfaceTheme.radius }}
+              >
+                <CircleAlert size={14} />
               </button>
             </div>
           </div>

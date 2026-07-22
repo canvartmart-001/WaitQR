@@ -49,6 +49,7 @@ export function DeskPage({
             startService={deskActions.startTicketService}
             completeTicket={deskActions.completeActiveTicket}
             skipTicket={deskActions.skipActiveTicket}
+            askConfirm={askConfirm}
             updateDesk={deskActions.updateDesk}
             hideInCardCounterStatus
             showCounterStatusAbove
@@ -83,6 +84,7 @@ export function DeskPage({
                   startService={deskActions.startTicketService}
                   completeTicket={deskActions.completeActiveTicket}
                   skipTicket={deskActions.skipActiveTicket}
+                  askConfirm={askConfirm}
                   updateDesk={() => {}}
                   actionDeskId={desk.id}
                   actionTicketId={ticket.id}

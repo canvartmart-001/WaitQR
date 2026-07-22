@@ -598,6 +598,7 @@ svg {
 /* Counter card: split service rail + ticket detail panel. These rules live after
    the older responsive card rules so the component remains stable at every page width. */
 .qp-desk-ticket-frame {
+  position: relative;
   overflow: hidden;
   border: 1px solid #e3e8ef;
   border-radius: var(--qp-desk-radius, 14px);
@@ -606,10 +607,22 @@ svg {
   container-type: inline-size;
 }
 
+.qp-desk-ticket-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: max(190px, 44%);
+  background: var(--qp-ticket-side-bg, transparent);
+  pointer-events: none;
+}
+
 .qp-desk-ticket-main {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(190px, 44%) minmax(0, 1fr);
   min-height: 250px;
+  align-items: stretch;
+  z-index: 1;
 }
 
 .qp-desk-serving-panel {
@@ -620,7 +633,9 @@ svg {
   --qp-serving-panel-pill-bg: rgba(92, 224, 190, .68);
   --qp-serving-panel-pill-fg: #fff;
   display: flex;
+  height: 100%;
   min-width: 0;
+  align-self: stretch;
   flex-direction: column;
   /* Match the Queue Details panel and service table's 16px content gutter. */
   padding: 17px 16px 19px;
@@ -750,6 +765,16 @@ svg {
   color: var(--qp-serving-panel-fg);
 }
 
+.qp-desk-break-title {
+  margin-top: 28px;
+  color: var(--qp-serving-panel-fg);
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(44px, 10cqw, 64px);
+  font-weight: 700;
+  line-height: .96;
+  letter-spacing: 0;
+}
+
 .qp-desk-serving-name {
   margin-top: 8px;
   font-size: 17px;
@@ -856,7 +881,7 @@ svg {
 .qp-desk-ticket-actions {
   display: grid;
   width: 100%;
-  grid-template-columns: minmax(0, 1fr) 40px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
   gap: 8px;
   margin-top: auto;
@@ -879,7 +904,7 @@ svg {
   padding: 0 13px;
   border: 0;
   color: #fff;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   overflow: hidden;
   white-space: nowrap;
@@ -910,7 +935,7 @@ svg {
 .qp-desk-secondary-action {
   display: flex;
   box-sizing: border-box;
-  width: 40px;
+  width: 100%;
   height: 40px;
   flex-shrink: 0;
   align-items: center;
@@ -918,27 +943,16 @@ svg {
   border: 1px solid #e7ebf0 !important;
   color: #667085 !important;
   background: #fff !important;
-  transition: width .28s cubic-bezier(.2, .8, .2, 1), background .18s ease, color .18s ease, transform .16s ease;
+  gap: 8px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background .18s ease, color .18s ease, transform .16s ease;
 }
 
 .qp-desk-break-action {
   grid-column: 2;
-  justify-self: end;
-  transform-origin: right center;
-  gap: 0;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.qp-desk-break-action span {
-  display: inline-block;
-  max-width: 0;
-  min-width: 0;
-  opacity: 0;
-  transform: translateX(-4px);
-  font-size: 11px;
-  font-weight: 600;
-  transition: max-width .24s ease, opacity .18s ease, transform .24s ease;
 }
 
 .qp-desk-break-action--active {
@@ -949,16 +963,9 @@ svg {
   background: #eff6ff !important;
 }
 
-.qp-desk-break-action--active span {
-  max-width: 80px;
-  opacity: 1;
-  transform: translateX(0);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .qp-desk-ticket-actions,
-  .qp-desk-secondary-action,
-  .qp-desk-break-action span {
+  .qp-desk-secondary-action {
     transition: none;
   }
 }
@@ -968,7 +975,24 @@ svg {
   background: #f8fafc !important;
 }
 
+.qp-desk-cancel-action {
+  border-color: #e2614f !important;
+  color: #fff !important;
+  background: #e2614f !important;
+}
+
+.qp-desk-cancel-action:hover {
+  color: #fff !important;
+  background: #d65343 !important;
+}
+
 @container (max-width: 440px) {
+  .qp-desk-ticket-frame::before {
+    width: 100%;
+    height: 245px;
+    bottom: auto;
+  }
+
   .qp-desk-ticket-main {
     grid-template-columns: minmax(0, 1fr);
   }

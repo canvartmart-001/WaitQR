@@ -147,6 +147,7 @@ export function DeskConsoleCard({
   startService,
   completeTicket,
   skipTicket,
+  askConfirm,
   updateDesk,
   readOnlyQueued = false,
   actionDeskId = d.id,
@@ -225,6 +226,20 @@ export function DeskConsoleCard({
     }
 
     completeTicket(actionDeskId, actionTicketId);
+  };
+
+  const handleCancelTicket = () => {
+    if (!d.current?.startedAt || !askConfirm) {
+      skipTicket(actionDeskId, actionTicketId);
+      return;
+    }
+
+    askConfirm(
+      "Cancel serving ticket?",
+      `Cancel ticket ${d.current.label}${d.current.name ? ` for ${d.current.name}` : ""}? The active service will stop and the ticket will move to the absent list.`,
+      () => skipTicket(actionDeskId, actionTicketId),
+      { confirmLabel: "Cancel ticket", variant: "destructive" }
+    );
   };
 
   const updateDeskAvailability = (mode) => {
@@ -313,18 +328,19 @@ export function DeskConsoleCard({
           }}
         >
           <Coffee size={15} />
-          <span>On Break</span>
+          <span>{isOnBreak ? "End Break" : "Break"}</span>
         </button>
       ) : (
         <button
           type="button"
-          onClick={() => skipTicket(actionDeskId, actionTicketId)}
+          onClick={handleCancelTicket}
           disabled={actionsDisabled || isSkippingThisTicket}
-          title={actionsDisabled ? "Finish the current ticket before marking this called ticket absent" : "Mark absent / no-show"}
-          className="qp-focusable qp-desk-secondary-action hover:bg-[#E2614F] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+          title={actionsDisabled ? "Finish the current ticket before cancelling this called ticket" : "Cancel as absent / no-show"}
+          className="qp-focusable qp-desk-secondary-action qp-desk-cancel-action disabled:cursor-not-allowed disabled:opacity-30"
           style={{ borderColor: "transparent", background: controlBackground, color: C.coral, borderRadius: surfaceTheme.radius }}
         >
           <X size={15} />
+          <span>Cancel</span>
         </button>
       )}
     </div>
@@ -365,10 +381,11 @@ export function DeskConsoleCard({
         <div className="flex flex-col gap-4">
           {t ? (
             <div
-              className={`qp-desk-ticket-frame ${d.current?.startedAt ? "qp-serving" : ""}`}
+              className={`qp-desk-ticket-frame ${d.current?.startedAt ? "qp-serving" : ""} ${isOnBreak && !d.current ? "qp-desk-ticket-frame--break" : ""}`}
               style={{
                 "--qp-desk-accent": surfaceTheme.accentColor,
                 "--qp-desk-status-accent": primaryBg,
+                "--qp-ticket-side-bg": primaryBg,
                 "--qp-desk-radius": `${surfaceTheme.radius * 1.2}px`,
                 borderColor: surfaceTheme.borderColor,
               }}
@@ -432,6 +449,52 @@ export function DeskConsoleCard({
                 </section>
               </div>
             </div>
+          ) : isOnBreak ? (
+            <div
+              className="qp-desk-ticket-frame qp-desk-ticket-frame--break"
+              style={{
+                "--qp-desk-accent": surfaceTheme.accentColor,
+                "--qp-desk-status-accent": primaryBg,
+                "--qp-ticket-side-bg": primaryBg,
+                "--qp-desk-radius": `${surfaceTheme.radius * 1.2}px`,
+                borderColor: surfaceTheme.borderColor,
+              }}
+            >
+              <div className="qp-desk-ticket-main">
+                <section className="qp-desk-serving-panel qp-desk-serving-panel--break">
+                  {hideInCardCounterStatus ? null : (
+                    <div className="qp-desk-serving-header" onClick={(e) => e.stopPropagation()}>
+                      {renderDeskStatusButton(true)}
+                    </div>
+                  )}
+
+                  <div className="qp-desk-serving-caption">
+                    <span className="qp-desk-caption-icon"><Coffee size={15} /></span>
+                    <span>On Break</span>
+                  </div>
+
+                  <div className="qp-desk-break-title">Break</div>
+                  <div className="qp-desk-serving-name truncate">{d.name}</div>
+                  <div className="qp-desk-service-pill truncate">Counter paused</div>
+
+                  <div className="qp-desk-serving-time">
+                    <Clock3 size={14} />
+                    <span>Ready when you are</span>
+                  </div>
+                </section>
+
+                <section className="qp-desk-details-panel">
+                  <div className="qp-desk-details-heading">
+                    <span>Queue Details</span>
+                  </div>
+                  <div className="flex min-h-[8rem] flex-col justify-center gap-2 text-sm" style={{ color: mutedColor }}>
+                    <span className="font-medium" style={{ color: surfaceTheme.fontColor }}>Counter is on break</span>
+                    <span>No tickets will be called until break ends.</span>
+                  </div>
+                  {renderDeskActions()}
+                </section>
+              </div>
+            </div>
           ) : (
             <div
               className="qp-desk-ticket-frame"
@@ -451,7 +514,7 @@ export function DeskConsoleCard({
           )}
         </div>
 
-        {!t ? renderDeskActions() : null}
+        {!t && !isOnBreak ? renderDeskActions() : null}
       </div>
 
       {statusOpen ? (

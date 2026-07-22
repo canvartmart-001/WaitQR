@@ -1,4 +1,4 @@
-import { Lock, Trash2, Undo2, Unlock } from "lucide-react";
+import { CircleAlert, Lock, Undo2, Unlock } from "lucide-react";
 import { C } from "../../lib/theme";
 
 function withAlpha(hex, alphaHex) {
@@ -24,7 +24,7 @@ export function ConfirmDialog({ confirmAction, onCancel, onConfirm, theme }) {
     : `color-mix(in srgb, ${colors.bgColor} 84%, ${colors.fontColor} 16%)`;
   const toneBg = isSuccess ? C.tealSoft : isWarning ? C.amberSoft : C.coralSoft;
   const toneColor = isSuccess ? C.teal : isWarning ? C.amber : C.coral;
-  const Icon = isSuccess ? Unlock : isDestructive ? Trash2 : isWarning ? Undo2 : Lock;
+  const Icon = isSuccess ? Unlock : isDestructive ? CircleAlert : isWarning ? Undo2 : Lock;
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center p-4"
