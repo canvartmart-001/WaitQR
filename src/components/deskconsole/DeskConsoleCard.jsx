@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, Check, Coffee, Info, Lock, Unlock, X } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, Clock3, Coffee, Layers3, Lock, MoreHorizontal, Phone, Unlock, UserRound, UsersRound, Volume2, X } from "lucide-react";
 import { useState } from "react";
 import { C } from "../../lib/theme";
 import { elapsedLabel, elapsedTimerLabel } from "../../lib/format";
@@ -56,6 +56,16 @@ function formatScheduleTime(time) {
 
 function formatScheduleRange(entry) {
   return `${formatScheduleTime(entry.startTime)} - ${formatScheduleTime(entry.endTime)}`;
+}
+
+function formatJoinedDateTime(timestamp) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleString([], {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
 }
 
 function scheduleDayRows(schedule) {
@@ -149,7 +159,6 @@ export function DeskConsoleCard({
   const [statusOpen, setStatusOpen] = useState(false);
   const [draftStatusMode, setDraftStatusMode] = useState("always_open");
   const canCallNext = !d.current && queue.some(eligibleForDesk(d));
-  const isCalledNotStarted = d.current && !d.current.startedAt;
   const previewTicket = !d.current ? selectNextTicketForDesk(queue, d) : null;
 
   const t = d.current || previewTicket;
@@ -158,13 +167,12 @@ export function DeskConsoleCard({
   const phone = t ? t.phone : null;
   const svcId = t ? t.serviceId : null;
   const isPri = t?.type === "priority";
-  const dim = !d.current;
   const revealAnim = justRevealedDesk === d.id ? "qp-card-in" : "";
   const isPrimaryBusy = completingDesk === d.id || startingDesk === d.id;
   const availability = deskAvailability(d, now);
-  const isLocked = !availability.open;
   const isServing = Boolean(d.current?.startedAt);
-  const stateLabel = d.current ? (d.current.startedAt ? "Now Serving" : "Called") : previewTicket ? "Next in line" : null;
+  const servingPanelLabel = d.current ? (d.current.startedAt ? "Now Serving" : "Called") : "Next Up";
+  const servingPanelTone = d.current ? (d.current.startedAt ? "now-serving" : "called") : "next-up";
   const primaryLabel = !d.current ? "Call Next" : !d.current.startedAt ? "Start Serving" : "Mark Complete";
   const primaryIcon = d.current?.startedAt ? <Check size={15} /> : <ArrowRight size={15} />;
   const timerLabel = d.current?.startedAt ? elapsedTimerLabel(now - d.current.startedAt) : null;
@@ -230,7 +238,13 @@ export function DeskConsoleCard({
     setStatusOpen(true);
   };
 
-  const renderDeskActions = (className = "mt-4 flex items-stretch gap-2") => (
+  const statusIcon = availability.mode === "scheduled"
+    ? <CalendarDays size={14} />
+    : availability.open
+      ? <Unlock size={14} />
+      : <Lock size={14} />;
+
+  const renderDeskActions = (className = "qp-desk-ticket-actions") => (
     <div className={className} onClick={(e) => e.stopPropagation()}>
       <button
         type="button"
@@ -245,16 +259,17 @@ export function DeskConsoleCard({
               ? "Start serving this ticket"
               : "Mark ticket complete"
         }
-        className={`qp-focusable flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold tracking-wide transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${!d.current ? "border-0" : "border"}`}
+        className="qp-focusable qp-desk-primary-action disabled:cursor-not-allowed disabled:opacity-30"
         style={{
           borderColor: "transparent",
           color: C.textLight,
-          background: primaryBg,
+          backgroundColor: primaryBg,
           borderRadius: surfaceTheme.radius,
         }}
       >
+        {!d.current ? <Volume2 size={16} /> : null}
         <span>{primaryLabel}</span>
-        {primaryIcon}
+        <span className="qp-desk-primary-arrow">{primaryIcon}</span>
       </button>
 
       {!d.current ? (
@@ -262,7 +277,7 @@ export function DeskConsoleCard({
           type="button"
           onClick={() => {}}
           title="Break"
-          className="qp-focusable flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition-colors disabled:opacity-30"
+          className="qp-focusable qp-desk-secondary-action disabled:opacity-30"
           style={{
             borderColor: surfaceTheme.borderColor,
             color: mutedColor,
@@ -278,7 +293,7 @@ export function DeskConsoleCard({
           onClick={() => skipTicket(d.id)}
           disabled={skippingDesk === d.id}
           title="Mark absent / no-show"
-          className="qp-focusable flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition-colors hover:bg-[#E2614F] hover:text-[#F2EFE7] disabled:cursor-not-allowed disabled:opacity-30"
+          className="qp-focusable qp-desk-secondary-action hover:bg-[#E2614F] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
           style={{ borderColor: "transparent", background: controlBackground, color: C.coral, borderRadius: surfaceTheme.radius }}
         >
           <X size={15} />
@@ -288,7 +303,7 @@ export function DeskConsoleCard({
       <button
         type="button"
         onClick={onToggleExpanded}
-        className="qp-focusable flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition-colors hover:bg-white/10"
+        className="qp-focusable qp-desk-secondary-action"
         title={isExpanded ? "Hide detail" : "Show detail"}
         style={{
           borderColor: "transparent",
@@ -297,7 +312,7 @@ export function DeskConsoleCard({
           borderRadius: surfaceTheme.radius,
         }}
       >
-        <Info size={14} />
+        <MoreHorizontal size={17} />
       </button>
     </div>
   );
@@ -346,19 +361,21 @@ export function DeskConsoleCard({
     </div>
   );
 
-  const renderDeskStatusButton = () => (
+  const renderDeskStatusButton = (onAccent = false) => (
     <button
       type="button"
       onClick={openStatusDialog}
-      className="qp-focusable flex min-w-0 items-center gap-1 rounded-full px-1 py-0.5 text-left transition-colors hover:bg-white/5"
+      className="qp-focusable flex min-w-0 items-center gap-1.5 rounded-full py-0.5 text-left transition-colors hover:bg-white/5"
       title={availability.label}
     >
       <span
-        className={`${isServing ? "qp-livedot" : ""} h-1.5 w-1.5 shrink-0 rounded-full`}
+        className="qp-desk-status-icon inline-flex shrink-0 items-center justify-center"
         aria-hidden="true"
-        style={{ background: availability.dot }}
-      />
-      <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wider" style={{ color: mutedColor }}>
+        style={{ color: onAccent ? "var(--qp-serving-panel-muted)" : availability.dot }}
+      >
+        {statusIcon}
+      </span>
+      <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wider" style={{ color: onAccent ? "var(--qp-serving-panel-muted)" : mutedColor }}>
         {d.name}
       </span>
       <span className="sr-only">{availability.label}</span>
@@ -370,111 +387,74 @@ export function DeskConsoleCard({
       <div>
         <div className="flex flex-col gap-4">
           {t ? (
-            <>
-              <div
-                className={`qp-desk-ticket-frame ${d.current?.startedAt ? "qp-serving" : ""} ${skippingDesk === d.id ? "qp-skip-out" : ""} ${revealAnim}`}
-                style={{
-                  background: subtleBackground,
-                  borderColor: isCalledNotStarted ? C.amber : d.current?.startedAt ? C.teal : surfaceTheme.borderColor,
-                  borderRadius: surfaceTheme.radius * 1.2,
-                }}
-              >
-                <div className="px-4 py-4">
-                  <div className="qp-desk-ticket-header" onClick={(e) => e.stopPropagation()}>
-                    <div className="qp-desk-ticket-header-left">
-                      <div className="qp-desk-ticket-title-row">
-                        {renderDeskStatusButton()}
-                      </div>
-                    </div>
+            <div
+              className={`qp-desk-ticket-frame ${d.current?.startedAt ? "qp-serving" : ""} ${skippingDesk === d.id ? "qp-skip-out" : ""} ${revealAnim}`}
+              style={{
+                "--qp-desk-accent": surfaceTheme.accentColor,
+                "--qp-desk-status-accent": primaryBg,
+                "--qp-desk-radius": `${surfaceTheme.radius * 1.2}px`,
+                borderColor: surfaceTheme.borderColor,
+              }}
+            >
+              <div className="qp-desk-ticket-main">
+                <section className={`qp-desk-serving-panel qp-desk-serving-panel--${servingPanelTone}`}>
+                  <div className="qp-desk-serving-header" onClick={(e) => e.stopPropagation()}>
+                    {renderDeskStatusButton(true)}
+                  </div>
 
-                    <div className="qp-desk-ticket-header-right">
-                      {stateLabel ? (
-                        <div className="qp-desk-ticket-status qp-desk-info-status" style={{ color: d.current?.startedAt ? C.teal : C.amber }}>
-                          {stateLabel}
-                        </div>
-                      ) : null}
-                      {timerLabel && (
-                        <span className="qp-mono shrink-0 text-sm font-semibold tracking-wide" style={{ color: C.teal }}>
-                          {timerLabel}
-                        </span>
-                      )}
+                  <div className="qp-desk-serving-caption">
+                    <span className="qp-desk-caption-icon"><UsersRound size={15} /></span>
+                    <span>{servingPanelLabel}</span>
+                  </div>
+
+                  <div className={`qp-desk-ticket-number qp-ticket-face ${isPri ? "qp-priority-ticket" : ""}`}>{label}</div>
+                  <div className="qp-desk-serving-name truncate">{name || "—"}</div>
+                  <div className="qp-desk-service-pill truncate">{svcId ? serviceName(svcId) : "—"}</div>
+
+                  <div className="qp-desk-serving-time">
+                    <Clock3 size={14} />
+                    <span>{t?.createdAt ? `Joined ${elapsedLabel(now - t.createdAt)} ago` : "Join time unavailable"}</span>
+                  </div>
+                </section>
+
+                <section className="qp-desk-details-panel">
+                  <div className="qp-desk-details-heading">
+                    <span>Queue Details</span>
+                    {timerLabel ? <span className="qp-mono qp-desk-timer">{timerLabel}</span> : null}
+                  </div>
+
+                  <div className="qp-desk-details-list">
+                    <div className="qp-desk-detail-row">
+                      <UserRound size={16} />
+                      <span className="qp-desk-detail-label">Name</span>
+                      <span className="qp-desk-detail-value truncate">{name || "—"}</span>
+                    </div>
+                    <div className="qp-desk-detail-row">
+                      <Clock3 size={16} />
+                      <span className="qp-desk-detail-label">Joined</span>
+                      <span className="qp-desk-detail-value qp-mono truncate" title={t?.createdAt ? formatJoinedDateTime(t.createdAt) : undefined}>
+                        {t?.createdAt ? formatJoinedDateTime(t.createdAt) : "—"}
+                      </span>
+                    </div>
+                    <div className="qp-desk-detail-row">
+                      <Phone size={16} />
+                      <span className="qp-desk-detail-label">Phone</span>
+                      <span className="qp-desk-detail-value qp-mono truncate">{phone || "—"}</span>
+                      {phone ? <a className="qp-desk-phone-action" href={`tel:${phone}`} aria-label={`Call ${phone}`}><Phone size={14} /></a> : null}
+                    </div>
+                    <div className="qp-desk-detail-row">
+                      <Layers3 size={16} />
+                      <span className="qp-desk-detail-label">{serviceWord}</span>
+                      <span className="qp-desk-detail-value truncate">{svcId ? serviceName(svcId) : "—"}</span>
                     </div>
                   </div>
 
-                  <div className="qp-desk-ticket-layout">
-                    <div className="qp-desk-ticket-left">
-                      <div className="qp-desk-ticket-stack">
-                        {label ? (
-                          <span
-                            className="qp-desk-ticket-number qp-ticket-face block font-bold"
-                            style={{ color: isPri ? C.coral : C.amber, opacity: dim ? 0.95 : 1 }}
-                          >
-                            {label}
-                          </span>
-                        ) : null}
-                        {renderDeskActions("qp-desk-ticket-actions qp-desk-ticket-actions-desktop")}
-                      </div>
-                    </div>
-
-                    <div className="qp-desk-ticket-info min-w-0">
-                      {(stateLabel || timerLabel) ? (
-                        <div className="qp-desk-mobile-info-header">
-                          {stateLabel ? (
-                            <div className="qp-desk-mobile-info-status qp-desk-ticket-status" style={{ color: d.current?.startedAt ? C.teal : C.amber }}>
-                              {stateLabel}
-                            </div>
-                          ) : <span />}
-                          {timerLabel ? (
-                            <span className="qp-desk-mobile-info-timer qp-mono shrink-0 text-sm font-semibold tracking-wide" style={{ color: C.teal }}>
-                              {timerLabel}
-                            </span>
-                          ) : null}
-                        </div>
-                      ) : null}
-                      <div className="qp-desk-info-item">
-                        <div className="qp-desk-info-label uppercase" style={{ color: faintColor }}>
-                          Name
-                        </div>
-                        <div className="qp-desk-info-value truncate font-semibold leading-tight" style={{ color: dim ? C.ink600 : C.inkText }}>
-                          {name || "—"}
-                        </div>
-                      </div>
-
-                      <div className="qp-desk-info-item">
-                        <div className="qp-desk-info-label uppercase" style={{ color: faintColor }}>
-                          Joined
-                        </div>
-                        <div className="qp-desk-info-value qp-mono truncate" style={{ color: C.ink600 }}>
-                          {t?.createdAt ? `${elapsedLabel(now - t.createdAt)} ago` : "—"}
-                        </div>
-                      </div>
-
-                      <div className="qp-desk-info-item">
-                        <div className="qp-desk-info-label uppercase" style={{ color: faintColor }}>
-                          Phone
-                        </div>
-                        <div className="qp-desk-info-value qp-mono truncate font-medium" style={{ color: dim ? C.ink600 : C.inkText }}>
-                          {phone || "—"}
-                        </div>
-                      </div>
-
-                      <div className="qp-desk-info-item">
-                        <div className="qp-desk-info-label uppercase" style={{ color: faintColor }}>
-                          {serviceWord}
-                        </div>
-                        <div className="qp-desk-info-value truncate font-semibold leading-tight" style={{ color: dim ? C.ink600 : C.inkText }}>
-                          {svcId ? serviceName(svcId) : "—"}
-                        </div>
-                      </div>
-                    </div>
-
-                    {renderDeskActions("qp-desk-ticket-actions qp-desk-ticket-actions-mobile")}
-                  </div>
-                </div>
-
-                {isExpanded ? renderExpandedDetails() : null}
+                  {renderDeskActions()}
+                </section>
               </div>
-            </>
+
+              {isExpanded ? renderExpandedDetails() : null}
+            </div>
           ) : (
             <div
               className="qp-desk-ticket-frame"
