@@ -380,7 +380,7 @@ function MemberForm({ members, desks, services, labels, theme, brandName, editin
   };
 
   return (
-    <div className="border bg-white/5 p-4" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.4 }}>
+    <div className="border p-4" style={{ borderColor: theme.borderColor, backgroundColor: "var(--surface-bg, transparent)", borderRadius: theme.radius * 1.4 }}>
       <div className="mb-1 flex items-center justify-between gap-3">
         <h2 className="text-base font-semibold" style={{ color: theme.fontColor }}>
           {editing ? "Edit member" : "Add member"}
@@ -558,7 +558,7 @@ function MemberCard({ member, members, desks, services, labels, theme, onEdit, o
   const aboutText = truncateText(member.about, 80);
 
   return (
-    <div className="flex flex-col gap-3 border p-4" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.2 }}>
+    <div className="flex flex-col gap-3 border p-4" style={{ borderColor: theme.borderColor, backgroundColor: "var(--surface-bg, transparent)", borderRadius: theme.radius * 1.2 }}>
       <div className="flex min-w-0 items-start gap-3 sm:gap-4">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border" style={{ borderColor: theme.borderColor, backgroundColor: withAlpha(theme.accentColor, "1f") }}>
           {member.photo ? <img src={member.photo} alt={member.name} className="h-full w-full object-cover" /> : <span className="text-sm font-semibold" style={{ color: theme.accentColor }}>{initials(member.name)}</span>}
@@ -678,7 +678,7 @@ export function AdminMembersPage({
   };
 
   return (
-    <div style={{ "--field-bg": "rgba(255,255,255,0.04)" }}>
+    <div style={{ "--field-bg": "var(--surface-bg)" }}>
       <main className="space-y-4 px-2.5 py-2.5 sm:space-y-6 sm:px-6 sm:py-6 md:pl-10 md:pr-6">
         {showForm ? (
           <div ref={formRef}>
@@ -698,7 +698,7 @@ export function AdminMembersPage({
           </div>
         ) : null}
 
-        <div className="border bg-white/5 p-4" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.4 }}>
+        <div className="border p-4" style={{ borderColor: theme.borderColor, backgroundColor: "var(--surface-bg, transparent)", borderRadius: theme.radius * 1.4 }}>
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3 min-[480px]:flex-nowrap">
             <div className="relative w-full max-w-xs min-[480px]:min-w-0 min-[480px]:flex-1">
               <input

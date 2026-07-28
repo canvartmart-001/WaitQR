@@ -635,7 +635,7 @@ export function QueueInsightsSection({ waitingNow, servingNow, servedToday, abse
 
   return (
     <div className="px-2.5 pb-2.5 sm:px-6 sm:pb-6 md:pl-10 md:pr-6">
-      <section className="grid gap-5 border bg-white/5 p-4 lg:grid-cols-[minmax(240px,0.58fr)_1px_minmax(0,1.42fr)]" style={{ borderColor: palette.borderColor, borderRadius: palette.radius * 1.4 }}>
+      <section className="grid gap-5 border p-4 lg:grid-cols-[minmax(240px,0.58fr)_1px_minmax(0,1.42fr)]" style={{ borderColor: palette.borderColor, background: "var(--surface-bg, transparent)", borderRadius: palette.radius * 1.4 }}>
         <div className="min-w-0 flex flex-col">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em]" style={{ color: withAlpha(palette.fontColor, "80") }}>
@@ -875,7 +875,7 @@ export function QueueInsightsSection({ waitingNow, servingNow, servedToday, abse
                   left: `clamp(12px, calc(${((activePlotPoints[0].x / chartState.width) * 100).toFixed(2)}% - 72px), calc(100% - 152px))`,
                   top: `clamp(10px, calc(${((Math.min(...activePlotPoints.map((point) => point.y)) / chartState.height) * 100).toFixed(2)}% - 108px), calc(100% - 140px))`,
                   width: 140,
-                  background: withAlpha(palette.bgColor, "e6"),
+                  background: "var(--surface-bg, transparent)",
                   borderColor: withAlpha(palette.borderColor, "cc"),
                   backdropFilter: "blur(12px)",
                 }}
@@ -913,7 +913,7 @@ export function QueueInsightsSection({ waitingNow, servingNow, servedToday, abse
                 }}
                 className="rounded-md border px-2.5 py-1.5 text-xs font-semibold outline-none"
                 style={{
-                  background: "rgba(255,255,255,0.04)",
+                  background: "var(--surface-bg, transparent)",
                   borderColor: palette.borderColor,
                   color: palette.fontColor,
                   boxShadow: "none",

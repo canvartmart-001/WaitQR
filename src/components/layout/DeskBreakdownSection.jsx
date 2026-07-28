@@ -249,6 +249,7 @@ function DeskTicketRail({ tickets, activeFilter, expandedTicket, setExpandedTick
 
 export function DeskBreakdownSection({
   embedded = false,
+  theme,
   desks,
   members = [],
   deskWord,
@@ -265,6 +266,11 @@ export function DeskBreakdownSection({
   now,
   getDeskPath,
 }) {
+  const palette = theme || {
+    bgColor: C.ink800,
+    fontColor: C.textLight,
+    borderColor: C.hair,
+  };
   const [ticketFilters, setTicketFilters] = useState({});
   const [expandedTicket, setExpandedTicket] = useState(null);
   const content = (
@@ -297,7 +303,7 @@ export function DeskBreakdownSection({
                 <div className="grid min-w-0 grid-cols-1 items-stretch gap-3 py-2.5 md:grid-cols-[minmax(240px,280px)_minmax(0,1fr)]">
                   <div
                     className="flex min-h-[108px] min-w-0 w-full flex-col gap-2.5 rounded-md border px-3 py-2.5"
-                    style={{ borderColor: C.hair, background: C.ink800 }}
+                    style={{ borderColor: palette.borderColor, background: "var(--surface-bg, transparent)" }}
                   >
                     <div className="flex items-center justify-between gap-3 min-w-0">
                       <div className="flex w-full min-w-0 items-center gap-3">
@@ -308,7 +314,7 @@ export function DeskBreakdownSection({
                           aria-label={`Open ${desk.name} desk page in a new tab`}
                           title={deskPath}
                           className="qp-focusable flex shrink-0 items-center gap-1.5 text-left"
-                          style={{ color: C.textLight }}
+                          style={{ color: palette.fontColor }}
                         >
                           <span className={`${currentTicket?.startedAt ? "qp-livedot" : ""} h-1.5 w-1.5 shrink-0 rounded-full`} aria-hidden="true" style={{ background: currentTicket ? C.teal : desk.locked ? C.coral : C.teal }} />
                           <span className="truncate text-lg font-semibold leading-none">{desk.name}</span>
@@ -323,7 +329,7 @@ export function DeskBreakdownSection({
                               >
                                 <span
                                   className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border"
-                                  style={{ borderColor: C.ink600, background: C.ink900 }}
+                                  style={{ borderColor: palette.borderColor, background: "var(--surface-bg, transparent)" }}
                                 >
                                   {member.photo ? (
                                     <img src={member.photo} alt={member.name} className="h-full w-full object-cover" />
@@ -393,7 +399,7 @@ export function DeskBreakdownSection({
   if (embedded) return content;
 
   return (
-    <div className="qp-panel-card mt-3" style={{ background: C.ink800, borderColor: C.hair }}>
+    <div className="qp-panel-card mt-3" style={{ background: "var(--surface-bg, transparent)", borderColor: palette.borderColor }}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.14em]" style={{ color: C.textMuted }}>
           <LayoutGrid size={13} />

@@ -21,6 +21,22 @@ function withAlpha(hex, alphaHex) {
   return `${hex.startsWith("#") ? hex : `#${hex}`}${alphaHex}`;
 }
 
+function hexToRgb(hex) {
+  if (typeof hex !== "string" || !/^#?[0-9a-f]{6}$/i.test(hex)) return null;
+  const clean = hex.replace("#", "");
+  return {
+    r: parseInt(clean.slice(0, 2), 16),
+    g: parseInt(clean.slice(2, 4), 16),
+    b: parseInt(clean.slice(4, 6), 16),
+  };
+}
+
+function isLightHex(hex) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return false;
+  return (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 180;
+}
+
 function normalizeSchedule(schedule) {
   const source = schedule && typeof schedule === "object" ? schedule : {};
   const sourceEntries = Array.isArray(source.entries) && source.entries.length
@@ -202,7 +218,11 @@ export function DeskConsoleCard({
   };
   const mutedColor = withAlpha(surfaceTheme.fontColor, "80");
   const faintColor = withAlpha(surfaceTheme.fontColor, "55");
-  const subtleBackground = withAlpha(surfaceTheme.fontColor, "08");
+  const isLightSurface = isLightHex(surfaceTheme.bgColor);
+  const cardBackground = surfaceTheme.bgColor;
+  const cardShadow = isLightSurface
+    ? "0 16px 36px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06)"
+    : `0 12px 30px ${withAlpha(surfaceTheme.bgColor, "22")}`;
   const controlBackground = withAlpha(surfaceTheme.fontColor, "12");
   const primaryBg = isOnBreak && !d.current
     ? "#8B919C"
@@ -381,13 +401,21 @@ export function DeskConsoleCard({
         <div className="flex flex-col gap-4">
           {t ? (
             <div
-              className={`qp-desk-ticket-frame ${d.current?.startedAt ? "qp-serving" : ""} ${isOnBreak && !d.current ? "qp-desk-ticket-frame--break" : ""}`}
+              className={`qp-desk-ticket-frame ${isOnBreak && !d.current ? "qp-desk-ticket-frame--break" : ""}`}
               style={{
                 "--qp-desk-accent": surfaceTheme.accentColor,
                 "--qp-desk-status-accent": primaryBg,
+                "--qp-desk-details-bg": cardBackground,
+                "--qp-desk-details-text": surfaceTheme.fontColor,
+                "--qp-desk-details-muted": mutedColor,
+                "--qp-desk-details-faint": faintColor,
+                "--qp-desk-details-border": withAlpha(surfaceTheme.borderColor, "88"),
+                "--qp-desk-details-action-bg": cardBackground,
+                "--qp-desk-frame-bg": cardBackground,
+                "--qp-desk-frame-shadow": cardShadow,
                 "--qp-ticket-side-bg": primaryBg,
                 "--qp-desk-radius": `${surfaceTheme.radius * 1.2}px`,
-                borderColor: surfaceTheme.borderColor,
+                borderColor: "transparent",
               }}
             >
               <div className="qp-desk-ticket-main">
@@ -455,9 +483,17 @@ export function DeskConsoleCard({
               style={{
                 "--qp-desk-accent": surfaceTheme.accentColor,
                 "--qp-desk-status-accent": primaryBg,
+                "--qp-desk-details-bg": cardBackground,
+                "--qp-desk-details-text": surfaceTheme.fontColor,
+                "--qp-desk-details-muted": mutedColor,
+                "--qp-desk-details-faint": faintColor,
+                "--qp-desk-details-border": withAlpha(surfaceTheme.borderColor, "88"),
+                "--qp-desk-details-action-bg": cardBackground,
+                "--qp-desk-frame-bg": cardBackground,
+                "--qp-desk-frame-shadow": cardShadow,
                 "--qp-ticket-side-bg": primaryBg,
                 "--qp-desk-radius": `${surfaceTheme.radius * 1.2}px`,
-                borderColor: surfaceTheme.borderColor,
+                borderColor: "transparent",
               }}
             >
               <div className="qp-desk-ticket-main">
@@ -499,8 +535,10 @@ export function DeskConsoleCard({
             <div
               className="qp-desk-ticket-frame"
               style={{
-                background: subtleBackground,
-                borderColor: surfaceTheme.borderColor,
+                background: cardBackground,
+                "--qp-desk-frame-bg": cardBackground,
+                "--qp-desk-frame-shadow": cardShadow,
+                borderColor: "transparent",
                 borderRadius: surfaceTheme.radius * 1.2,
               }}
             >

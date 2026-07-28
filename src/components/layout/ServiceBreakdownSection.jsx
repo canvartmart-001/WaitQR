@@ -4,6 +4,7 @@ import { C } from "../../lib/theme";
 
 export function ServiceBreakdownSection({
   embedded = false,
+  theme,
   services,
   desks,
   serviceWord,
@@ -17,6 +18,11 @@ export function ServiceBreakdownSection({
   servedByDeskService,
   absentByDeskService,
 }) {
+  const palette = theme || {
+    bgColor: C.ink800,
+    fontColor: C.textLight,
+    borderColor: C.hair,
+  };
   const [expandedService, setExpandedService] = useState(null);
   const content = (
     <>
@@ -40,9 +46,9 @@ export function ServiceBreakdownSection({
               }))
               .filter((r) => r.served > 0 || r.absent > 0);
             return (
-              <div key={s.id} className="rounded-lg border" style={{ borderColor: C.ink700 }}>
+              <div key={s.id} className="rounded-lg border" style={{ borderColor: palette.borderColor, background: "var(--surface-bg, transparent)" }}>
                 <button type="button" onClick={() => setExpandedService(isOpen ? null : s.id)} className="qp-focusable w-full flex flex-col gap-1.5 px-3 py-2.5 text-left">
-                  <span className="text-sm font-medium flex items-center gap-1.5 min-w-0 truncate" style={{ color: C.textLight }}>
+                  <span className="text-sm font-medium flex items-center gap-1.5 min-w-0 truncate" style={{ color: palette.fontColor }}>
                     {s.name}
                     {isOpen ? <ChevronDown size={14} style={{ color: C.textFaint }} /> : <ChevronRight size={14} style={{ color: C.textFaint }} />}
                   </span>
@@ -54,7 +60,7 @@ export function ServiceBreakdownSection({
                   </span>
                 </button>
                 {isOpen && (
-                  <div className="px-3 pb-3 pt-1 border-t flex flex-col gap-1" style={{ borderColor: C.ink700 }}>
+                  <div className="px-3 pb-3 pt-1 border-t flex flex-col gap-1" style={{ borderColor: palette.borderColor }}>
                     {deskRows.length === 0 && removed === 0 ? (
                       <div className="text-xs py-1" style={{ color: C.textFaint }}>
                         No {deskWordLower} activity yet for this {serviceWordLower}.
@@ -93,7 +99,7 @@ export function ServiceBreakdownSection({
   if (embedded) return content;
 
   return (
-    <div className="qp-panel-card mt-3" style={{ background: C.ink800, borderColor: C.hair }}>
+    <div className="qp-panel-card mt-3" style={{ background: "var(--surface-bg, transparent)", borderColor: palette.borderColor }}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.14em]" style={{ color: C.textMuted }}>
           <Tag size={13} />

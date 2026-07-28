@@ -26,8 +26,8 @@ export function StatsStrip({ joinedToday, totalServed, servedDeskCount, servedDe
         {stats.map((s) => (
           <div
             key={s.label}
-            className="flex min-w-0 items-center gap-3 border bg-white/5 p-4"
-            style={{ borderColor: palette.borderColor, borderRadius: palette.radius * 1.2 }}
+            className="flex min-w-0 items-center gap-3 border p-4"
+            style={{ borderColor: palette.borderColor, background: "var(--surface-bg, transparent)", borderRadius: palette.radius * 1.2 }}
           >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ background: withAlpha(s.color, "1f") }}>
               <s.icon size={16} style={{ color: s.color }} />

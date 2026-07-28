@@ -316,7 +316,7 @@ function SectionCard({ icon: Icon, iconBg, title, children, fontColor, borderCol
   const items = Children.toArray(children);
 
   return (
-    <section className="border bg-white/5 p-4" style={{ borderColor, borderRadius: radius * 1.4 }}>
+    <section className="border p-4" style={{ borderColor, backgroundColor: "var(--surface-bg, transparent)", borderRadius: radius * 1.4 }}>
       <div className="mb-2 flex items-center gap-3">
         <div className="flex h-9 w-9 items-center justify-center" style={{ backgroundColor: iconBg, borderRadius: radius }}>
           <Icon size={18} className="text-white" />

@@ -23,6 +23,42 @@ function withAlpha(hex, alphaHex) {
   return `${hex}${alphaHex}`;
 }
 
+function hexToRgb(hex) {
+  if (!hex || hex.length !== 7) return null;
+  const clean = hex.slice(1);
+  return {
+    r: parseInt(clean.slice(0, 2), 16),
+    g: parseInt(clean.slice(2, 4), 16),
+    b: parseInt(clean.slice(4, 6), 16),
+  };
+}
+
+function rgbToHex({ r, g, b }) {
+  return `#${[r, g, b].map((value) => Math.round(value).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function mixHex(from, to, amount) {
+  const a = hexToRgb(from);
+  const b = hexToRgb(to);
+  if (!a || !b) return from;
+  return rgbToHex({
+    r: a.r + (b.r - a.r) * amount,
+    g: a.g + (b.g - a.g) * amount,
+    b: a.b + (b.b - a.b) * amount,
+  });
+}
+
+function isLightHex(hex) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return false;
+  return (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 180;
+}
+
+function mutedPageBackground(bgColor, accentColor) {
+  if (!isLightHex(bgColor)) return mixHex(bgColor, "#000000", 0.45);
+  return mixHex(mixHex(bgColor, accentColor || bgColor, 0.035), "#94a3b8", 0.08);
+}
+
 function resolveThemeMode(themeMode) {
   if (themeMode === "System") {
     return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "Dark" : "Light";
@@ -201,9 +237,10 @@ function ProfileMenu({ member, masterLoggedIn, accentColor, fontColor, borderCol
   );
 }
 
-function Sidebar({ variant, open, onClose, currentPage, onNavigate, theme, collapsed, onToggleCollapse }) {
+function Sidebar({ variant, open, onClose, currentPage, onNavigate, theme, collapsed, onToggleCollapse, pageBgColor }) {
   const { accentColor, fontColor, bgColor, radius, logoUrl } = theme;
   const isCollapsed = variant === "desktop" && collapsed;
+  const sidebarBgColor = pageBgColor || bgColor;
 
   const handleNavClick = (item) => {
     if (item.path) onNavigate(item.path);
@@ -317,7 +354,7 @@ function Sidebar({ variant, open, onClose, currentPage, onNavigate, theme, colla
         <aside
           className="absolute inset-0 flex h-full w-full flex-col p-4 transition-transform duration-200"
           style={{
-            backgroundColor: bgColor,
+            backgroundColor: sidebarBgColor,
             transform: open ? "translateX(0)" : "translateX(-100%)",
           }}
         >
@@ -330,7 +367,7 @@ function Sidebar({ variant, open, onClose, currentPage, onNavigate, theme, colla
   return (
     <aside
       className="sticky top-0 hidden h-screen shrink-0 flex-col overflow-hidden p-3 transition-[width] duration-200 md:flex"
-      style={{ backgroundColor: bgColor, width: isCollapsed ? 64 : 220 }}
+      style={{ backgroundColor: sidebarBgColor, width: isCollapsed ? 64 : 220 }}
     >
       {content}
     </aside>
@@ -416,9 +453,10 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
   const meta = ADMIN_PAGE_META[currentPage] || ADMIN_PAGE_META.dashboard;
   const PageIcon = meta.icon;
   const content = typeof children === "function" ? children(theme) : children;
+  const pageBgColor = mutedPageBackground(bgColor, accentColor);
 
   return (
-    <div className="flex min-h-screen w-full" style={{ backgroundColor: bgColor, color: fontColor }}>
+    <div className="flex min-h-screen w-full" style={{ backgroundColor: pageBgColor, color: fontColor, "--surface-bg": bgColor }}>
       <Sidebar
         variant="desktop"
         currentPage={currentPage}
@@ -426,6 +464,7 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
         theme={theme}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((value) => !value)}
+        pageBgColor={pageBgColor}
       />
       <Sidebar
         variant="mobile"
@@ -434,12 +473,13 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
         currentPage={currentPage}
         onNavigate={onNavigate}
         theme={theme}
+        pageBgColor={pageBgColor}
       />
 
-      <main className="min-w-0 flex-1">
+      <main className="min-w-0 flex-1" style={{ backgroundColor: pageBgColor }}>
         <div
           className="sticky top-0 z-10 flex items-center justify-between gap-3 px-2.5 py-2.5 sm:px-6 sm:py-5 md:pl-10 md:pr-6"
-          style={{ backgroundColor: bgColor }}
+          style={{ backgroundColor: pageBgColor }}
         >
           <div className="min-w-0">
             <button

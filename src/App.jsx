@@ -2193,10 +2193,11 @@ export default function App() {
         <>
           <main className="flex-1 min-h-0 w-full px-2.5 pb-2.5 sm:px-6 sm:pb-6 md:pl-10 md:pr-6">
             <section
-              className="overflow-visible border bg-white/5 p-4"
+              className="overflow-visible border p-4"
               style={{
                 minHeight: `${DASHBOARD_BREAKDOWN_MIN_HEIGHT}px`,
                 borderColor: adminTheme.borderColor,
+                background: "var(--surface-bg, transparent)",
                 borderRadius: adminTheme.radius * 1.4,
               }}
             >

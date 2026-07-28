@@ -15,7 +15,6 @@ export function AbsentTab({ filteredAbsent, desks = [], now, serviceName, recall
   };
   const mutedColor = withAlpha(surfaceTheme.fontColor, "80");
   const faintColor = withAlpha(surfaceTheme.fontColor, "55");
-  const rowBackground = withAlpha(surfaceTheme.fontColor, "08");
 
   if (filteredAbsent.length === 0) {
     return (
@@ -39,14 +38,13 @@ export function AbsentTab({ filteredAbsent, desks = [], now, serviceName, recall
           surfaceTheme={surfaceTheme}
           mutedColor={mutedColor}
           faintColor={faintColor}
-          rowBackground={rowBackground}
         />
       ))}
     </div>
   );
 }
 
-function AbsentRow({ ticket: t, desks, now, serviceName, recallAbsent, removeAbsent, askConfirm, surfaceTheme, mutedColor, faintColor, rowBackground }) {
+function AbsentRow({ ticket: t, desks, now, serviceName, recallAbsent, removeAbsent, askConfirm, surfaceTheme, mutedColor, faintColor }) {
   const recallDesk = desks.find((desk) => String(desk.id) === String(t.skippedFromDesk));
   const recallDisabled = !recallAbsent || !recallDesk;
   const confirmRemove = () => {
@@ -59,7 +57,7 @@ function AbsentRow({ ticket: t, desks, now, serviceName, recallAbsent, removeAbs
   };
 
   return (
-    <div className="rounded-lg px-3 py-3 border" style={{ borderColor: surfaceTheme.borderColor, background: rowBackground, borderRadius: surfaceTheme.radius }}>
+    <div className="rounded-lg px-3 py-3 border" style={{ borderColor: surfaceTheme.borderColor, background: "transparent", borderRadius: surfaceTheme.radius }}>
       <div className="flex items-start gap-3 mb-2">
         <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: C.coralSoft }}>
           <X size={16} style={{ color: C.coral }} />

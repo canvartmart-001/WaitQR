@@ -15,7 +15,6 @@ export function ServedTab({ filteredServed, now, serviceName, desks, deskWord, r
   };
   const mutedColor = withAlpha(surfaceTheme.fontColor, "80");
   const faintColor = withAlpha(surfaceTheme.fontColor, "55");
-  const rowBackground = withAlpha(surfaceTheme.fontColor, "08");
 
   if (filteredServed.length === 0) {
     return (
@@ -39,14 +38,13 @@ export function ServedTab({ filteredServed, now, serviceName, desks, deskWord, r
           surfaceTheme={surfaceTheme}
           mutedColor={mutedColor}
           faintColor={faintColor}
-          rowBackground={rowBackground}
         />
       ))}
     </div>
   );
 }
 
-function ServedRow({ entry: e, now, serviceName, desks, deskWord, recallServed, askConfirm, surfaceTheme, mutedColor, faintColor, rowBackground }) {
+function ServedRow({ entry: e, now, serviceName, desks, deskWord, recallServed, askConfirm, surfaceTheme, mutedColor, faintColor }) {
   const recallDesk = desks.find((desk) => String(desk.id) === String(e.deskId));
   const recallDisabled = !recallServed || !recallDesk;
   const servedByName = e.servedByMemberName || "";
@@ -65,7 +63,7 @@ function ServedRow({ entry: e, now, serviceName, desks, deskWord, recallServed, 
   };
 
   return (
-    <div className="rounded-lg px-3 py-3 border" style={{ borderColor: surfaceTheme.borderColor, background: rowBackground, borderRadius: surfaceTheme.radius }}>
+    <div className="rounded-lg px-3 py-3 border" style={{ borderColor: surfaceTheme.borderColor, background: "transparent", borderRadius: surfaceTheme.radius }}>
       <div className="flex items-start gap-3">
         <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: C.tealSoft }}>
           <Check size={16} style={{ color: C.teal }} />

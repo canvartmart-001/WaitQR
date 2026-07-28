@@ -14,7 +14,6 @@ export function ServiceTab({ selectedDesk, services = [], servedByDeskService = 
   };
   const faintColor = withAlpha(surfaceTheme.fontColor, "55");
   const mutedColor = withAlpha(surfaceTheme.fontColor, "80");
-  const rowBackground = withAlpha(surfaceTheme.fontColor, "08");
   const assignedServices = selectedDesk
     ? services.filter((service) => (selectedDesk.services || []).map(String).includes(String(service.id)))
     : services;
@@ -44,7 +43,7 @@ export function ServiceTab({ selectedDesk, services = [], servedByDeskService = 
           <div
             key={service.id}
             className="rounded-lg border px-3 py-3"
-            style={{ borderColor: surfaceTheme.borderColor, background: rowBackground, borderRadius: surfaceTheme.radius }}
+            style={{ borderColor: surfaceTheme.borderColor, background: "transparent", borderRadius: surfaceTheme.radius }}
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex min-w-0 flex-1 items-center">
@@ -62,7 +61,7 @@ export function ServiceTab({ selectedDesk, services = [], servedByDeskService = 
                     <div
                       key={stat.label}
                       className="rounded-md border px-2.5 py-2"
-                      style={{ borderColor: withAlpha(surfaceTheme.borderColor, "80"), background: withAlpha(surfaceTheme.fontColor, "06"), borderRadius: surfaceTheme.radius }}
+                      style={{ borderColor: withAlpha(surfaceTheme.borderColor, "80"), background: "transparent", borderRadius: surfaceTheme.radius }}
                     >
                       <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.12em]" style={{ color: mutedColor }}>
                         <Icon size={12} style={{ color: stat.color }} />

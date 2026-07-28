@@ -68,6 +68,7 @@ export function BreakdownTabsSection({
   const activePanel = activeTab === "desks" ? (
     <DeskBreakdownSection
       embedded
+      theme={palette}
       desks={desks}
       members={members}
       services={services}
@@ -96,6 +97,7 @@ export function BreakdownTabsSection({
   ) : (
     <ServiceBreakdownSection
       embedded
+      theme={palette}
       services={services}
       desks={desks}
       serviceWord={labels.serviceWord}
@@ -175,7 +177,7 @@ export function BreakdownTabsSection({
   if (embedded) return <div className="min-w-0 h-full">{content}</div>;
 
   return (
-    <div className="qp-panel-card mt-3" style={{ background: "rgba(255,255,255,0.05)", borderColor: palette.borderColor }}>
+    <div className="qp-panel-card mt-3" style={{ background: "var(--surface-bg, transparent)", borderColor: palette.borderColor }}>
       {content}
     </div>
   );

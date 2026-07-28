@@ -16,7 +16,6 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
   };
   const mutedColor = withAlpha(surfaceTheme.fontColor, "80");
   const faintColor = withAlpha(surfaceTheme.fontColor, "55");
-  const rowBackground = withAlpha(surfaceTheme.fontColor, "08");
   const nextCallableId = queuedWaiting[0]?.id || null;
 
   if (filteredWaiting.length === 0) {
@@ -37,7 +36,7 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
           className="flex items-start gap-3 rounded-lg border px-3 py-3"
           style={{
             borderColor: surfaceTheme.borderColor,
-            background: rowBackground,
+            background: "transparent",
             borderRadius: surfaceTheme.radius,
           }}
         >

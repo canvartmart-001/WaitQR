@@ -38,7 +38,7 @@ export function AdminSettingsPage({ theme, defaultAppearance, onSaveSettings, on
   };
 
   return (
-    <div style={{ "--field-bg": "rgba(255,255,255,0.04)" }}>
+    <div style={{ "--field-bg": "var(--surface-bg)" }}>
       <AdminSettingsContent
         s={{
           ...settings,
