@@ -1,6 +1,7 @@
 import { BriefcaseBusiness, Check, KeyRound, LayoutDashboard, LogIn, LogOut, Mail, Pencil, Phone, Monitor, Moon, Sun, Upload, UserRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { readImageFile } from "../../lib/imageUpload";
+import { normalizeMemberRole } from "../../lib/assignments";
 import { getDeskPath, getMemberProfilePath } from "../../lib/routing";
 import { NotificationMenu } from "../shared/NotificationMenu";
 
@@ -175,7 +176,7 @@ export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members,
   const ref = useRef(null);
   const activeMember = loggedInMember || null;
   const signedIn = Boolean(activeMember || masterLoggedIn);
-  const canVisitDashboard = Boolean(masterLoggedIn || activeMember?.role === "Administrator");
+  const canVisitDashboard = Boolean(masterLoggedIn || normalizeMemberRole(activeMember?.role) === "Administrator");
   const displayName = activeMember?.name || (masterLoggedIn ? "Development Access" : "Account");
   const displayRole = activeMember ? displayRoleName(activeMember.role) : masterLoggedIn ? "Master login" : "Login required";
   const logoUrl = theme.logoUrl;

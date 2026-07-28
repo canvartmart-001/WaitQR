@@ -1187,21 +1187,23 @@ export default function App() {
   const settingsDirty = settingsLoaded && settingsSaveReady && settingsPayloadSignature !== lastSavedSettingsSignature;
   const [loggedInMember, setLoggedInMemberState] = useState(null);
   const [masterLoggedIn, setMasterLoggedInState] = useState(() => isMasterLoggedIn());
-  const activeLoggedInMember = loggedInMember || findLoggedInMember(memberHooks.members);
+  const storedLoggedInMember = findLoggedInMember(memberHooks.members);
+  const activeLoggedInMember = storedLoggedInMember || null;
+  const activeMasterLoggedIn = Boolean(!activeLoggedInMember && (masterLoggedIn || isMasterLoggedIn()));
+  const activeMemberRole = normalizeMemberRole(activeLoggedInMember?.role);
   const activeAppearanceSettings = useMemo(
     () => resolveMemberAppearance(appearanceSettings, activeLoggedInMember),
     [activeLoggedInMember, appearanceSettings]
   );
-  const authenticated = Boolean(activeLoggedInMember || masterLoggedIn || isMasterLoggedIn());
-  const adminAuthenticated = Boolean(masterLoggedIn || isMasterLoggedIn() || normalizeMemberRole(activeLoggedInMember?.role) === "Administrator");
+  const authenticated = Boolean(activeLoggedInMember || activeMasterLoggedIn);
+  const adminAuthenticated = Boolean(activeMasterLoggedIn || activeMemberRole === "Administrator");
   const visibleCounterNotifications = useMemo(() => {
     if (!authenticated) return [];
-    const activeMasterLogin = Boolean(masterLoggedIn || isMasterLoggedIn());
     return counterNotifications.filter((item) => {
       const desk = desks.find((deskItem) => String(deskItem.id) === String(item.deskId)) || { id: item.deskId };
-      return canReceiveCounterNotification({ member: activeLoggedInMember, masterLoggedIn: activeMasterLogin, desk });
+      return canReceiveCounterNotification({ member: activeLoggedInMember, masterLoggedIn: activeMasterLoggedIn, desk });
     });
-  }, [activeLoggedInMember, authenticated, counterNotifications, desks, masterLoggedIn]);
+  }, [activeLoggedInMember, activeMasterLoggedIn, authenticated, counterNotifications, desks]);
 
   const markCounterNotificationsRead = (notificationIds = []) => {
     const ids = new Set((Array.isArray(notificationIds) ? notificationIds : []).map(String));
@@ -1234,9 +1236,9 @@ export default function App() {
   useEffect(() => {
     counterNotificationContextRef.current = {
       member: activeLoggedInMember || null,
-      masterLoggedIn: Boolean(masterLoggedIn || isMasterLoggedIn()),
+      masterLoggedIn: activeMasterLoggedIn,
     };
-  }, [activeLoggedInMember, masterLoggedIn]);
+  }, [activeLoggedInMember, activeMasterLoggedIn]);
 
   useEffect(() => {
     storeCounterNotifications(counterNotifications);
@@ -1285,6 +1287,13 @@ export default function App() {
       window.removeEventListener(MEMBER_SESSION_CHANGED_EVENT, refreshLoggedInMember);
     };
   }, [memberHooks.members]);
+
+  useEffect(() => {
+    if (!activeLoggedInMember || !isMasterLoggedIn()) return;
+
+    setMasterLoggedIn(false);
+    setMasterLoggedInState(false);
+  }, [activeLoggedInMember]);
 
   useEffect(() => {
     updateMobileThemeColor(activeAppearanceSettings);
@@ -1366,7 +1375,7 @@ export default function App() {
 
   const logoutMember = () => {
     if (activeLoggedInMember) setMemberLoggedIn(activeLoggedInMember.id, false);
-    if (masterLoggedIn || isMasterLoggedIn()) setMasterLoggedIn(false);
+    if (activeMasterLoggedIn) setMasterLoggedIn(false);
     setCounterNotifications([]);
     setLoggedInMemberState(null);
     setMasterLoggedInState(false);
@@ -1413,7 +1422,7 @@ export default function App() {
       id: currentDesk.id ?? deskId,
       changedBy: activeLoggedInMember
         ? { id: activeLoggedInMember.id, name: activeLoggedInMember.name, role: activeLoggedInMember.role }
-        : masterLoggedIn || isMasterLoggedIn()
+        : activeMasterLoggedIn
           ? { role: "master", name: "Master login" }
           : null,
       current: null,
@@ -1435,7 +1444,7 @@ export default function App() {
             changedBy: nextDesk.changedBy,
             changedAt: result.changedAt,
           },
-          { member: activeLoggedInMember, masterLoggedIn: Boolean(masterLoggedIn || isMasterLoggedIn()) }
+          { member: activeLoggedInMember, masterLoggedIn: activeMasterLoggedIn }
         );
         if (notification) {
           setCounterNotifications((items) => mergeCounterNotification(items, notification));
@@ -1943,7 +1952,7 @@ export default function App() {
           theme={activeAppearanceSettings}
           loading={!settingsLoaded}
           loggedInMember={activeLoggedInMember}
-          masterLoggedIn={masterLoggedIn}
+          masterLoggedIn={activeMasterLoggedIn}
           members={memberHooks.members}
           notifications={visibleCounterNotifications}
           onClearNotifications={confirmClearCounterNotifications}
@@ -1957,7 +1966,7 @@ export default function App() {
         <div className="flex min-h-screen w-full flex-col" style={{ backgroundColor: activeAppearanceSettings.bgColor, color: activeAppearanceSettings.fontColor }}>
           <ProfileHeader
             loggedInMember={activeLoggedInMember}
-            masterLoggedIn={masterLoggedIn}
+            masterLoggedIn={activeMasterLoggedIn}
             members={memberHooks.members}
             theme={activeAppearanceSettings}
             notifications={visibleCounterNotifications}
@@ -1977,7 +1986,7 @@ export default function App() {
         <div className="flex min-h-screen w-full flex-col" style={{ backgroundColor: activeAppearanceSettings.bgColor, color: activeAppearanceSettings.fontColor }}>
           <ProfileHeader
             loggedInMember={activeLoggedInMember}
-            masterLoggedIn={masterLoggedIn}
+            masterLoggedIn={activeMasterLoggedIn}
             members={memberHooks.members}
             theme={activeAppearanceSettings}
             notifications={visibleCounterNotifications}
@@ -2012,7 +2021,7 @@ export default function App() {
           theme={activeAppearanceSettings}
           loading={!settingsLoaded}
           loggedInMember={activeLoggedInMember}
-          masterLoggedIn={masterLoggedIn}
+          masterLoggedIn={activeMasterLoggedIn}
           members={memberHooks.members}
           notifications={visibleCounterNotifications}
           onClearNotifications={confirmClearCounterNotifications}
@@ -2056,7 +2065,7 @@ export default function App() {
           onAppearanceChange={setAppearanceSettings}
           onThemeChange={handleActiveThemeChange}
           loggedInMember={activeLoggedInMember}
-          masterLoggedIn={masterLoggedIn}
+          masterLoggedIn={activeMasterLoggedIn}
           members={memberHooks.members}
           notifications={visibleCounterNotifications}
           onClearNotifications={confirmClearCounterNotifications}
@@ -2100,7 +2109,7 @@ export default function App() {
           theme={adminTheme}
           loading={!settingsLoaded}
           loggedInMember={activeLoggedInMember}
-          masterLoggedIn={masterLoggedIn}
+          masterLoggedIn={activeMasterLoggedIn}
           members={memberHooks.members}
           notifications={visibleCounterNotifications}
           onClearNotifications={confirmClearCounterNotifications}
