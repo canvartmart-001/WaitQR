@@ -435,6 +435,8 @@ export function MemberProfilePage({ member, desks, services, labels, theme, load
         notifications={notifications}
         onClearNotifications={onClearNotifications}
         onMarkNotificationsRead={onMarkNotificationsRead}
+        subtitle={null}
+        fullWidth
         onThemeChange={handleThemeChange}
         onNavigate={onNavigate}
         onLogout={onLogout}
