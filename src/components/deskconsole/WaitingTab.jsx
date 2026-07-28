@@ -42,12 +42,11 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
           }}
         >
           <div
-            className="qp-ticket-face flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-xl font-semibold leading-none"
+            className="qp-ticket-face flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-semibold leading-none"
             style={{
               fontFamily: "'Inter', 'Segoe UI', sans-serif",
               color: C.blue,
-              borderColor: surfaceTheme.borderColor,
-              background: withAlpha(surfaceTheme.accentColor, "1f"),
+              background: C.blueSoft,
               fontVariantNumeric: "tabular-nums",
             }}
           >

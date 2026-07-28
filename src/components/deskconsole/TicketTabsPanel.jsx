@@ -79,7 +79,7 @@ export function TicketTabsPanel({
     { key: "waiting", label: "Waiting", count: waitingCount, countColor: C.blue },
     { key: "absent", label: "Absent", count: filteredAbsent.length, countColor: C.coral },
     { key: "served", label: "Served", count: filteredServed.length, countColor: C.teal },
-    { key: "service", label: "Service", count: filteredServices.length, countColor: surfaceTheme.accentColor },
+    { key: "service", label: "Service", count: filteredServices.length, countColor: C.teal },
   ];
   const activeTab = tabs.find((tab) => tab.key === deskDetailTab) || tabs[0];
   const searchPlaceholder = {
