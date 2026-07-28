@@ -458,9 +458,6 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
                 style={{ color: withAlpha(fontColor, "80"), transform: mobileNavOpen ? "rotate(90deg)" : "none" }}
               />
             </button>
-            <p className="mt-0.5 hidden text-sm sm:block" style={{ color: withAlpha(fontColor, "80") }}>
-              {meta.subtitle}
-            </p>
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-4">

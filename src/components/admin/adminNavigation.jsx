@@ -29,7 +29,7 @@ export const ADMIN_PAGE_META = {
   dashboard: { title: "Dashboard", subtitle: "Monitor queue activity and operations.", icon: LayoutDashboard },
   analytics: { title: "Analytics", subtitle: "Analyze ticket status, queue movement, and live demand trends.", icon: BarChart3 },
   counters: { title: "Counters", subtitle: "Manage counters and their assigned services.", icon: ListOrdered },
-  desk: { title: "Counter Console", subtitle: "Call, serve, skip, and complete tickets.", icon: ListOrdered },
+  desk: { title: "Counters", subtitle: "Call, serve, skip, and complete tickets.", icon: ListOrdered },
   live: { title: "Live Board", subtitle: "Public queue display view.", icon: Monitor },
   services: { title: "Services", subtitle: "Create service lines and assign them to counters.", icon: Layers3 },
   members: { title: "Members", subtitle: "Manage member profiles and counter access.", icon: Users },
