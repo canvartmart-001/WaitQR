@@ -75,6 +75,13 @@ export function TicketTabsPanel({
   };
   const faintColor = withAlpha(surfaceTheme.fontColor, "55");
   const activeTabBackground = withAlpha(surfaceTheme.fontColor, "12");
+  const tabs = [
+    { key: "waiting", label: "Waiting", count: waitingCount, countColor: C.blue },
+    { key: "absent", label: "Absent", count: filteredAbsent.length, countColor: C.coral },
+    { key: "served", label: "Served", count: filteredServed.length, countColor: C.teal },
+    { key: "service", label: "Service", count: filteredServices.length, countColor: surfaceTheme.accentColor },
+  ];
+  const activeTab = tabs.find((tab) => tab.key === deskDetailTab) || tabs[0];
   const searchPlaceholder = {
     waiting: "Search waiting",
     absent: "Search absent",
@@ -90,42 +97,14 @@ export function TicketTabsPanel({
         : <ServiceTab selectedDesk={selectedDesk} services={filteredServices} servedByDeskService={servedByDeskService} absentByDeskService={absentByDeskService} removedByDeskService={removedByDeskService} serviceWordPluralLower={serviceWordPluralLower} theme={surfaceTheme} />;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="qp-tab-search-wrap relative w-full min-w-0 sm:w-auto sm:min-w-[11rem] sm:flex-1 sm:max-w-[16rem]">
-          <Search size={15} strokeWidth={2} className="qp-tab-search-icon pointer-events-none absolute" style={{ color: faintColor }} />
-          <input
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder={searchPlaceholder}
-            className="qp-tab-search h-9 w-full rounded-md border-0 text-sm outline-none"
-            style={{ background: activeTabBackground, color: surfaceTheme.fontColor, borderRadius: surfaceTheme.radius }}
-          />
-          {searchTerm ? (
-            <button
-              type="button"
-              onClick={() => setSearchTerm("")}
-              className="qp-focusable qp-tab-search-clear absolute flex h-5 w-5 items-center justify-center rounded-md"
-              style={{ color: faintColor }}
-              title="Clear search"
-              aria-label="Clear search"
-            >
-              <X size={13} />
-            </button>
-          ) : null}
-        </div>
-
-        <div className="mt-1 grid w-full grid-cols-4 gap-1.5 sm:mt-0 sm:ml-auto sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
-          {[
-            { key: "waiting", label: "Waiting", count: waitingCount, countColor: C.blue },
-            { key: "absent", label: "Absent", count: filteredAbsent.length, countColor: C.coral },
-            { key: "served", label: "Served", count: filteredServed.length, countColor: C.teal },
-            { key: "service", label: "Service", count: filteredServices.length, countColor: surfaceTheme.accentColor },
-          ].map((tab) => (
+    <div className="qp-ticket-tabs-panel flex h-full min-h-0 flex-col">
+      <div className="qp-ticket-tabs-header mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="grid w-full grid-cols-4 gap-1.5 sm:w-auto sm:flex sm:flex-wrap sm:items-center sm:justify-start">
+          {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setDeskDetailTab(tab.key)}
-              className="qp-focusable inline-flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 px-2.5 py-2 text-xs font-medium transition-colors hover:bg-white/5 sm:h-8 sm:min-h-0 sm:flex-row sm:gap-1.5 sm:px-3 sm:py-0"
+              className="qp-focusable inline-flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-medium transition-colors hover:bg-white/5 sm:h-8 sm:min-h-0 sm:flex-row sm:gap-1.5 sm:px-3 sm:py-0"
               style={{
                 background: deskDetailTab === tab.key ? activeTabBackground : "transparent",
                 color: deskDetailTab === tab.key ? surfaceTheme.fontColor : faintColor,
@@ -139,9 +118,38 @@ export function TicketTabsPanel({
             </button>
           ))}
         </div>
+
+        <div className="qp-tab-search-wrap relative w-full min-w-0 sm:ml-auto sm:w-auto sm:min-w-[11rem] sm:flex-1 sm:max-w-[16rem]">
+          <Search size={15} strokeWidth={2} className="qp-tab-search-icon pointer-events-none absolute" style={{ color: activeTab.countColor }} />
+          <input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder={searchPlaceholder}
+            className="qp-tab-search h-9 w-full rounded-md border text-sm outline-none"
+            style={{
+              "--qp-tab-search-focus-border": withAlpha(activeTab.countColor, "99"),
+              background: activeTabBackground,
+              borderColor: "transparent",
+              color: surfaceTheme.fontColor,
+              borderRadius: surfaceTheme.radius,
+            }}
+          />
+          {searchTerm ? (
+            <button
+              type="button"
+              onClick={() => setSearchTerm("")}
+              className="qp-focusable qp-tab-search-clear absolute flex h-5 w-5 items-center justify-center rounded-md"
+              style={{ color: activeTab.countColor }}
+              title="Clear search"
+              aria-label="Clear search"
+            >
+              <X size={13} />
+            </button>
+          ) : null}
+        </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden">{activePanel}</div>
+      <div className="qp-ticket-tabs-body min-h-0 flex-1 overflow-hidden">{activePanel}</div>
     </div>
   );
 }

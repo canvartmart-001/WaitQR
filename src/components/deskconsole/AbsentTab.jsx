@@ -25,7 +25,7 @@ export function AbsentTab({ filteredAbsent, desks = [], now, serviceName, recall
     );
   }
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto qp-scroll pr-1 pb-1">
+    <div className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto qp-scroll pb-1">
       {filteredAbsent.map((t) => (
         <AbsentRow
           key={t.id}

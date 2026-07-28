@@ -688,12 +688,25 @@ svg {
   margin-bottom: 12px;
 }
 
+.qp-ticket-tabs-panel {
+  --qp-ticket-tabs-scroll-gutter: 4px;
+}
+
+.qp-ticket-tabs-header {
+  padding-right: var(--qp-ticket-tabs-scroll-gutter);
+}
+
+.qp-ticket-tabs-body {
+  padding-right: var(--qp-ticket-tabs-scroll-gutter);
+}
+
 .qp-tab-search-wrap {
   --qp-tab-search-x: 12px;
   --qp-tab-search-icon: 15px;
 }
 
 .qp-tab-search {
+  display: block;
   line-height: 1.25;
   padding-left: calc(var(--qp-tab-search-x) + var(--qp-tab-search-icon) + 8px);
   padding-right: 34px;
@@ -718,7 +731,8 @@ svg {
 
 .qp-tab-search:focus,
 .qp-tab-search:focus-visible {
-  box-shadow: inset 0 0 0 1px rgba(232, 163, 61, 0.35);
+  border-color: var(--qp-tab-search-focus-border, #E8A33D) !important;
+  box-shadow: none;
 }
 
 .qp-desk-status-icon {

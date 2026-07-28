@@ -27,7 +27,7 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
     );
   }
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto qp-scroll pr-1 pb-1">
+    <div className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto qp-scroll pb-1">
       {filteredWaiting.map((t, i) => {
         const isActive = Boolean(t._activeStatus);
         const canCall = !isActive && selectedDesk && nextCallableId != null && String(t.id) === String(nextCallableId);

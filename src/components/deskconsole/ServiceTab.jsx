@@ -28,7 +28,7 @@ export function ServiceTab({ selectedDesk, services = [], servedByDeskService = 
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto qp-scroll pr-1 pb-1">
+    <div className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto qp-scroll pb-1">
       {assignedServices.map((service) => {
         const key = selectedDesk ? `${selectedDesk.id}|${service.id}` : null;
         const served = key ? servedByDeskService[key] || 0 : 0;

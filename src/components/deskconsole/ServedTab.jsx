@@ -25,7 +25,7 @@ export function ServedTab({ filteredServed, now, serviceName, desks, deskWord, r
     );
   }
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto qp-scroll pr-1 pb-1">
+    <div className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto qp-scroll pb-1">
       {filteredServed.map((e, i) => (
         <ServedRow
           key={`${e.label}-${e.completedAt}-${i}`}
