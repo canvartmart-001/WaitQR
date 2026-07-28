@@ -525,7 +525,7 @@ function CountChip({ icon: Icon, count, label, tooltip, tooltipItems, tooltipSec
   );
 }
 
-function CounterCard({ desk, index, services, members, labels, theme, getDeskPath, onEdit, onDelete }) {
+function CounterCard({ desk, index, services, members, labels, theme, getDeskPath, onNavigate, onEdit, onDelete }) {
   const assignedMembers = assignedMembersForDesk(members, desk.id);
   const serviceMembers = assignedMembers.filter(memberCanBeAssignedToService);
   const assignedServices = services.filter((service) => serviceMembers.some((member) => memberHasService(member, service.id)));
@@ -590,6 +590,11 @@ function CounterCard({ desk, index, services, members, labels, theme, getDeskPat
           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
             <a
               href={getDeskPath(desk)}
+              onClick={(event) => {
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                onNavigate?.(getDeskPath(desk));
+              }}
               className="inline-flex min-w-0 items-center gap-1.5 rounded-sm text-sm font-medium leading-none transition-colors hover:opacity-80"
               style={{ color: theme.fontColor }}
               aria-label={`Open ${COUNTER_WORD_LOWER}`}
@@ -661,6 +666,7 @@ export function AdminCountersPage({
   labels,
   askConfirm,
   getDeskPath,
+  onNavigate,
   deskActions,
   manageUi,
   theme,
@@ -784,6 +790,7 @@ export function AdminCountersPage({
                 labels={labels}
                 theme={formTheme}
                 getDeskPath={getDeskPath}
+                onNavigate={onNavigate}
                 onEdit={() => {
                   setEditingDesk(desk.id);
                   setShowAddDesk(false);

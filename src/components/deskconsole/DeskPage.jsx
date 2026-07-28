@@ -19,13 +19,14 @@ export function DeskPage({
   recallAbsent,
   recallServed,
   askConfirm,
+  adminLayout = false,
 }) {
   const { deskWord, deskWordLower, serviceWord, serviceWordLower, serviceWordPluralLower } = labels;
   const { servedByDeskService, absentByDeskService, removedByDeskService, absentList, sortedServed, removeAbsent } = ticketLogs;
   const queuedCalledTickets = Array.isArray(desk.calledTickets) ? desk.calledTickets : [];
 
   return (
-    <main className="qp-page-shell qp-desk-page-shell">
+    <main className={`qp-page-shell qp-desk-page-shell${adminLayout ? " qp-desk-page-shell-admin" : ""}`}>
       <section className="qp-desk-page-layout">
         <div className="qp-desk-page-counter">
           <DeskConsoleCard

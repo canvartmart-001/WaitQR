@@ -28,7 +28,7 @@ import { MemberProfilePage, ProfileHeader } from "./components/profile/MemberPro
 import { ConfirmDialog } from "./components/modals/ConfirmDialog";
 import { IssueToast } from "./components/shared/IssueToast";
 import { C } from "./lib/theme";
-import { findDeskByPath, findMemberByProfilePath, getDeskPath, getMemberProfilePath, getTicketPath, findTicketLabelByPath } from "./lib/routing";
+import { findDeskByPath, findMemberByProfilePath, getDeskPath, getMemberProfilePath, getTicketPath, findTicketLabelByPath, isCounterDetailPath } from "./lib/routing";
 import { clearSubmissions, listQueueCountEvents, listSubmissions, updateSubmissionStatus } from "./lib/submissionsApi";
 import { cacheSettings, loadSettings, saveSettings, updateDeskStatus } from "./lib/settingsApi";
 import { createRealtimeClient } from "./lib/realtime";
@@ -97,6 +97,35 @@ function CounterPermissionDenied({ desk, member, members, theme, onNavigate }) {
         >
           Go back
         </button>
+      </section>
+    </main>
+  );
+}
+
+function CounterRoutePlaceholder({ loading, theme, onNavigate }) {
+  return (
+    <main className="flex min-h-screen w-full items-center justify-center px-4 py-6" style={{ backgroundColor: theme.bgColor, color: theme.fontColor }}>
+      <section className="w-full max-w-md border bg-white/5 p-5 text-center" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.4 }}>
+        {loading ? (
+          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-current border-t-transparent opacity-70" />
+        ) : (
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: `${theme.accentColor}1f`, color: theme.accentColor }}>
+            <span className="text-lg font-semibold">?</span>
+          </div>
+        )}
+        <h1 className="mt-4 text-xl font-semibold" style={{ color: theme.fontColor }}>
+          {loading ? "Loading counter..." : "Counter not found"}
+        </h1>
+        {!loading ? (
+          <button
+            type="button"
+            onClick={() => onNavigate?.("/counters")}
+            className="mt-5 inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: theme.accentColor, borderRadius: theme.radius }}
+          >
+            Back to counters
+          </button>
+        ) : null}
       </section>
     </main>
   );
@@ -1470,6 +1499,7 @@ export default function App() {
 
   const matchedMemberFromPath = findMemberByProfilePath(pathname, memberHooks.members);
   const memberProfilePathRequested = /^\/members\/[^/]+\/?$/i.test(pathname);
+  const counterDetailPathRequested = isCounterDetailPath(pathname);
   const matchedDeskFromPath = matchedMemberFromPath ? null : findDeskByPath(pathname, desks);
   const ticketLabelFromPath = findTicketLabelByPath(pathname);
 
@@ -1548,7 +1578,7 @@ export default function App() {
           ? "members"
         : pathname === "/settings"
           ? "settings"
-    : activeDesk
+    : activeDesk || counterDetailPathRequested
       ? "desk"
       : "dashboard";
   // The live board is intentionally public for guests to view without a login.
@@ -1873,6 +1903,7 @@ export default function App() {
       recallServed={recallServed}
       askConfirm={askConfirm}
       onNavigate={navigate}
+      adminLayout={adminAuthenticated}
     />
   ) : null;
   return (
@@ -1922,6 +1953,24 @@ export default function App() {
           onLogout={logoutMember}
           onNavigate={navigate}
         />
+      ) : currentPage === "desk" && !activeDesk && !adminAuthenticated ? (
+        <div className="flex min-h-screen w-full flex-col" style={{ backgroundColor: activeAppearanceSettings.bgColor, color: activeAppearanceSettings.fontColor }}>
+          <ProfileHeader
+            loggedInMember={activeLoggedInMember}
+            masterLoggedIn={masterLoggedIn}
+            members={memberHooks.members}
+            theme={activeAppearanceSettings}
+            notifications={visibleCounterNotifications}
+            onClearNotifications={confirmClearCounterNotifications}
+            onMarkNotificationsRead={markCounterNotificationsRead}
+            subtitle={null}
+            fullWidth
+            onThemeChange={handleActiveThemeChange}
+            onNavigate={navigate}
+            onLogout={logoutMember}
+          />
+          <CounterRoutePlaceholder loading={!settingsLoaded} theme={activeAppearanceSettings} onNavigate={navigate} />
+        </div>
       ) : currentPage === "desk" && activeDesk && !canAccessActiveDesk ? (
         <CounterPermissionDenied desk={activeDesk} member={activeLoggedInMember} members={memberHooks.members} theme={activeAppearanceSettings} onNavigate={navigate} />
       ) : currentPage === "desk" && activeDesk && !adminAuthenticated ? (
@@ -2087,6 +2136,7 @@ export default function App() {
           labels={labels}
           askConfirm={askConfirm}
           getDeskPath={getDeskRoute}
+          onNavigate={navigate}
           deskActions={adminDeskActions}
           manageUi={adminManageUi}
           theme={adminTheme}
@@ -2128,8 +2178,8 @@ export default function App() {
           onSaveSettings={saveCurrentSettings}
           onResetQueue={confirmQueueReset}
         />
-      ) : currentPage === "desk" && activeDesk ? (
-        activeDeskPageContent
+      ) : currentPage === "desk" ? (
+        activeDesk ? activeDeskPageContent : <CounterRoutePlaceholder loading={!settingsLoaded} theme={adminTheme} onNavigate={navigate} />
       ) : (
         <>
           <main className="flex-1 min-h-0 w-full px-2.5 pb-2.5 sm:px-6 sm:pb-6 md:pl-10 md:pr-6">

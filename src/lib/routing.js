@@ -22,14 +22,24 @@ export function getDeskSlug(desk, desks) {
 }
 
 export function getDeskPath(desk, desks) {
-  return `/${getDeskSlug(desk, desks)}`;
+  return `/counters/${getDeskSlug(desk, desks)}`;
 }
 
 export function findDeskByPath(pathname, desks) {
-  if (!pathname || pathname === "/" || RESERVED_SLUGS.has(pathname.replace(/^\/+|\/+$/g, "").toLowerCase()) || isTicketLabelPath(pathname)) return null;
+  if (!pathname || pathname === "/" || isTicketLabelPath(pathname)) return null;
 
-  const slug = pathname.replace(/^\/+|\/+$/g, "");
+  const parts = pathname.replace(/^\/+|\/+$/g, "").split("/");
+  const nestedCounterPath = parts.length === 2 && parts[0].toLowerCase() === "counters";
+  const slug = nestedCounterPath ? parts[1] : parts.length === 1 ? parts[0] : "";
+  if (!slug || (!nestedCounterPath && RESERVED_SLUGS.has(slug.toLowerCase()))) return null;
   return desks.find((desk) => getDeskSlug(desk, desks) === slug) || null;
+}
+
+export function isCounterDetailPath(pathname) {
+  if (!pathname) return false;
+
+  const parts = pathname.replace(/^\/+|\/+$/g, "").split("/");
+  return parts.length === 2 && parts[0].toLowerCase() === "counters" && Boolean(parts[1]);
 }
 
 export function getMemberSlug(member, members) {
