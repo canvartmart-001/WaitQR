@@ -1,5 +1,5 @@
-import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { TicketPage } from "./TicketPage";
 
 const ticket = {
@@ -19,6 +19,25 @@ const waitEstimate = {
 };
 
 describe("ticket position progress", () => {
+  it("shows the joined position while the live queue position is loading", () => {
+    const firstTicket = { ...ticket, joinedPosition: 1 };
+    const view = render(
+      <TicketPage
+        ticketLabel={firstTicket.label}
+        ticket={firstTicket}
+        ticketsLoaded
+        ticketPosition={null}
+        ticketDeskName="Counter 1"
+        waitEstimate={null}
+        now={1_000}
+        serviceName={() => "Massage"}
+      />,
+    );
+
+    expect(view.getByText("1st")).toBeTruthy();
+    expect(view.queryByText("Queue position loading")).toBeNull();
+  });
+
   it("updates the ring when the live queue position changes", () => {
     const props = {
       ticketLabel: ticket.label,
@@ -61,5 +80,154 @@ describe("ticket position progress", () => {
     rerender(<TicketPage {...props} now={31_000} />);
 
     expect(getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).not.toBe(initialDash);
+  });
+
+  it("uses the countdown to fill the final quarter while the ticket is 1st", () => {
+    const props = {
+      ticketLabel: ticket.label,
+      ticket,
+      ticketsLoaded: true,
+      ticketPosition: 1,
+      ticketDeskName: "Counter 1",
+      waitEstimate,
+      serviceName: () => "Massage",
+    };
+    const view = render(<TicketPage {...props} now={1_000} />);
+
+    expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("216.75 289");
+
+    view.rerender(<TicketPage {...props} now={31_000} />);
+    expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("252.875 289");
+
+    view.rerender(<TicketPage {...props} now={61_000} />);
+    expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("289 289");
+  });
+});
+
+describe("ticket lifecycle messages", () => {
+  const baseProps = {
+    ticketLabel: ticket.label,
+    ticketsLoaded: true,
+    ticketPosition: null,
+    ticketDeskName: "Counter 1",
+    waitEstimate: null,
+    now: 1_000,
+    serviceName: () => "Massage",
+  };
+
+  it.each([
+    ["serving", "Now serving", "You are now being served at Counter 1."],
+    ["completed", "Completed", "Your service has been completed."],
+    ["skipped", "You were missed", "You were marked absent and removed from the queue."],
+    ["removed", "Ticket removed", "This ticket was removed from the queue."],
+  ])("shows the correct %s state", (status, heading, notice) => {
+    const view = render(
+      <TicketPage
+        {...baseProps}
+        ticket={{ ...ticket, status }}
+      />,
+    );
+
+    expect(view.getByText(heading)).toBeTruthy();
+    expect(view.getByText(notice)).toBeTruthy();
+    expect(view.queryByText(/ahead of you/i)).toBeNull();
+    expect(view.queryByText(/next in line/i)).toBeNull();
+  });
+
+  it("hides queue and wait details after a ticket is called", () => {
+    const view = render(
+      <TicketPage
+        {...baseProps}
+        ticket={{ ...ticket, status: "called" }}
+      />,
+    );
+
+    expect(view.getByText("You're called")).toBeTruthy();
+    expect(view.getByText("Your ticket has been called. Please proceed to Counter 1.")).toBeTruthy();
+    expect(view.queryByText("Estimated wait")).toBeNull();
+    expect(view.queryByText(/ahead of you/i)).toBeNull();
+  });
+
+  it("updates the mobile address-bar color with the live ticket status", async () => {
+    const themeMeta = document.createElement("meta");
+    themeMeta.setAttribute("name", "theme-color");
+    themeMeta.setAttribute("content", "#12151B");
+    document.head.appendChild(themeMeta);
+    const props = {
+      ...baseProps,
+      theme: { accentColor: "#2563EB" },
+    };
+    const view = render(<TicketPage {...props} ticket={{ ...ticket, status: "queued" }} />);
+
+    await waitFor(() => expect(themeMeta.getAttribute("content")).toBe("#2563EB"));
+
+    view.rerender(<TicketPage {...props} ticket={{ ...ticket, status: "called" }} />);
+    await waitFor(() => expect(themeMeta.getAttribute("content")).toBe("#E8A33D"));
+
+    view.rerender(<TicketPage {...props} ticket={{ ...ticket, status: "skipped" }} />);
+    await waitFor(() => expect(themeMeta.getAttribute("content")).toBe("#E2614F"));
+
+    view.rerender(<TicketPage {...props} ticket={{ ...ticket, status: "serving" }} />);
+    await waitFor(() => expect(themeMeta.getAttribute("content")).toBe("#4FB286"));
+
+    view.unmount();
+    expect(themeMeta.getAttribute("content")).toBe("#12151B");
+    themeMeta.remove();
+  });
+
+  it("updates status and completed/absent ring colors without a refresh", async () => {
+    const view = render(
+      <TicketPage
+        {...baseProps}
+        ticket={{ ...ticket, status: "queued" }}
+        ticketPosition={1}
+      />,
+    );
+
+    view.rerender(
+      <TicketPage
+        {...baseProps}
+        ticket={{ ...ticket, status: "called" }}
+      />,
+    );
+    await waitFor(() => expect(view.getByText("You're called")).toBeTruthy());
+
+    view.rerender(
+      <TicketPage
+        {...baseProps}
+        ticket={{ ...ticket, status: "skipped" }}
+      />,
+    );
+    await waitFor(() => expect(view.getByText("You were missed")).toBeTruthy());
+    expect(view.getByTestId("queue-position-progress").getAttribute("stroke")).toBe("#E2614F");
+    expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("289 289");
+
+    view.rerender(
+      <TicketPage
+        {...baseProps}
+        ticket={{ ...ticket, status: "completed" }}
+      />,
+    );
+    await waitFor(() => expect(view.getByText("Completed")).toBeTruthy());
+    expect(view.getByTestId("queue-position-progress").getAttribute("stroke")).toBe("#4FB286");
+    expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("289 289");
+  });
+
+  it("lets an absent customer request a recall", async () => {
+    const absentTicket = { ...ticket, status: "skipped" };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        submission: { ...absentTicket, recallRequestedAt: 2_000 },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const view = render(<TicketPage {...baseProps} ticket={absentTicket} />);
+    fireEvent.click(view.getByRole("button", { name: "Recall me" }));
+
+    await waitFor(() => expect(view.getByText("Recall requested")).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledWith("/api/submissions/42/recall-request", { method: "PATCH" });
+    vi.unstubAllGlobals();
   });
 });

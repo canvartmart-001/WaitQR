@@ -176,3 +176,43 @@ export async function updateSubmissionStatus(id, status, options = {}) {
 
   return data.submission;
 }
+
+export async function requestSubmissionRecall(id) {
+  if (!id) return null;
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/submissions/${encodeURIComponent(id)}/recall-request`, {
+      method: "PATCH",
+    });
+  } catch {
+    throw new Error("Submission service is unavailable. Start the backend and confirm the API is reachable.");
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to request a recall.");
+  }
+
+  return data.submission;
+}
+
+export async function cancelSubmissionRecall(id) {
+  if (!id) return null;
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/submissions/${encodeURIComponent(id)}/recall-request`, {
+      method: "DELETE",
+    });
+  } catch {
+    throw new Error("Submission service is unavailable. Start the backend and confirm the API is reachable.");
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to cancel the recall request.");
+  }
+
+  return data.submission;
+}

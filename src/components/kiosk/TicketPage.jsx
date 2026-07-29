@@ -3,13 +3,16 @@ import {
   ArrowLeft,
   BellRing,
   BriefcaseBusiness,
+  Check,
   MapPin,
   Ticket,
+  Undo2,
   UsersRound,
+  X,
 } from "lucide-react";
 import { C } from "../../lib/theme";
 import { countdownLabel, waitEstimateDisplay } from "../../lib/format";
-import { getSubmissionByLabel } from "../../lib/submissionsApi";
+import { getSubmissionByLabel, requestSubmissionRecall } from "../../lib/submissionsApi";
 
 const ticketPageStyle = {
   width: "min(100%, 520px)",
@@ -26,7 +29,8 @@ function withAlpha(color, opacity) {
 
 function formatWaitEstimate(estimate, now, status) {
   if (status === "completed") return "Completed";
-  if (status === "skipped" || status === "removed") return "No longer waiting";
+  if (status === "skipped" || status === "absent") return "You were missed";
+  if (status === "removed") return "Ticket removed";
   if (!estimate) return "Calculating";
   if (estimate.status === "serving") return "Now serving";
 
@@ -57,10 +61,18 @@ function ordinal(value) {
 
 function queueFallbackLabel(waitEstimate, status) {
   if (status === "completed") return "Completed";
-  if (status === "skipped" || status === "removed") return "No longer waiting";
+  if (status === "skipped" || status === "absent") return "You were missed";
+  if (status === "removed") return "Ticket removed";
   if (status === "called") return "You're called";
   if (waitEstimate?.status === "serving" || status === "serving") return "Now serving";
   return "Queue position loading";
+}
+
+function ticketThemeColor(status, accentColor) {
+  if (status === "called") return C.amber;
+  if (status === "serving" || status === "completed") return C.teal;
+  if (status === "skipped" || status === "absent" || status === "removed") return C.coral;
+  return accentColor;
 }
 
 function SubmissionCard({
@@ -71,6 +83,9 @@ function SubmissionCard({
   waitEstimate,
   now,
   theme,
+  onRequestRecall,
+  recallRequesting,
+  recallError,
 }) {
   const appearance = {
     accentColor: theme?.accentColor || C.amber,
@@ -79,15 +94,55 @@ function SubmissionCard({
     borderColor: theme?.borderColor || C.ink600,
     radius: Number(theme?.radius) || 8,
   };
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+
+    let themeMeta = document.querySelector('meta[name="theme-color"]');
+    const createdMeta = !themeMeta;
+    if (!themeMeta) {
+      themeMeta = document.createElement("meta");
+      themeMeta.setAttribute("name", "theme-color");
+      document.head.appendChild(themeMeta);
+    }
+
+    const previousColor = themeMeta.getAttribute("content");
+    themeMeta.setAttribute("content", ticketThemeColor(submission.status, appearance.accentColor));
+
+    return () => {
+      if (createdMeta) {
+        themeMeta.remove();
+      } else if (previousColor == null) {
+        themeMeta.removeAttribute("content");
+      } else {
+        themeMeta.setAttribute("content", previousColor);
+      }
+    };
+  }, [appearance.accentColor, submission.status]);
+
   const serviceLine = submission.serviceId ? serviceName(submission.serviceId) : "General";
+  const isQueued = submission.status === "queued";
   const isCalled = submission.status === "called";
-  const positionLabel = ordinal(ticketPosition);
-  const hasQueuePosition = !isCalled && Boolean(positionLabel);
+  const isServing = submission.status === "serving";
+  const isCompleted = submission.status === "completed";
+  const isAbsent = submission.status === "skipped" || submission.status === "absent";
+  const isRemoved = submission.status === "removed";
+  const isNoLongerWaiting = isAbsent || isRemoved;
+  const recallRequested = Boolean(submission.recallRequestedAt);
+  const livePosition = Number(ticketPosition);
+  const initialPosition = Number(submission.joinedPosition);
+  const effectivePosition = Number.isFinite(livePosition) && livePosition > 0
+    ? livePosition
+    : isQueued && Number.isFinite(initialPosition) && initialPosition > 0
+      ? initialPosition
+      : null;
+  const positionLabel = ordinal(effectivePosition);
+  const hasQueuePosition = isQueued && Boolean(positionLabel);
   const estimateDisplay = waitEstimateDisplay(waitEstimate, now);
-  const waitLabel = isReadyForCall(ticketPosition, waitEstimate, now, submission.status)
+  const waitLabel = isReadyForCall(effectivePosition, waitEstimate, now, submission.status)
     ? "Wait for the call"
     : formatWaitEstimate(waitEstimate, now, submission.status);
-  const showWaitBlock = !isCalled
+  const showWaitBlock = isQueued
     && (hasQueuePosition || waitLabel !== queueFallbackLabel(waitEstimate, submission.status));
   const showWaitHeading = waitLabel !== "Wait for the call";
   const waitHeading = estimateDisplay.paused
@@ -95,8 +150,8 @@ function SubmissionCard({
     : estimateDisplay.delayed
       ? "Slight delay"
       : "Estimated wait";
-  const position = Number(ticketPosition);
-  const peopleAhead = Number.isFinite(position) ? Math.max(0, position - 1) : null;
+  const position = Number(effectivePosition);
+  const peopleAhead = isQueued && Number.isFinite(position) ? Math.max(0, position - 1) : null;
   const joinedPosition = Math.max(1, Number(submission.joinedPosition) || position || 1);
   const totalPositionSteps = Math.max(0, joinedPosition - 1);
   const completedPositionSteps = Math.max(0, joinedPosition - Math.max(1, position || joinedPosition));
@@ -112,8 +167,24 @@ function SubmissionCard({
   const positionProgress = totalPositionSteps === 0
     ? (position <= 1 ? 1 : 0)
     : (completedPositionSteps + (position > 1 ? timedStepProgress : 0)) / totalPositionSteps;
-  const progress = isCalled || position === 1 ? 1 : Math.max(0.06, Math.min(0.99, positionProgress));
+  const isFinalRingState = isCalled || isServing || isCompleted || isNoLongerWaiting;
+  const finalCountdownComplete = estimateDisplay.waitMs === 0
+    && !estimateDisplay.paused
+    && !estimateDisplay.delayed;
+  const firstPositionProgress = 0.75 + 0.25 * (finalCountdownComplete ? 1 : timedStepProgress);
+  const progress = isFinalRingState
+    ? 1
+    : position === 1
+      ? Math.max(0.75, Math.min(1, firstPositionProgress))
+      : Math.max(0.06, Math.min(0.99, positionProgress));
   const ringLength = 289;
+  const statusAccent = isNoLongerWaiting
+    ? C.coral
+    : isServing || isCompleted
+      ? C.teal
+      : isCalled
+        ? C.amber
+        : appearance.accentColor;
   const panelStyle = {
     color: appearance.fontColor,
     backgroundColor: withAlpha(appearance.fontColor, 0.035),
@@ -122,6 +193,14 @@ function SubmissionCard({
   };
   const statusMessage = isCalled
     ? `Your ticket has been called. Please proceed to ${ticketDeskName || "the counter"}.`
+    : isServing
+      ? `You are now being served at ${ticketDeskName || "the counter"}.`
+      : isCompleted
+        ? "Your service has been completed."
+        : isAbsent
+          ? "You were marked absent and removed from the queue."
+          : isRemoved
+            ? "This ticket was removed from the queue."
     : estimateDisplay.paused
       ? "The counter is on break. Your wait time is paused."
       : estimateDisplay.delayed
@@ -154,7 +233,7 @@ function SubmissionCard({
             cy="54"
             r="46"
             fill="none"
-            stroke={appearance.accentColor}
+            stroke={statusAccent}
             strokeWidth="3.2"
             strokeLinecap="round"
             strokeDasharray={`${ringLength * progress} ${ringLength}`}
@@ -167,8 +246,14 @@ function SubmissionCard({
           <div
             className="inline-flex rounded px-2 py-1 text-base font-semibold uppercase leading-none"
             style={{
-              color: appearance.accentColor,
-              backgroundColor: withAlpha(appearance.fontColor, 0.035),
+              color: statusAccent,
+              backgroundColor: isNoLongerWaiting
+                ? C.coralSoft
+                : isServing || isCompleted
+                  ? C.tealSoft
+                  : isCalled
+                    ? C.amberSoft
+                    : withAlpha(appearance.fontColor, 0.035),
             }}
           >
             {submission.label}
@@ -180,7 +265,7 @@ function SubmissionCard({
           <div className="mt-4 flex flex-col items-center justify-center">
             {isCalled ? (
               <>
-                <div className="text-3xl font-semibold leading-tight sm:text-4xl" style={{ color: appearance.accentColor }}>
+                <div className="text-3xl font-semibold leading-tight sm:text-4xl" style={{ color: C.amber }}>
                   You're called
                 </div>
                 <div className="mt-3 text-[10px] font-semibold uppercase" style={{ color: withAlpha(appearance.fontColor, 0.6) }}>
@@ -189,6 +274,61 @@ function SubmissionCard({
                 <div className="mt-1 text-xl font-semibold sm:text-2xl" style={{ color: appearance.fontColor }}>
                   {ticketDeskName || "the counter"}
                 </div>
+              </>
+            ) : isServing ? (
+              <>
+                <div className="text-3xl font-semibold leading-tight sm:text-4xl" style={{ color: C.teal }}>
+                  Now serving
+                </div>
+                <div className="mt-3 text-[10px] font-semibold uppercase" style={{ color: withAlpha(appearance.fontColor, 0.6) }}>
+                  At
+                </div>
+                <div className="mt-1 text-xl font-semibold sm:text-2xl" style={{ color: appearance.fontColor }}>
+                  {ticketDeskName || "the counter"}
+                </div>
+              </>
+            ) : isCompleted ? (
+              <>
+                <div className="text-3xl font-semibold leading-tight sm:text-4xl" style={{ color: C.teal }}>
+                  Completed
+                </div>
+                <div className="mt-2 text-[10px] font-semibold uppercase" style={{ color: C.teal }}>
+                  Service finished
+                </div>
+              </>
+            ) : isNoLongerWaiting ? (
+              <>
+                <div className="text-3xl font-semibold leading-tight sm:text-4xl" style={{ color: C.coral }}>
+                  {isAbsent ? "You were missed" : "Ticket removed"}
+                </div>
+                <div className="mt-2 text-[10px] font-semibold uppercase" style={{ color: C.coral }}>
+                  {isAbsent ? "Marked absent" : "No longer in queue"}
+                </div>
+                {isAbsent ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={onRequestRecall}
+                      disabled={recallRequested || recallRequesting}
+                      className="qp-focusable mt-5 inline-flex h-8 items-center justify-center gap-1.5 px-3 text-xs font-semibold leading-none disabled:cursor-default"
+                      style={{
+                        color: C.teal,
+                        backgroundColor: recallRequested ? C.tealSoft : "transparent",
+                        borderRadius: Math.min(appearance.radius, 6),
+                      }}
+                    >
+                      <Undo2 size={13} className="block shrink-0" aria-hidden="true" />
+                      <span className="leading-none">
+                        {recallRequested ? "Recall requested" : recallRequesting ? "Requesting..." : "Recall me"}
+                      </span>
+                    </button>
+                    {recallError ? (
+                      <p className="mb-0 mt-1 max-w-48 text-center text-[10px]" style={{ color: C.coral }}>
+                        {recallError}
+                      </p>
+                    ) : null}
+                  </>
+                ) : null}
               </>
             ) : hasQueuePosition ? (
               <>
@@ -222,6 +362,7 @@ function SubmissionCard({
             </div>
           ) : null}
         </div>
+
       </section>
 
       <section className="overflow-hidden border" style={panelStyle} aria-label="Ticket details">
@@ -265,22 +406,22 @@ function SubmissionCard({
         className="flex items-center gap-3 border px-4 py-3.5"
         style={{
           color: appearance.fontColor,
-          backgroundColor: withAlpha(appearance.accentColor, 0.11),
-          borderColor: withAlpha(appearance.accentColor, 0.42),
+          backgroundColor: withAlpha(statusAccent, 0.11),
+          borderColor: withAlpha(statusAccent, 0.42),
           borderRadius: appearance.radius,
         }}
         aria-live="polite"
       >
         <span
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-          style={{ color: appearance.accentColor, backgroundColor: withAlpha(appearance.accentColor, 0.12) }}
+          style={{ color: statusAccent, backgroundColor: withAlpha(statusAccent, 0.12) }}
         >
-          <BellRing size={19} />
+          {isNoLongerWaiting ? <X size={19} /> : isCompleted ? <Check size={19} /> : <BellRing size={19} />}
         </span>
         <p className="m-0 text-sm leading-relaxed">{statusMessage}</p>
       </section>
 
-      {!isCalled ? (
+      {isQueued ? (
         <section className="flex items-center gap-3 border px-4 py-3" style={panelStyle}>
           <UsersRound size={20} className="shrink-0" style={{ color: appearance.accentColor }} />
           <p className="m-0 text-sm">{queueMessage}</p>
@@ -305,6 +446,8 @@ export function TicketPage({
   const [submission, setSubmission] = useState(ticket || null);
   const [loading, setLoading] = useState(!ticket);
   const [error, setError] = useState("");
+  const [recallRequesting, setRecallRequesting] = useState(false);
+  const [recallError, setRecallError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -352,6 +495,21 @@ export function TicketPage({
     };
   }, [ticket, ticketLabel, ticketsLoaded]);
 
+  const handleRecallRequest = async () => {
+    if (!submission?.id || recallRequesting || submission.recallRequestedAt) return;
+    setRecallRequesting(true);
+    setRecallError("");
+
+    try {
+      const updatedSubmission = await requestSubmissionRecall(submission.id);
+      if (updatedSubmission) setSubmission(updatedSubmission);
+    } catch (requestError) {
+      setRecallError(requestError.message || "Could not request a recall.");
+    } finally {
+      setRecallRequesting(false);
+    }
+  };
+
   const appearance = {
     accentColor: theme?.accentColor || C.amber,
     bgColor: theme?.bgColor || C.ink900,
@@ -390,6 +548,9 @@ export function TicketPage({
             waitEstimate={waitEstimate}
             now={now}
             theme={appearance}
+            onRequestRecall={handleRecallRequest}
+            recallRequesting={recallRequesting}
+            recallError={recallError}
           />
         ) : (
           <button

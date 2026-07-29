@@ -49,6 +49,7 @@ export function DeskPage({
   ticketLogs,
   waitEstimatesByTicketId,
   recallAbsent,
+  cancelRecallRequest,
   recallServed,
   askConfirm,
   adminLayout = false,
@@ -56,6 +57,17 @@ export function DeskPage({
   const { deskWord, deskWordLower, serviceWord, serviceWordLower, serviceWordPluralLower } = labels;
   const { servedByDeskService, absentByDeskService, removedByDeskService, absentList, sortedServed, removeAbsent } = ticketLogs;
   const queuedCalledTickets = Array.isArray(desk.calledTickets) ? desk.calledTickets : [];
+  const recallRequestedTickets = absentList
+    .filter((ticket) =>
+      ticket.recallRequestedAt
+      && ticket.skippedFromDesk != null
+      && String(ticket.skippedFromDesk) === String(desk.id)
+    )
+    .sort((a, b) => a.recallRequestedAt - b.recallRequestedAt);
+  const recallRequestedTicket = !desk.current ? recallRequestedTickets[0] || null : null;
+  const additionalRecallRequests = desk.current
+    ? recallRequestedTickets
+    : recallRequestedTickets.slice(1);
   const pageBackground = isLightHex(theme?.bgColor)
     ? mixHex(mixHex(theme.bgColor, theme.accentColor || theme.bgColor, 0.035), "#94a3b8", 0.08)
     : mixHex(theme?.bgColor, "#000000", 0.45);
@@ -88,12 +100,15 @@ export function DeskPage({
             startService={deskActions.startTicketService}
             completeTicket={deskActions.completeActiveTicket}
             skipTicket={deskActions.skipActiveTicket}
+            recallPreview={recallRequestedTicket}
+            recallTicket={recallAbsent}
+            cancelRecallRequest={cancelRecallRequest}
             askConfirm={askConfirm}
             updateDesk={deskActions.updateDesk}
             hideInCardCounterStatus
             showCounterStatusAbove
           />
-          {queuedCalledTickets.length > 0 ? (
+          {queuedCalledTickets.length > 0 || additionalRecallRequests.length > 0 ? (
             <div className="mt-4 flex flex-col gap-4">
               {queuedCalledTickets.map((ticket) => (
                 <DeskConsoleCard
@@ -127,6 +142,38 @@ export function DeskPage({
                   updateDesk={() => {}}
                   actionDeskId={desk.id}
                   actionTicketId={ticket.id}
+                  allowCounterStatusControls={false}
+                  showCounterStatusButton={false}
+                />
+              ))}
+              {additionalRecallRequests.map((ticket) => (
+                <DeskConsoleCard
+                  key={`recall-${ticket.id}`}
+                  desk={{
+                    ...desk,
+                    name: desk.name,
+                    current: null,
+                    calledTickets: [],
+                  }}
+                  now={now}
+                  serviceName={serviceName}
+                  theme={theme}
+                  serviceWord={serviceWord}
+                  serviceWordLower={serviceWordLower}
+                  serviceWordPluralLower={serviceWordPluralLower}
+                  deskWordLower={deskWordLower}
+                  queue={[]}
+                  eligibleForDesk={() => () => false}
+                  recallPreview={ticket}
+                  recallTicket={recallAbsent}
+                  cancelRecallRequest={cancelRecallRequest}
+                  callNext={() => {}}
+                  startService={deskActions.startTicketService}
+                  completeTicket={deskActions.completeActiveTicket}
+                  skipTicket={deskActions.skipActiveTicket}
+                  askConfirm={askConfirm}
+                  updateDesk={() => {}}
+                  actionDeskId={desk.id}
                   allowCounterStatusControls={false}
                   showCounterStatusButton={false}
                 />

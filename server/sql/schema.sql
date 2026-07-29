@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   called_at TIMESTAMPTZ,
   started_at TIMESTAMPTZ,
   completed_at TIMESTAMPTZ,
+  recall_requested_at TIMESTAMPTZ,
   served_by_member_id TEXT,
   served_by_member_name TEXT,
   status_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -35,6 +36,7 @@ ALTER TABLE submissions ADD COLUMN IF NOT EXISTS joined_position INTEGER;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS called_at TIMESTAMPTZ;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS recall_requested_at TIMESTAMPTZ;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS served_by_member_id TEXT;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS served_by_member_name TEXT;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();

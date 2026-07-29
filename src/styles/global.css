@@ -661,6 +661,10 @@ svg {
   --qp-serving-panel-pill-fg: #fff;
 }
 
+.qp-desk-serving-panel--recall-requested {
+  --qp-serving-panel-bg: var(--qp-desk-accent, #2563eb);
+}
+
 .qp-desk-serving-panel--now-serving {
   --qp-serving-panel-bg: #4FB286;
 }

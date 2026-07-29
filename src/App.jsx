@@ -29,7 +29,7 @@ import { ConfirmDialog } from "./components/modals/ConfirmDialog";
 import { IssueToast } from "./components/shared/IssueToast";
 import { C } from "./lib/theme";
 import { findDeskByPath, findMemberByProfilePath, getDeskPath, getMemberProfilePath, getTicketPath, findTicketLabelByPath, isCounterDetailPath } from "./lib/routing";
-import { clearSubmissions, getWaitEstimates, listQueueCountEvents, listSubmissions, updateSubmissionStatus } from "./lib/submissionsApi";
+import { cancelSubmissionRecall, clearSubmissions, getWaitEstimates, listQueueCountEvents, listSubmissions, updateSubmissionStatus } from "./lib/submissionsApi";
 import { cacheSettings, loadSettings, saveSettings, updateDeskStatus } from "./lib/settingsApi";
 import { createRealtimeClient } from "./lib/realtime";
 import { deriveDeskServicesFromMembers, memberHasDesk, normalizeMemberRole, uniqueIds } from "./lib/assignments";
@@ -227,13 +227,20 @@ function counterPageBackground(theme) {
     : mixHex(theme?.bgColor, "#000000", 0.45);
 }
 
-function updateMobileThemeColor(appearance) {
+function ticketStatusThemeColor(status, accentColor) {
+  if (status === "called") return C.amber;
+  if (status === "serving" || status === "completed") return C.teal;
+  if (status === "skipped" || status === "absent" || status === "removed") return C.coral;
+  return accentColor;
+}
+
+function updateMobileThemeColor(appearance, overrideColor = null) {
   if (typeof document === "undefined") return;
 
   const mode = resolveAppearanceThemeMode(appearance?.themeMode);
-  const themeColor = mode === "Light"
+  const themeColor = overrideColor || (mode === "Light"
     ? appearance?.accentColor || DEFAULT_APPEARANCE_SETTINGS.accentColor
-    : counterPageBackground(appearance || DEFAULT_APPEARANCE_SETTINGS);
+    : counterPageBackground(appearance || DEFAULT_APPEARANCE_SETTINGS));
   const statusBarStyle = mode === "Light" ? "default" : "black-translucent";
   let themeMeta = document.querySelector('meta[name="theme-color"]');
   let statusMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
@@ -381,6 +388,7 @@ function mapSubmissionToAbsentEntry(submission) {
     createdAt: submission.createdAt,
     skippedAt,
     skippedFromDesk: submission.deskId == null ? null : String(submission.deskId),
+    recallRequestedAt: submission.recallRequestedAt || null,
   };
 }
 
@@ -1021,6 +1029,13 @@ export default function App() {
     ticketLogs.removeAbsentSilently(ticket.id);
     updateTicketStatus(ticket.id, "called", { deskId });
   };
+  const cancelRecallRequest = (ticketId) => {
+    cancelSubmissionRecall(ticketId)
+      .then(() => syncSubmissionsFromServer())
+      .catch((error) => {
+        console.warn(error.message);
+      });
+  };
 
   const recallServed = (ticketId) => {
     const ticket = ticketLogs.servedLog.find((item) => item.id === ticketId);
@@ -1294,6 +1309,10 @@ export default function App() {
     () => resolveMemberAppearance(appearanceSettings, activeLoggedInMember),
     [activeLoggedInMember, appearanceSettings]
   );
+  const ticketAppearanceSettings = useMemo(
+    () => applyThemeModeToAppearance(appearanceSettings, "Light"),
+    [appearanceSettings]
+  );
   const activeCounterPageBackground = useMemo(
     () => counterPageBackground(activeAppearanceSettings),
     [activeAppearanceSettings]
@@ -1397,19 +1416,6 @@ export default function App() {
     setMasterLoggedIn(false);
     setMasterLoggedInState(false);
   }, [activeLoggedInMember]);
-
-  useEffect(() => {
-    updateMobileThemeColor(activeAppearanceSettings);
-
-    if (activeAppearanceSettings.themeMode !== "System" || typeof window === "undefined") return undefined;
-
-    const media = window.matchMedia?.("(prefers-color-scheme: dark)");
-    if (!media) return undefined;
-    const handleChange = () => updateMobileThemeColor(activeAppearanceSettings);
-    media.addEventListener?.("change", handleChange);
-
-    return () => media.removeEventListener?.("change", handleChange);
-  }, [activeAppearanceSettings]);
 
   useEffect(() => {
     settingsSavingRef.current = settingsSaving;
@@ -1744,11 +1750,36 @@ export default function App() {
         desks,
       })
     : null;
-  const displayedTicket = recentIssuedTicket && String(recentIssuedTicket.label).toUpperCase() === String(ticketLabelFromPath).toUpperCase() ? recentIssuedTicket : ticketFromState;
+  const recentTicketMatches = recentIssuedTicket
+    && String(recentIssuedTicket.label).toUpperCase() === String(ticketLabelFromPath).toUpperCase();
+  const displayedTicket = ticketFromState
+    ? (recentTicketMatches ? { ...recentIssuedTicket, ...ticketFromState } : ticketFromState)
+    : recentTicketMatches
+      ? recentIssuedTicket
+      : null;
   const ticketDeskQueueInfo = getTicketDeskQueueInfo(displayedTicket, { desks, sortedQueue });
   const displayedTicketWaitEstimate = displayedTicket?.id == null
     ? null
     : waitEstimatesByTicketId[String(displayedTicket.id)] || null;
+  const mobileTicketThemeColor = currentPage === "ticket" && displayedTicket
+    ? ticketStatusThemeColor(displayedTicket.status, ticketAppearanceSettings.accentColor)
+    : null;
+  const mobileAppearanceSettings = currentPage === "ticket"
+    ? ticketAppearanceSettings
+    : activeAppearanceSettings;
+
+  useEffect(() => {
+    updateMobileThemeColor(mobileAppearanceSettings, mobileTicketThemeColor);
+
+    if (mobileAppearanceSettings.themeMode !== "System" || typeof window === "undefined") return undefined;
+
+    const media = window.matchMedia?.("(prefers-color-scheme: dark)");
+    if (!media) return undefined;
+    const handleChange = () => updateMobileThemeColor(mobileAppearanceSettings, mobileTicketThemeColor);
+    media.addEventListener?.("change", handleChange);
+
+    return () => media.removeEventListener?.("change", handleChange);
+  }, [mobileAppearanceSettings, mobileTicketThemeColor]);
 
   // --- Cross-cutting actions that touch more than one hook's state -----------------------------
   const addDesk = () => {
@@ -2017,6 +2048,7 @@ export default function App() {
       ticketLogs={ticketLogsWithStatus}
       waitEstimatesByTicketId={waitEstimatesByTicketId}
       recallAbsent={recallAbsent}
+      cancelRecallRequest={cancelRecallRequest}
       recallServed={recallServed}
       askConfirm={askConfirm}
       onNavigate={navigate}
@@ -2122,7 +2154,7 @@ export default function App() {
           waitEstimate={displayedTicketWaitEstimate}
           now={now}
           serviceName={serviceName}
-          theme={activeAppearanceSettings}
+          theme={ticketAppearanceSettings}
           onNavigate={navigate}
         />
       ) : currentPage === "profile" ? (
@@ -2213,7 +2245,7 @@ export default function App() {
           waitEstimate={displayedTicketWaitEstimate}
           now={now}
           serviceName={serviceName}
-          theme={adminTheme}
+          theme={ticketAppearanceSettings}
           onNavigate={navigate}
         />
       ) : currentPage === "profile" ? (

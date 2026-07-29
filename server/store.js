@@ -34,6 +34,7 @@ function mapSubmissionRow(row) {
     calledAt: row.called_at ? new Date(row.called_at).getTime() : null,
     startedAt: row.started_at ? new Date(row.started_at).getTime() : null,
     completedAt: row.completed_at ? new Date(row.completed_at).getTime() : null,
+    recallRequestedAt: row.recall_requested_at ? new Date(row.recall_requested_at).getTime() : null,
     servedByMemberId: row.served_by_member_id || "",
     servedByMemberName: row.served_by_member_name || "",
     statusUpdatedAt: new Date(row.status_updated_at || row.created_at).getTime(),
@@ -315,7 +316,7 @@ export async function createSubmission({ name, phone, serviceId, type }) {
     const insertResult = await client.query(
       `INSERT INTO submissions (label, type, name, phone, phone_digits, service_id, desk_id, joined_position)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, served_by_member_id, served_by_member_name, status_updated_at, created_at`,
+       RETURNING id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name, status_updated_at, created_at`,
       [label, type, name, phone, phoneDigits, serviceId || null, deskId == null ? null : String(deskId), joinedPosition],
     );
 
@@ -340,7 +341,7 @@ export async function listSubmissions(limit = 100) {
   await assignUnassignedQueuedSubmissions();
 
   const result = await pool.query(
-    `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
+    `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
      FROM submissions
      ORDER BY created_at DESC
      LIMIT $1`,
@@ -352,7 +353,7 @@ export async function listSubmissions(limit = 100) {
 
 export async function getSubmissionById(id) {
   const result = await pool.query(
-    `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
+    `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
      FROM submissions
      WHERE id::text = $1
      LIMIT 1`,
@@ -364,7 +365,7 @@ export async function getSubmissionById(id) {
 
 export async function getSubmissionByLabel(label) {
   const result = await pool.query(
-    `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
+    `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
      FROM submissions
      WHERE label = $1
      LIMIT 1`,
@@ -410,10 +411,14 @@ export async function updateSubmissionStatus(id, status, deskId = null, servedBy
              WHEN $2 IN ('queued', 'called') THEN NULL
              ELSE served_by_member_name
            END,
+           recall_requested_at = CASE
+             WHEN $2 = 'skipped' THEN recall_requested_at
+             ELSE NULL
+           END,
            status_updated_at = NOW()
        WHERE id::text = $1
        RETURNING id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status,
-                 called_at, started_at, completed_at, served_by_member_id, served_by_member_name,
+                 called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name,
                  status_updated_at, created_at
      ),
      recorded AS (
@@ -438,10 +443,41 @@ export async function updateSubmissionStatus(id, status, deskId = null, servedBy
        RETURNING id
      )
      SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status,
-            called_at, started_at, completed_at, served_by_member_id, served_by_member_name,
+            called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name,
             status_updated_at, created_at
      FROM updated`,
     [String(id), status, deskId == null ? null : String(deskId), servedByMemberId, servedByMemberName],
+  );
+
+  return result.rows[0] ? mapSubmissionRow(result.rows[0]) : null;
+}
+
+export async function requestSubmissionRecall(id) {
+  const result = await pool.query(
+    `UPDATE submissions
+     SET recall_requested_at = COALESCE(recall_requested_at, NOW())
+     WHERE id::text = $1
+       AND status = 'skipped'
+     RETURNING id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position,
+               status, called_at, started_at, completed_at, recall_requested_at,
+               served_by_member_id, served_by_member_name, status_updated_at, created_at`,
+    [String(id)],
+  );
+
+  return result.rows[0] ? mapSubmissionRow(result.rows[0]) : null;
+}
+
+export async function cancelSubmissionRecall(id) {
+  const result = await pool.query(
+    `UPDATE submissions
+     SET recall_requested_at = NULL
+     WHERE id::text = $1
+       AND status = 'skipped'
+       AND recall_requested_at IS NOT NULL
+     RETURNING id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position,
+               status, called_at, started_at, completed_at, recall_requested_at,
+               served_by_member_id, served_by_member_name, status_updated_at, created_at`,
+    [String(id)],
   );
 
   return result.rows[0] ? mapSubmissionRow(result.rows[0]) : null;

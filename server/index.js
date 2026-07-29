@@ -9,6 +9,8 @@ import {
   getSubmissionByLabel,
   listSubmissions,
   updateSubmissionStatus,
+  requestSubmissionRecall,
+  cancelSubmissionRecall,
   clearSubmissions,
   getSubmissionStats,
   getLiveQueueCounts,
@@ -428,6 +430,40 @@ app.patch("/api/submissions/:id/status", async (req, res) => {
   } catch (error) {
     console.error("Failed to update submission status", error);
     res.status(500).json({ error: "Failed to update submission status." });
+  }
+});
+
+app.patch("/api/submissions/:id/recall-request", async (req, res) => {
+  try {
+    const submission = await requestSubmissionRecall(req.params.id);
+
+    if (!submission) {
+      res.status(409).json({ error: "Only absent tickets can request a recall." });
+      return;
+    }
+
+    res.json({ submission });
+    emitSubmissionChange("recall-requested", submission);
+  } catch (error) {
+    console.error("Failed to request ticket recall", error);
+    res.status(500).json({ error: "Failed to request a recall." });
+  }
+});
+
+app.delete("/api/submissions/:id/recall-request", async (req, res) => {
+  try {
+    const submission = await cancelSubmissionRecall(req.params.id);
+
+    if (!submission) {
+      res.status(409).json({ error: "This ticket does not have an active recall request." });
+      return;
+    }
+
+    res.json({ submission });
+    emitSubmissionChange("recall-cancelled", submission);
+  } catch (error) {
+    console.error("Failed to cancel ticket recall", error);
+    res.status(500).json({ error: "Failed to cancel the recall request." });
   }
 });
 

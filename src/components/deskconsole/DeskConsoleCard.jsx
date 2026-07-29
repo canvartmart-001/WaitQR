@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, Check, Clock3, Coffee, Layers3, Lock, Phone, Ticket, Unlock, UserRound, X } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, Clock3, Coffee, Layers3, Lock, Phone, Ticket, Undo2, Unlock, UserRound, X } from "lucide-react";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { C } from "../../lib/theme";
@@ -164,6 +164,9 @@ export function DeskConsoleCard({
   startService,
   completeTicket,
   skipTicket,
+  recallPreview = null,
+  recallTicket,
+  cancelRecallRequest,
   askConfirm,
   updateDesk,
   readOnlyQueued = false,
@@ -179,8 +182,9 @@ export function DeskConsoleCard({
   // Break state belongs to the shared desk record so every counter and the
   // public live board receive it through the real-time desk-status update.
   const isOnBreak = Boolean(d.onBreak);
-  const canCallNext = !d.current && queue.some(eligibleForDesk(d));
-  const previewTicket = !d.current ? selectNextTicketForDesk(queue, d) : null;
+  const isRecallPreview = Boolean(!d.current && recallPreview);
+  const canCallNext = !d.current && (isRecallPreview || queue.some(eligibleForDesk(d)));
+  const previewTicket = !d.current ? recallPreview || selectNextTicketForDesk(queue, d) : null;
 
   const t = d.current || previewTicket;
   const label = t ? t.label : null;
@@ -202,10 +206,26 @@ export function DeskConsoleCard({
   const actionsDisabled = readOnlyQueued;
   const availability = deskAvailability(d, now);
   const isServing = Boolean(d.current?.startedAt);
-  const servingPanelLabel = d.current ? (d.current.startedAt ? "Now Serving" : "Called") : "Next Up";
-  const servingPanelTone = d.current ? (d.current.startedAt ? "now-serving" : "called") : "next-up";
-  const primaryLabel = !d.current ? "Call Next" : !d.current.startedAt ? "Start Serving" : "Mark Complete";
-  const primaryIcon = d.current?.startedAt ? <Check size={15} /> : <ArrowRight size={15} />;
+  const servingPanelLabel = d.current
+    ? (d.current.startedAt ? "Now Serving" : "Called")
+    : isRecallPreview
+      ? "Recall requested"
+      : "Next Up";
+  const servingPanelTone = d.current
+    ? (d.current.startedAt ? "now-serving" : "called")
+    : isRecallPreview
+      ? "recall-requested"
+      : "next-up";
+  const primaryLabel = !d.current
+    ? (isRecallPreview ? "Recall" : "Call Next")
+    : !d.current.startedAt
+      ? "Start Serving"
+      : "Mark Complete";
+  const primaryIcon = d.current?.startedAt
+    ? <Check size={15} />
+    : isRecallPreview
+      ? <Undo2 size={15} />
+      : <ArrowRight size={15} />;
   const primaryIconClass = d.current?.startedAt
     ? "qp-desk-primary-icon qp-desk-primary-icon--complete"
     : "qp-desk-primary-icon qp-desk-primary-icon--arrow";
@@ -240,7 +260,11 @@ export function DeskConsoleCard({
     if (actionsDisabled) return;
 
     if (!d.current) {
-      callNext(actionDeskId);
+      if (isRecallPreview) {
+        recallTicket?.(recallPreview.id);
+      } else {
+        callNext(actionDeskId);
+      }
       return;
     }
 
@@ -316,7 +340,9 @@ export function DeskConsoleCard({
               ? "Finish the current ticket before starting this called ticket"
               : !d.current
               ? canCallNext
-                ? "Call next"
+                ? isRecallPreview
+                  ? "Recall requested ticket"
+                  : "Call next"
                 : `No waiting tickets match this ${deskWordLower}'s ${serviceWordPluralLower}`
               : !d.current.startedAt
                 ? "Start serving this ticket"
@@ -336,7 +362,23 @@ export function DeskConsoleCard({
           <span className={primaryIconClass} aria-hidden="true">{primaryIcon}</span>
       </button>
 
-      {!d.current ? (
+      {!d.current && isRecallPreview ? (
+        <button
+          type="button"
+          onClick={() => cancelRecallRequest?.(recallPreview.id)}
+          title="Cancel recall request"
+          className="qp-focusable qp-desk-secondary-action qp-desk-cancel-action"
+          style={{
+            borderColor: "transparent",
+            color: C.coral,
+            background: controlBackground,
+            borderRadius: surfaceTheme.radius,
+          }}
+        >
+          <X size={15} />
+          <span>Cancel</span>
+        </button>
+      ) : !d.current ? (
         <button
           type="button"
           onClick={() => updateDesk?.(d.id, { onBreak: !isOnBreak })}

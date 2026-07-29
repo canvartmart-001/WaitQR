@@ -99,6 +99,8 @@ export function useTicketIssuer({ services, queue, desks, setQueue, serviceWordL
         serviceId: submission.serviceId || "",
         deskId: submission.deskId == null ? null : String(submission.deskId),
         createdAt: submission.createdAt,
+        joinedPosition: submission.joinedPosition == null ? null : Number(submission.joinedPosition),
+        status: submission.status || "queued",
       };
 
       setCounters((prev) => ({

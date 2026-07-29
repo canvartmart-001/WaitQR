@@ -48,6 +48,7 @@ export function AbsentTab({ filteredAbsent, desks = [], now, serviceName, recall
 function AbsentRow({ ticket: t, desks, now, serviceName, recallAbsent, removeAbsent, askConfirm, surfaceTheme, mutedColor, faintColor }) {
   const recallDesk = desks.find((desk) => String(desk.id) === String(t.skippedFromDesk));
   const recallDisabled = !recallAbsent || !recallDesk;
+  const recallRequested = Boolean(t.recallRequestedAt);
   const absentMeta = [
     t.createdAt ? `Joined ${elapsedLabel(now - t.createdAt)} ago` : null,
     t.skippedAt ? `Called ${elapsedLabel(now - t.skippedAt)} ago` : null,
@@ -78,10 +79,14 @@ function AbsentRow({ ticket: t, desks, now, serviceName, recallAbsent, removeAbs
               <button
                 onClick={() => recallAbsent(t.id)}
                 disabled={recallDisabled}
-                title={recallDisabled ? "Counter unavailable" : "Recall ticket"}
+                title={recallDisabled ? "Counter unavailable" : recallRequested ? "Customer requested a recall" : "Recall ticket"}
                 aria-label="Recall ticket"
                 className="qp-focusable inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-35"
-                style={{ color: C.amber, background: C.amberSoft, borderRadius: surfaceTheme.radius }}
+                style={{
+                  color: recallRequested ? C.teal : C.amber,
+                  background: recallRequested ? C.tealSoft : C.amberSoft,
+                  borderRadius: surfaceTheme.radius,
+                }}
               >
                 <Undo2 size={13} />
                 <span>Recall</span>
