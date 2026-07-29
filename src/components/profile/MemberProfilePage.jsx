@@ -171,7 +171,7 @@ function ThemeSwitch({ theme, onChange }) {
   );
 }
 
-export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme, notifications = [], onClearNotifications, onMarkNotificationsRead, subtitle = "Member profile", brandTitle, hideBrandMark = false, fullWidth = false, onThemeChange, onNavigate, onLogout }) {
+export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members, theme, notifications = [], onClearNotifications, onMarkNotificationsRead, subtitle = "Member profile", brandTitle, hideBrandMark = false, fullWidth = false, backgroundColor, onThemeChange, onNavigate, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const activeMember = loggedInMember || null;
@@ -197,7 +197,7 @@ export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members,
   };
 
   return (
-    <header className="sticky top-0 z-20 w-full px-2.5 py-2.5 sm:px-6 sm:py-5" style={{ backgroundColor: theme.bgColor }}>
+    <header className="w-full px-2.5 py-2.5 sm:px-6 sm:py-5" style={{ backgroundColor: backgroundColor || theme.bgColor }}>
       <div className={`mx-auto flex w-full items-center justify-between gap-3 ${fullWidth ? "max-w-none" : "max-w-5xl"}`}>
         <button type="button" onClick={() => onNavigate?.("/")} className="flex min-w-0 items-center gap-2 text-left">
           {!hideBrandMark ? (

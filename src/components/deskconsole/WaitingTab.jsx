@@ -1,6 +1,6 @@
 import { C } from "../../lib/theme";
 import { elapsedLabel } from "../../lib/format";
-import { Volume2 } from "lucide-react";
+import { Megaphone } from "lucide-react";
 
 function withAlpha(hex, alphaHex) {
   if (typeof hex !== "string" || !/^#?[0-9a-f]{6}$/i.test(hex)) return hex;
@@ -81,18 +81,24 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
                   <button
                     type="button"
                     onClick={() => callTicket?.(selectedDesk.id, t.id)}
-                    className="qp-focusable p-1.5 rounded-md shrink-0"
+                    className="qp-focusable inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold"
                     style={{ color: surfaceTheme.accentColor, background: withAlpha(surfaceTheme.accentColor, "16"), borderRadius: surfaceTheme.radius }}
-                    title="Call this ticket"
-                    aria-label="Call this ticket"
+                    title="Call Next"
+                    aria-label="Call Next"
                   >
-                    <Volume2 size={13} />
+                    <Megaphone size={13} />
+                    <span>Call Next</span>
                   </button>
                 ) : null}
               </div>
             </div>
-            <div className="text-xs mt-1 truncate" style={{ color: mutedColor }}>
-              {t.phone} · {serviceName(t.serviceId)}
+            <div className="mt-1.5 grid gap-0.5">
+              <div className="text-xs truncate" style={{ color: mutedColor }}>
+                {t.phone}
+              </div>
+              <div className="text-sm font-normal truncate" style={{ color: withAlpha(surfaceTheme.fontColor, "cc") }}>
+                {serviceName(t.serviceId)}
+              </div>
             </div>
             <div className="qp-ticket-face text-[10px] mt-1 truncate" style={{ color: faintColor, fontVariantNumeric: "tabular-nums" }}>
               {elapsedLabel(now - t.createdAt)}

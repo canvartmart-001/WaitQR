@@ -17,10 +17,16 @@ export function pluralize(word) {
 }
 
 export function elapsedLabel(ms) {
-  const m = minutes(ms);
-  const s = Math.floor((Math.max(0, ms) % 60000) / 1000);
-  if (m >= 1) return `${m}m`;
-  return `${s}s`;
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutesPart = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days >= 1) return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  if (hours >= 1) return minutesPart > 0 ? `${hours}h ${minutesPart}m` : `${hours}h`;
+  if (minutesPart >= 1) return `${minutesPart}m`;
+  return `${seconds}s`;
 }
 
 export function elapsedTimerLabel(ms) {
