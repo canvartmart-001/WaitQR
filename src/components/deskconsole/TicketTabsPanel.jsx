@@ -128,6 +128,7 @@ export function TicketTabsPanel({
             className="qp-tab-search h-9 w-full rounded-md border text-sm outline-none"
             style={{
               "--qp-tab-search-focus-border": withAlpha(activeTab.countColor, "99"),
+              "--qp-tab-search-placeholder": withAlpha(surfaceTheme.fontColor, "80"),
               background: activeTabBackground,
               borderColor: "transparent",
               color: surfaceTheme.fontColor,

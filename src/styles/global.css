@@ -721,7 +721,7 @@ svg {
 }
 
 .qp-tab-search::placeholder {
-  color: rgba(100, 116, 139, .64);
+  color: var(--qp-tab-search-placeholder, rgba(100, 116, 139, .64));
   font-weight: 400;
 }
 
