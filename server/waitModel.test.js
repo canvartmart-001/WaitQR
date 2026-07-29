@@ -251,6 +251,10 @@ describe("adaptive wait model", () => {
 
     expect(first.delayAt).toBeGreaterThan(NOW);
     expect(first.minimumWaitMs).toBe(MINUTE);
+    expect(first.positionStepStartedAt).toBe(NOW);
+    expect(first.positionStepEndsAt).toBe(first.predictedStartAt);
     expect(second.minimumWaitMs).toBeGreaterThan(5 * MINUTE);
+    expect(second.positionStepStartedAt).toBe(first.positionStepStartedAt);
+    expect(second.positionStepEndsAt).toBe(first.positionStepEndsAt);
   });
 });

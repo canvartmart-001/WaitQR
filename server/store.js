@@ -29,6 +29,7 @@ function mapSubmissionRow(row) {
     phoneDigits: row.phone_digits,
     serviceId: row.service_id,
     deskId: row.desk_id,
+    joinedPosition: row.joined_position == null ? null : Number(row.joined_position),
     status: row.status,
     calledAt: row.called_at ? new Date(row.called_at).getTime() : null,
     startedAt: row.started_at ? new Date(row.started_at).getTime() : null,
@@ -182,7 +183,7 @@ export async function assignUnassignedQueuedSubmissions() {
     const desks = Array.isArray(settings.desks) ? settings.desks : [];
     const members = Array.isArray(settings.members) ? settings.members : [];
     const waitingResult = await client.query(
-      `SELECT id, service_id
+      `SELECT id, service_id, type
        FROM submissions
        WHERE status = 'queued' AND desk_id IS NULL AND service_id IS NOT NULL
        ORDER BY created_at, id`,
@@ -210,7 +211,18 @@ export async function assignUnassignedQueuedSubmissions() {
       );
       const deskId = selectDeskByWorkload(eligibleDeskIds, serviceLoads, totalLoads, stateResult.rows[0]?.last_desk_id);
 
-      await client.query("UPDATE submissions SET desk_id = $2 WHERE id = $1", [submission.id, String(deskId)]);
+      const positionResult = await client.query(
+        `SELECT COUNT(*)::int + 1 AS joined_position
+         FROM submissions
+         WHERE desk_id = $1
+           AND status = 'queued'
+           AND ($2 = 'general' OR type = 'priority')`,
+        [String(deskId), submission.type],
+      );
+      await client.query(
+        "UPDATE submissions SET desk_id = $2, joined_position = $3 WHERE id = $1",
+        [submission.id, String(deskId), positionResult.rows[0].joined_position],
+      );
       assignedCount += 1;
       await client.query(
         `INSERT INTO service_assignment_state (service_id, last_desk_id, updated_at)
@@ -286,12 +298,25 @@ export async function createSubmission({ name, phone, serviceId, type }) {
     const counterValue = counterResult.rows[0].value;
     const label = toTicketLabel(type, counterValue);
     const phoneDigits = phone.replace(/\D/g, "");
+    await client.query(
+      "SELECT pg_advisory_xact_lock(hashtext($1))",
+      [`waitqr:desk-position:${deskId ?? "__unassigned__"}`],
+    );
+    const positionResult = await client.query(
+      `SELECT COUNT(*)::int + 1 AS joined_position
+       FROM submissions
+       WHERE desk_id IS NOT DISTINCT FROM $1
+         AND status = 'queued'
+         AND ($2 = 'general' OR type = 'priority')`,
+      [deskId == null ? null : String(deskId), type],
+    );
+    const joinedPosition = positionResult.rows[0].joined_position;
 
     const insertResult = await client.query(
-      `INSERT INTO submissions (label, type, name, phone, phone_digits, service_id, desk_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, label, type, name, phone, phone_digits, service_id, desk_id, status, called_at, started_at, completed_at, served_by_member_id, served_by_member_name, status_updated_at, created_at`,
-      [label, type, name, phone, phoneDigits, serviceId || null, deskId == null ? null : String(deskId)],
+      `INSERT INTO submissions (label, type, name, phone, phone_digits, service_id, desk_id, joined_position)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, served_by_member_id, served_by_member_name, status_updated_at, created_at`,
+      [label, type, name, phone, phoneDigits, serviceId || null, deskId == null ? null : String(deskId), joinedPosition],
     );
 
     await client.query("COMMIT");
@@ -315,7 +340,7 @@ export async function listSubmissions(limit = 100) {
   await assignUnassignedQueuedSubmissions();
 
   const result = await pool.query(
-    `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, status, called_at, started_at, completed_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
+    `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
      FROM submissions
      ORDER BY created_at DESC
      LIMIT $1`,
@@ -327,7 +352,7 @@ export async function listSubmissions(limit = 100) {
 
 export async function getSubmissionById(id) {
   const result = await pool.query(
-    `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, status, called_at, started_at, completed_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
+    `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
      FROM submissions
      WHERE id::text = $1
      LIMIT 1`,
@@ -339,7 +364,7 @@ export async function getSubmissionById(id) {
 
 export async function getSubmissionByLabel(label) {
   const result = await pool.query(
-    `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, status, called_at, started_at, completed_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
+    `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
      FROM submissions
      WHERE label = $1
      LIMIT 1`,
@@ -387,7 +412,7 @@ export async function updateSubmissionStatus(id, status, deskId = null, servedBy
            END,
            status_updated_at = NOW()
        WHERE id::text = $1
-       RETURNING id, label, type, name, phone, phone_digits, service_id, desk_id, status,
+       RETURNING id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status,
                  called_at, started_at, completed_at, served_by_member_id, served_by_member_name,
                  status_updated_at, created_at
      ),
@@ -412,7 +437,7 @@ export async function updateSubmissionStatus(id, status, deskId = null, servedBy
            service_ms = EXCLUDED.service_ms
        RETURNING id
      )
-     SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, status,
+     SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status,
             called_at, started_at, completed_at, served_by_member_id, served_by_member_name,
             status_updated_at, created_at
      FROM updated`,

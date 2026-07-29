@@ -271,6 +271,8 @@ export function buildWaitEstimates({
     let ticketsAhead = 0;
     let delayAt = null;
     let workAheadAfterDelayMs = 0;
+    let queueStepStartedAt = null;
+    let queueStepEndsAt = null;
     const predictions = [];
 
     for (const ticket of orderedTickets) {
@@ -305,6 +307,15 @@ export function buildWaitEstimates({
       const minimumWaitMs = ticketDelayAt == null
         ? 0
         : Math.round(MIN_OVERRUN_WAIT_MS + workAheadAfterDelayMs);
+      if ((ticket.status === "serving" || ticket.status === "called") && queueStepStartedAt == null) {
+        queueStepStartedAt = ticket.status === "serving"
+          ? servingStartAt
+          : finiteNumber(ticket.calledAt, deskModelAt);
+      }
+      if (ticket.status === "queued" && queueStepEndsAt == null) {
+        queueStepStartedAt ??= deskModelAt;
+        queueStepEndsAt = expectedStartAt;
+      }
 
       ticketEstimates.push({
         submissionId: String(ticket.id),
@@ -321,6 +332,8 @@ export function buildWaitEstimates({
         pauseStartedAt,
         delayAt: ticketDelayAt == null ? null : Math.round(ticketDelayAt),
         minimumWaitMs,
+        positionStepStartedAt: ticket.status === "queued" ? Math.round(queueStepStartedAt) : null,
+        positionStepEndsAt: ticket.status === "queued" ? Math.round(queueStepEndsAt) : null,
         lowerStartAt: Math.round(lowerStartAt),
         upperStartAt: Math.round(upperStartAt),
         estimatedServiceMs: prediction.expectedMs,

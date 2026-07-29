@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   phone_digits TEXT NOT NULL,
   service_id TEXT,
   desk_id TEXT,
+  joined_position INTEGER,
   status TEXT NOT NULL DEFAULT 'queued',
   called_at TIMESTAMPTZ,
   started_at TIMESTAMPTZ,
@@ -30,12 +31,30 @@ CREATE TABLE IF NOT EXISTS submissions (
 );
 
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS desk_id TEXT;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS joined_position INTEGER;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS called_at TIMESTAMPTZ;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS served_by_member_id TEXT;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS served_by_member_name TEXT;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+UPDATE submissions AS ticket
+SET joined_position = (
+  SELECT COUNT(*)::int + 1
+  FROM submissions AS earlier
+  WHERE earlier.status = 'queued'
+    AND earlier.desk_id IS NOT DISTINCT FROM ticket.desk_id
+    AND (
+      (ticket.type = 'general' AND earlier.type = 'priority')
+      OR (
+        earlier.type = ticket.type
+        AND (earlier.created_at, earlier.id) < (ticket.created_at, ticket.id)
+      )
+    )
+)
+WHERE ticket.joined_position IS NULL
+  AND ticket.status = 'queued';
 
 CREATE INDEX IF NOT EXISTS submissions_created_at_idx ON submissions (created_at DESC);
 CREATE INDEX IF NOT EXISTS submissions_phone_digits_idx ON submissions (phone_digits);

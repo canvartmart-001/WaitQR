@@ -313,6 +313,7 @@ function submissionToTicket(submission) {
     phone: submission.phone,
     serviceId: submission.serviceId || "",
     deskId: submission.deskId == null ? null : String(submission.deskId),
+    joinedPosition: submission.joinedPosition == null ? null : Number(submission.joinedPosition),
     createdAt: submission.createdAt,
   };
 }
@@ -1092,6 +1093,7 @@ export default function App() {
   useEffect(() => {
     const socket = createRealtimeClient();
     let cancelled = false;
+    let submissionSyncVersion = 0;
 
     const appendLiveQueuePoint = (payload = {}) => {
       if (cancelled) return;
@@ -1139,6 +1141,7 @@ export default function App() {
     };
 
     const syncSubmissions = () => {
+      const requestVersion = ++submissionSyncVersion;
       Promise.all([
         listSubmissions(),
         getWaitEstimates().catch((error) => {
@@ -1147,7 +1150,7 @@ export default function App() {
         }),
       ])
         .then(([submissions, estimates]) => {
-          if (cancelled) return;
+          if (cancelled || requestVersion !== submissionSyncVersion) return;
           applySubmissionSnapshot(submissions);
           if (estimates) applyWaitEstimates(estimates);
         })
@@ -2119,6 +2122,7 @@ export default function App() {
           waitEstimate={displayedTicketWaitEstimate}
           now={now}
           serviceName={serviceName}
+          theme={activeAppearanceSettings}
           onNavigate={navigate}
         />
       ) : currentPage === "profile" ? (
@@ -2209,6 +2213,7 @@ export default function App() {
           waitEstimate={displayedTicketWaitEstimate}
           now={now}
           serviceName={serviceName}
+          theme={adminTheme}
           onNavigate={navigate}
         />
       ) : currentPage === "profile" ? (
