@@ -47,7 +47,7 @@ export function useTicketIssuer({ services, queue, desks, setQueue, serviceWordL
     return getServiceAvailability(desks, serviceId).available;
   };
 
-  const handleIssue = async (type, serviceIdOverride = null) => {
+  const handleIssue = async (serviceIdOverride = null) => {
     if (issuePending) return;
 
     const name = form.name.trim();
@@ -87,7 +87,7 @@ export function useTicketIssuer({ services, queue, desks, setQueue, serviceWordL
         name,
         phone: phoneRaw,
         serviceId: selectedServiceId,
-        type,
+        type: "general",
       });
 
       const ticket = {

@@ -15,6 +15,7 @@ const waitEstimate = {
   predictedStartAt: 61_000,
   positionStepStartedAt: 1_000,
   positionStepEndsAt: 61_000,
+  estimatedServiceMs: 60_000,
   status: "queued",
 };
 
@@ -61,10 +62,10 @@ describe("ticket position progress", () => {
     rerender(<TicketPage {...props} ticketPosition={3} />);
 
     expect(getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).not.toBe(initialDash);
-    expect(getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("144.5 289");
+    expect(getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("141.61 289");
   });
 
-  it("fills the current position segment as its predicted time passes", () => {
+  it("fills the current position segment with time and never rewinds after an increased estimate", () => {
     const props = {
       ticketLabel: ticket.label,
       ticket,
@@ -78,11 +79,27 @@ describe("ticket position progress", () => {
     const initialDash = getByTestId("queue-position-progress").getAttribute("stroke-dasharray");
 
     rerender(<TicketPage {...props} now={31_000} />);
+    const advancedDash = getByTestId("queue-position-progress").getAttribute("stroke-dasharray");
+    expect(advancedDash).not.toBe(initialDash);
 
-    expect(getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).not.toBe(initialDash);
+    rerender(
+      <TicketPage
+        {...props}
+        now={31_000}
+        waitEstimate={{
+          ...waitEstimate,
+          predictedStartAt: 121_000,
+          positionStepStartedAt: 31_000,
+          positionStepEndsAt: 121_000,
+          estimatedServiceMs: 120_000,
+        }}
+      />,
+    );
+
+    expect(getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe(advancedDash);
   });
 
-  it("uses the countdown to fill the final quarter while the ticket is 1st", () => {
+  it("holds at the final confirmed milestone while first and completes when called", () => {
     const props = {
       ticketLabel: ticket.label,
       ticket,
@@ -94,13 +111,31 @@ describe("ticket position progress", () => {
     };
     const view = render(<TicketPage {...props} now={1_000} />);
 
-    expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("216.75 289");
+    expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("260.1 289");
 
     view.rerender(<TicketPage {...props} now={31_000} />);
-    expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("252.875 289");
+    expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("260.1 289");
 
-    view.rerender(<TicketPage {...props} now={61_000} />);
+    view.rerender(<TicketPage {...props} ticket={{ ...ticket, status: "called" }} now={61_000} />);
     expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("289 289");
+  });
+
+  it("never rewinds when a refreshed queue position is worse", () => {
+    const props = {
+      ticketLabel: ticket.label,
+      ticket,
+      ticketsLoaded: true,
+      ticketDeskName: "Counter 1",
+      waitEstimate,
+      now: 1_000,
+      serviceName: () => "Massage",
+    };
+    const view = render(<TicketPage {...props} ticketPosition={3} />);
+    const advancedDash = view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray");
+
+    view.rerender(<TicketPage {...props} ticketPosition={5} />);
+
+    expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe(advancedDash);
   });
 });
 

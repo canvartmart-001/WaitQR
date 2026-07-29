@@ -419,8 +419,8 @@ app.post("/api/submissions", async (req, res) => {
     return;
   }
 
-  if (type !== "general" && type !== "priority") {
-    res.status(400).json({ error: "Ticket type must be general or priority." });
+  if (type !== "general") {
+    res.status(400).json({ error: "Only general tickets can be created." });
     return;
   }
 

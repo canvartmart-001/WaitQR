@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { ArrowLeft, ArrowRight, Bell, Ticket } from "lucide-react";
+import { ArrowLeft, ArrowRight, Ticket } from "lucide-react";
 import { C } from "../../lib/theme";
 import { getServiceAvailability } from "../../lib/serviceAvailability";
 
@@ -47,27 +47,14 @@ export function KioskForm({
         type="button"
         onClick={() => {
           if (formError) setFormError?.("");
-          onIssue("general", directJoin ? defaultServiceId : undefined);
+          onIssue(directJoin ? defaultServiceId : undefined);
         }}
         disabled={issuePending}
         className="qp-focusable inline-flex items-center justify-center gap-2 rounded-2xl py-3.5 px-4 text-sm font-semibold transition-opacity"
         style={{ background: C.textLight, color: C.ink900, boxShadow: "0 10px 22px rgba(0,0,0,0.2)", opacity: issuePending ? 0.6 : 1 }}
       >
         <Ticket size={16} />
-        {issuePending ? "Saving..." : "Join General"}
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          if (formError) setFormError?.("");
-          onIssue("priority", directJoin ? defaultServiceId : undefined);
-        }}
-        disabled={issuePending}
-        className="qp-focusable inline-flex items-center justify-center gap-2 rounded-2xl py-3.5 px-4 text-sm font-semibold transition-opacity"
-        style={{ background: C.amber, color: C.ink900, boxShadow: "0 10px 22px rgba(0,0,0,0.2)", opacity: issuePending ? 0.6 : 1 }}
-      >
-        <Bell size={16} />
-        {issuePending ? "Saving..." : "Join Priority"}
+        {issuePending ? "Saving..." : "Join queue"}
       </button>
     </div>
   );

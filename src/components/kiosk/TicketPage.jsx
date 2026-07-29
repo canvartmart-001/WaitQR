@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Layers3,
@@ -153,30 +153,62 @@ function SubmissionCard({
   const position = Number(effectivePosition);
   const joinedPosition = Math.max(1, Number(submission.joinedPosition) || position || 1);
   const totalPositionSteps = Math.max(0, joinedPosition - 1);
-  const completedPositionSteps = Math.max(0, joinedPosition - Math.max(1, position || joinedPosition));
-  const stepStartedAt = Number(waitEstimate?.positionStepStartedAt);
-  const stepEndsAt = Number(waitEstimate?.positionStepEndsAt);
-  const progressNow = estimateDisplay.paused
+  const isFinalRingState = isCalled || isServing || isCompleted || isNoLongerWaiting;
+  const progressTicketId = String(submission.id);
+  const currentRingPosition = Math.max(1, position || joinedPosition);
+  const initialStepStartedAt = currentRingPosition === joinedPosition
+    ? Number(submission.createdAt) || now
+    : now;
+  const progressRef = useRef({
+    ticketId: progressTicketId,
+    bestPosition: currentRingPosition,
+    stepStartedAt: initialStepStartedAt,
+    value: 0.08,
+  });
+
+  if (progressRef.current.ticketId !== progressTicketId) {
+    progressRef.current = {
+      ticketId: progressTicketId,
+      bestPosition: currentRingPosition,
+      stepStartedAt: initialStepStartedAt,
+      value: 0.08,
+    };
+  } else if (currentRingPosition < progressRef.current.bestPosition) {
+    progressRef.current.bestPosition = currentRingPosition;
+    progressRef.current.stepStartedAt = now;
+  }
+
+  const bestPosition = progressRef.current.bestPosition;
+  const completedPositionSteps = Math.max(0, joinedPosition - bestPosition);
+  const confirmedPositionProgress = bestPosition <= 1
+    ? 0.9
+    : totalPositionSteps > 0
+      ? 0.08 + (0.82 * completedPositionSteps) / totalPositionSteps
+      : 0.08;
+  const positionSegmentSize = totalPositionSteps > 0 ? 0.82 / totalPositionSteps : 0;
+  const estimatedStepMs = Math.max(
+    30_000,
+    Number(waitEstimate?.estimatedServiceMs)
+      || Number(waitEstimate?.positionStepEndsAt) - Number(waitEstimate?.positionStepStartedAt)
+      || 60_000,
+  );
+  const effectiveProgressNow = estimateDisplay.paused
     ? Math.min(now, Number(waitEstimate?.pauseStartedAt) || now)
     : now;
-  const stepDurationMs = stepEndsAt - stepStartedAt;
-  const timedStepProgress = Number.isFinite(stepDurationMs) && stepDurationMs > 0
-    ? Math.max(0, Math.min(0.94, (progressNow - stepStartedAt) / stepDurationMs))
+  const elapsedStepMs = Math.max(0, effectiveProgressNow - progressRef.current.stepStartedAt);
+  const timedSegmentProgress = bestPosition > 1
+    ? Math.min(0.94, elapsedStepMs / estimatedStepMs)
     : 0;
-  const positionProgress = totalPositionSteps === 0
-    ? (position <= 1 ? 1 : 0)
-    : (completedPositionSteps + (position > 1 ? timedStepProgress : 0)) / totalPositionSteps;
-  const isFinalRingState = isCalled || isServing || isCompleted || isNoLongerWaiting;
-  const finalCountdownComplete = estimateDisplay.waitMs === 0
-    && !estimateDisplay.paused
-    && !estimateDisplay.delayed;
-  const firstPositionProgress = 0.75 + 0.25 * (finalCountdownComplete ? 1 : timedStepProgress);
-  const progress = isFinalRingState
+  const calculatedProgress = isFinalRingState
     ? 1
-    : position === 1
-      ? Math.max(0.75, Math.min(1, firstPositionProgress))
-      : Math.max(0.06, Math.min(0.99, positionProgress));
+    : confirmedPositionProgress + positionSegmentSize * timedSegmentProgress;
+  progressRef.current.value = Math.max(
+    progressRef.current.value,
+    Math.max(0.08, Math.min(isFinalRingState ? 1 : 0.9, calculatedProgress)),
+  );
+  const progress = progressRef.current.value;
   const ringLength = 289;
+  const progressDash = Math.round(ringLength * progress * 1000) / 1000;
   const statusAccent = isNoLongerWaiting
     ? C.coral
     : isServing || isCompleted
@@ -225,7 +257,7 @@ function SubmissionCard({
             stroke={statusAccent}
             strokeWidth="3.2"
             strokeLinecap="round"
-            strokeDasharray={`${ringLength * progress} ${ringLength}`}
+            strokeDasharray={`${progressDash} ${ringLength}`}
             transform="rotate(-90 54 54)"
             style={{ transition: "stroke-dasharray 600ms ease" }}
           />
