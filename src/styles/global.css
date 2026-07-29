@@ -976,12 +976,23 @@ svg {
   grid-column: 2;
 }
 
+.qp-desk-break-action > svg,
+.qp-desk-break-action > span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.qp-desk-break-action > svg {
+  flex-shrink: 0;
+}
+
 .qp-desk-break-action--active {
   width: 100%;
   gap: 8px;
   justify-content: center;
-  color: #2563eb !important;
-  background: #eff6ff !important;
+  color: var(--qp-desk-accent, #2563eb) !important;
+  background: color-mix(in srgb, var(--qp-desk-accent, #2563eb) 12%, white) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -994,6 +1005,15 @@ svg {
 .qp-desk-secondary-action:hover {
   color: #2563eb !important;
   background: #f8fafc !important;
+}
+
+.qp-desk-break-action:hover {
+  color: var(--qp-desk-accent, #2563eb) !important;
+  background: color-mix(in srgb, var(--qp-desk-accent, #2563eb) 10%, white) !important;
+}
+
+.qp-desk-break-action--active:hover {
+  background: color-mix(in srgb, var(--qp-desk-accent, #2563eb) 16%, white) !important;
 }
 
 .qp-desk-cancel-action {

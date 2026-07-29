@@ -17,6 +17,7 @@ const THEME_PRESETS = {
   Dark: { accentColor: "#2563eb", bgColor: "#04060b", fontColor: "#e2e8f0", borderColor: "#171d2b", separatorColor: "#171d2b" },
   Light: { accentColor: "#2563eb", bgColor: "#f8fafc", fontColor: "#0f172a", borderColor: "#e2e8f0", separatorColor: "#e2e8f0" },
 };
+const COMPACT_SIDEBAR_QUERY = "(max-width: 1180px)";
 
 function withAlpha(hex, alphaHex) {
   if (!hex || hex.length !== 7) return hex;
@@ -377,7 +378,9 @@ function Sidebar({ variant, open, onClose, currentPage, onNavigate, theme, colla
 
 export function AdminShell({ currentPage, children, onNavigate, appearance, onAppearanceChange, onThemeChange, loggedInMember, masterLoggedIn = false, members = [], notifications = [], onClearNotifications, onMarkNotificationsRead, onLogoutMember }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => (
+    typeof window !== "undefined" ? window.matchMedia?.(COMPACT_SIDEBAR_QUERY).matches : false
+  ));
   const {
     accentColor = "#2563eb",
     bgColor = "#04060b",
@@ -478,6 +481,19 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
   const PageIcon = meta.icon;
   const content = typeof children === "function" ? children(theme) : children;
   const pageBgColor = mutedPageBackground(bgColor, accentColor);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const media = window.matchMedia?.(COMPACT_SIDEBAR_QUERY);
+    if (!media) return undefined;
+
+    const handleChange = (event) => setSidebarCollapsed(event.matches);
+    setSidebarCollapsed(media.matches);
+    media.addEventListener?.("change", handleChange);
+
+    return () => media.removeEventListener?.("change", handleChange);
+  }, []);
 
   return (
     <div className="flex min-h-screen w-full" style={{ backgroundColor: pageBgColor, color: fontColor, "--surface-bg": bgColor }}>

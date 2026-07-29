@@ -104,7 +104,7 @@ export function TicketTabsPanel({
             <button
               key={tab.key}
               onClick={() => setDeskDetailTab(tab.key)}
-              className="qp-focusable inline-flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-medium transition-colors hover:bg-white/5 sm:h-8 sm:min-h-0 sm:flex-row sm:gap-1.5 sm:px-3 sm:py-0"
+              className="qp-focusable inline-flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-medium transition-colors hover:bg-white/5 sm:h-9 sm:min-h-0 sm:flex-row sm:gap-1.5 sm:px-3 sm:py-0"
               style={{
                 background: deskDetailTab === tab.key ? activeTabBackground : "transparent",
                 color: deskDetailTab === tab.key ? surfaceTheme.fontColor : faintColor,
@@ -119,7 +119,7 @@ export function TicketTabsPanel({
           ))}
         </div>
 
-        <div className="qp-tab-search-wrap relative w-full min-w-0 sm:ml-auto sm:w-auto sm:min-w-[11rem] sm:flex-1 sm:max-w-[16rem]">
+        <div className="qp-tab-search-wrap relative w-full min-w-0 sm:ml-auto sm:w-auto sm:min-w-[16rem] sm:flex-1 sm:max-w-none xl:max-w-[16rem]">
           <Search size={15} strokeWidth={2} className="qp-tab-search-icon pointer-events-none absolute" style={{ color: activeTab.countColor }} />
           <input
             value={searchTerm}
