@@ -496,7 +496,7 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
   }, []);
 
   return (
-    <div className="flex min-h-screen w-full" style={{ backgroundColor: pageBgColor, color: fontColor, "--surface-bg": bgColor }}>
+    <div className="flex min-h-screen w-full" style={{ backgroundColor: pageBgColor, color: fontColor, "--surface-bg": bgColor, "--page-bg": pageBgColor }}>
       <Sidebar
         variant="desktop"
         currentPage={currentPage}
@@ -519,7 +519,7 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
       <main className="min-w-0 flex-1" style={{ backgroundColor: pageBgColor }}>
         <div
           className="sticky top-0 z-10 flex items-center justify-between gap-3 px-2.5 py-2.5 sm:px-6 sm:py-5 md:pl-10 md:pr-6"
-          style={{ backgroundColor: pageBgColor }}
+          style={{ backgroundColor: "var(--page-bg)" }}
         >
           <div className="min-w-0">
             <button

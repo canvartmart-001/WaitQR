@@ -1,5 +1,6 @@
 import { ArrowRight, CalendarDays, Check, Clock3, Coffee, Layers3, Lock, Phone, Ticket, Unlock, UserRound, Volume2, X } from "lucide-react";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { C } from "../../lib/theme";
 import { elapsedLabel, elapsedTimerLabel } from "../../lib/format";
 import { SnoozingCat } from "../shared/SnoozingCat";
@@ -555,7 +556,7 @@ export function DeskConsoleCard({
         {!t && !isOnBreak ? renderDeskActions() : null}
       </div>
 
-      {statusOpen ? (
+      {statusOpen && typeof document !== "undefined" ? createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setStatusOpen(false)}>
           <div
             className="qp-modal w-full max-w-sm p-5"
@@ -563,10 +564,7 @@ export function DeskConsoleCard({
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: mutedColor }}>
-                Counter status
-              </div>
-              <h3 className="mt-1 text-lg font-semibold" style={{ color: surfaceTheme.fontColor }}>
+              <h3 className="text-lg font-semibold" style={{ color: surfaceTheme.fontColor }}>
                 {d.name}
               </h3>
               <div className="mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" style={{ color: availability.dot, background: `${availability.dot}24` }}>
@@ -660,7 +658,8 @@ export function DeskConsoleCard({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       ) : null}
     </div>
   );
