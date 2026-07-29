@@ -1610,6 +1610,7 @@ export default function App() {
   useEffect(() => {
     if (!activeDesk) return;
     if (
+      pathname === "/" ||
       pathname === "/create" ||
       pathname === "/create-password" ||
       pathname === "/analytics" ||
