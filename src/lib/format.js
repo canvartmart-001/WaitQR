@@ -46,3 +46,32 @@ export function elapsedTimerLabel(ms) {
 
   return `${minutesPart}:${String(seconds).padStart(2, "0")}`;
 }
+
+function startOfDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function clockLabel(date) {
+  const hours24 = date.getHours();
+  const hours12 = hours24 % 12 || 12;
+  const minutesPart = String(date.getMinutes()).padStart(2, "0");
+  const suffix = hours24 >= 12 ? "PM" : "AM";
+  return `${hours12}.${minutesPart} ${suffix}`;
+}
+
+export function finishTimeLabel(timestamp, nowTimestamp = Date.now()) {
+  const time = Number(timestamp);
+  if (!Number.isFinite(time)) return "";
+
+  const date = new Date(time);
+  const now = new Date(nowTimestamp);
+  const dayDiff = Math.floor((startOfDay(now) - startOfDay(date)) / 86400000);
+  const timeText = clockLabel(date);
+
+  if (dayDiff === 0) return `Today, ${timeText}`;
+  if (dayDiff > 0 && dayDiff < 7) {
+    return `${date.toLocaleDateString("en-US", { weekday: "short" })}, ${timeText}`;
+  }
+
+  return `${date.toLocaleDateString("en-US", { day: "numeric", month: "short" })}, ${timeText}`;
+}

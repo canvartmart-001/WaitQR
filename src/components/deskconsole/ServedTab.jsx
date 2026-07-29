@@ -1,6 +1,6 @@
 import { Check, Undo2 } from "lucide-react";
 import { C } from "../../lib/theme";
-import { elapsedLabel } from "../../lib/format";
+import { elapsedLabel, finishTimeLabel } from "../../lib/format";
 
 function withAlpha(hex, alphaHex) {
   if (typeof hex !== "string" || !/^#?[0-9a-f]{6}$/i.test(hex)) return hex;
@@ -49,11 +49,12 @@ function ServedRow({ entry: e, now, serviceName, desks, deskWord, recallServed, 
   const recallDesk = desks.find((desk) => String(desk.id) === String(e.deskId));
   const recallDisabled = !recallServed || !recallDesk;
   const servedByName = e.servedByMemberName || "";
+  const servedDuration = e.startedAt && e.completedAt ? elapsedLabel(e.completedAt - e.startedAt) : "--";
+  const finishTime = finishTimeLabel(e.completedAt, now);
   const servedMeta = [
     recallDesk?.name || deskWord,
-    servedByName ? `By ${servedByName}` : null,
     `Waited ${elapsedLabel(e.waitMs)}`,
-    `${elapsedLabel(now - e.completedAt)} ago`,
+    `Served ${servedDuration}`,
   ].filter(Boolean).join(" | ");
   const confirmRecall = () => {
     if (!askConfirm) {
@@ -78,9 +79,16 @@ function ServedRow({ entry: e, now, serviceName, desks, deskWord, recallServed, 
         <div className="min-w-0 flex-1">
           <div className="grid min-h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
             <div className="min-w-0">
-              <span className="qp-mono block truncate text-lg font-semibold leading-tight" style={{ color: C.teal }}>
-                {e.label}
-              </span>
+              <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span className="qp-mono block truncate text-lg font-semibold leading-tight" style={{ color: C.teal }}>
+                  {e.label}
+                </span>
+                {finishTime ? (
+                  <span className="truncate text-[10px] font-medium" style={{ color: faintColor }}>
+                    {finishTime}
+                  </span>
+                ) : null}
+              </div>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
               <button
@@ -103,8 +111,15 @@ function ServedRow({ entry: e, now, serviceName, desks, deskWord, recallServed, 
             <div className="text-xs truncate" style={{ color: mutedColor }}>
               {e.phone}
             </div>
-            <div className="text-sm font-normal truncate" style={{ color: withAlpha(surfaceTheme.fontColor, "cc") }}>
-              {serviceName(e.serviceId)}
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+              <span className="truncate text-sm font-normal" style={{ color: withAlpha(surfaceTheme.fontColor, "cc") }}>
+                {serviceName(e.serviceId)}
+              </span>
+              {servedByName ? (
+                <span className="truncate text-xs" style={{ color: faintColor }}>
+                  - By {servedByName}
+                </span>
+              ) : null}
             </div>
           </div>
           <div className="text-[10px] mt-0.5 truncate qp-mono" style={{ color: faintColor }}>

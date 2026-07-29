@@ -130,6 +130,7 @@ export function useDesks(initialDesks, { queue, setQueue, onTicketCompleted, onT
         phone: finishedTicket.phone,
         type: finishedTicket.type,
         createdAt: finishedTicket.createdAt,
+        startedAt: finishedTicket.startedAt,
       });
       setDesks((ds) =>
         ds.map((d) => {
@@ -176,6 +177,7 @@ export function useDesks(initialDesks, { queue, setQueue, onTicketCompleted, onT
         phone: finishedTicket.phone,
         type: finishedTicket.type,
         createdAt: finishedTicket.createdAt,
+        startedAt: finishedTicket.startedAt,
       });
       setDesks((ds) =>
         ds.map((d) => {

@@ -7,6 +7,12 @@ function withAlpha(hex, alphaHex) {
   return `${hex.startsWith("#") ? hex : `#${hex}`}${alphaHex}`;
 }
 
+function estimatedWaitLabel(ticket) {
+  const minutes = Number(ticket?.estimatedWaitMinutes ?? ticket?.estTime ?? ticket?.estimatedWait);
+  if (!Number.isFinite(minutes) || minutes <= 0) return "--";
+  return elapsedLabel(minutes * 60000);
+}
+
 export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, now, serviceName, desks = [], deskWord, callTicket, theme }) {
   const surfaceTheme = {
     accentColor: theme?.accentColor || C.blue,
@@ -90,7 +96,7 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
                 {serviceName(t.serviceId)}
               </div>
               <div className="qp-ticket-face text-[10px] truncate" style={{ color: faintColor, fontVariantNumeric: "tabular-nums" }}>
-                {elapsedLabel(now - t.createdAt)}
+                Joined {elapsedLabel(now - t.createdAt)} ago | Estimated wait {estimatedWaitLabel(t)}
               </div>
               <div className="flex flex-wrap gap-1">
                 {t.type === "priority" && (

@@ -359,6 +359,7 @@ function mapSubmissionToServedEntry(submission) {
     phone: submission.phone,
     type: submission.type,
     createdAt: submission.createdAt,
+    startedAt: submission.startedAt,
     servedByMemberId: submission.servedByMemberId || "",
     servedByMemberName: submission.servedByMemberName || "",
     completedAt,
