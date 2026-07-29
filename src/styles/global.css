@@ -690,6 +690,7 @@ svg {
 
 .qp-ticket-tabs-panel {
   --qp-ticket-tabs-scroll-gutter: 4px;
+  container-type: inline-size;
 }
 
 .qp-ticket-tabs-header {
@@ -703,6 +704,13 @@ svg {
 .qp-tab-search-wrap {
   --qp-tab-search-x: 12px;
   --qp-tab-search-icon: 15px;
+}
+
+@container (max-width: 560px) {
+  .qp-tab-search-wrap {
+    flex-basis: 100% !important;
+    max-width: none !important;
+  }
 }
 
 .qp-tab-search {

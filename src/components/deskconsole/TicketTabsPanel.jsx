@@ -119,7 +119,7 @@ export function TicketTabsPanel({
           ))}
         </div>
 
-        <div className="qp-tab-search-wrap relative w-full min-w-0 sm:ml-auto sm:w-auto sm:min-w-[16rem] sm:flex-1 sm:max-w-none xl:max-w-[16rem]">
+        <div className="qp-tab-search-wrap relative w-full min-w-0 sm:ml-auto sm:w-auto sm:flex-[1_1_12rem] sm:max-w-[14rem]">
           <Search size={15} strokeWidth={2} className="qp-tab-search-icon pointer-events-none absolute" style={{ color: activeTab.countColor }} />
           <input
             value={searchTerm}
