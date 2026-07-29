@@ -84,6 +84,25 @@ svg {
     @apply flex-1 min-h-0 content-center justify-items-center;
   }
 
+  .qp-ticket-page-shell {
+    display: flex;
+    min-height: 100vh;
+    min-height: 100dvh;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .qp-ticket-page-content {
+    display: flex;
+    flex: 1 0 auto;
+    align-items: center;
+  }
+
+  .qp-ticket-page-footer {
+    flex: 0 0 auto;
+    margin-top: auto;
+  }
+
   .qp-header-row {
     @apply flex items-center justify-between gap-4 flex-wrap py-4;
   }

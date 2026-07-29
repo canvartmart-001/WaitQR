@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS service_assignment_state (
 CREATE TABLE IF NOT EXISTS submissions (
   id BIGSERIAL PRIMARY KEY,
   label TEXT NOT NULL UNIQUE,
+  public_token TEXT UNIQUE,
   type TEXT NOT NULL CHECK (type IN ('general', 'priority')),
   name TEXT NOT NULL,
   phone TEXT NOT NULL,
@@ -32,6 +33,7 @@ CREATE TABLE IF NOT EXISTS submissions (
 );
 
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS desk_id TEXT;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS public_token TEXT;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS joined_position INTEGER;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS called_at TIMESTAMPTZ;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ;
@@ -60,6 +62,7 @@ WHERE ticket.joined_position IS NULL
 
 CREATE INDEX IF NOT EXISTS submissions_created_at_idx ON submissions (created_at DESC);
 CREATE INDEX IF NOT EXISTS submissions_phone_digits_idx ON submissions (phone_digits);
+CREATE UNIQUE INDEX IF NOT EXISTS submissions_public_token_idx ON submissions (public_token);
 CREATE INDEX IF NOT EXISTS submissions_live_queue_idx
   ON submissions (desk_id, status, created_at)
   WHERE status IN ('queued', 'called', 'serving');

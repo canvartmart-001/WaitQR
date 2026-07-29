@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { randomBytes } from "node:crypto";
 import { pool } from "./db.js";
 import { pad } from "../src/lib/format.js";
 import { eligibleDeskIdsForService, selectDeskByWorkload } from "../src/lib/assignments.js";
@@ -19,10 +20,15 @@ function seedCounterFloor(type) {
   return 0;
 }
 
+function createPublicToken() {
+  return randomBytes(24).toString("base64url");
+}
+
 function mapSubmissionRow(row) {
   return {
     id: String(row.id),
     label: row.label,
+    publicToken: row.public_token || null,
     type: row.type,
     name: row.name,
     phone: row.phone,
@@ -166,6 +172,13 @@ function mapQueueCountEventRow(row) {
 export async function ensureSchema() {
   const sql = await fs.readFile(schemaPath, "utf8");
   await pool.query(sql);
+  const missingTokens = await pool.query("SELECT id FROM submissions WHERE public_token IS NULL");
+  for (const row of missingTokens.rows) {
+    await pool.query(
+      "UPDATE submissions SET public_token = $2 WHERE id = $1 AND public_token IS NULL",
+      [row.id, createPublicToken()],
+    );
+  }
   await assignUnassignedQueuedSubmissions();
 }
 
@@ -314,10 +327,10 @@ export async function createSubmission({ name, phone, serviceId, type }) {
     const joinedPosition = positionResult.rows[0].joined_position;
 
     const insertResult = await client.query(
-      `INSERT INTO submissions (label, type, name, phone, phone_digits, service_id, desk_id, joined_position)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name, status_updated_at, created_at`,
-      [label, type, name, phone, phoneDigits, serviceId || null, deskId == null ? null : String(deskId), joinedPosition],
+      `INSERT INTO submissions (label, public_token, type, name, phone, phone_digits, service_id, desk_id, joined_position)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, label, public_token, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name, status_updated_at, created_at`,
+      [label, createPublicToken(), type, name, phone, phoneDigits, serviceId || null, deskId == null ? null : String(deskId), joinedPosition],
     );
 
     await client.query("COMMIT");
@@ -341,7 +354,7 @@ export async function listSubmissions(limit = 100) {
   await assignUnassignedQueuedSubmissions();
 
   const result = await pool.query(
-    `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
+    `SELECT id, label, public_token, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
      FROM submissions
      ORDER BY created_at DESC
      LIMIT $1`,
@@ -353,7 +366,7 @@ export async function listSubmissions(limit = 100) {
 
 export async function getSubmissionById(id) {
   const result = await pool.query(
-    `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
+    `SELECT id, label, public_token, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
      FROM submissions
      WHERE id::text = $1
      LIMIT 1`,
@@ -365,11 +378,23 @@ export async function getSubmissionById(id) {
 
 export async function getSubmissionByLabel(label) {
   const result = await pool.query(
-    `SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
+    `SELECT id, label, public_token, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
      FROM submissions
      WHERE label = $1
      LIMIT 1`,
     [String(label)],
+  );
+
+  return result.rows[0] ? mapSubmissionRow(result.rows[0]) : null;
+}
+
+export async function getSubmissionByPublicToken(publicToken) {
+  const result = await pool.query(
+    `SELECT id, label, public_token, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
+     FROM submissions
+     WHERE public_token = $1
+     LIMIT 1`,
+    [String(publicToken)],
   );
 
   return result.rows[0] ? mapSubmissionRow(result.rows[0]) : null;
@@ -417,7 +442,7 @@ export async function updateSubmissionStatus(id, status, deskId = null, servedBy
            END,
            status_updated_at = NOW()
        WHERE id::text = $1
-       RETURNING id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status,
+       RETURNING id, label, public_token, type, name, phone, phone_digits, service_id, desk_id, joined_position, status,
                  called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name,
                  status_updated_at, created_at
      ),
@@ -442,7 +467,7 @@ export async function updateSubmissionStatus(id, status, deskId = null, servedBy
            service_ms = EXCLUDED.service_ms
        RETURNING id
      )
-     SELECT id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position, status,
+     SELECT id, label, public_token, type, name, phone, phone_digits, service_id, desk_id, joined_position, status,
             called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name,
             status_updated_at, created_at
      FROM updated`,
@@ -458,7 +483,7 @@ export async function requestSubmissionRecall(id) {
      SET recall_requested_at = COALESCE(recall_requested_at, NOW())
      WHERE id::text = $1
        AND status = 'skipped'
-     RETURNING id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position,
+     RETURNING id, label, public_token, type, name, phone, phone_digits, service_id, desk_id, joined_position,
                status, called_at, started_at, completed_at, recall_requested_at,
                served_by_member_id, served_by_member_name, status_updated_at, created_at`,
     [String(id)],
@@ -474,13 +499,44 @@ export async function cancelSubmissionRecall(id) {
      WHERE id::text = $1
        AND status = 'skipped'
        AND recall_requested_at IS NOT NULL
-     RETURNING id, label, type, name, phone, phone_digits, service_id, desk_id, joined_position,
+     RETURNING id, label, public_token, type, name, phone, phone_digits, service_id, desk_id, joined_position,
                status, called_at, started_at, completed_at, recall_requested_at,
                served_by_member_id, served_by_member_name, status_updated_at, created_at`,
     [String(id)],
   );
 
   return result.rows[0] ? mapSubmissionRow(result.rows[0]) : null;
+}
+
+export async function deleteSubmissionByPublicToken(publicToken) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    const submissionResult = await client.query(
+      `SELECT id, label, public_token, type, name, phone, phone_digits, service_id, desk_id, joined_position, status, called_at, started_at, completed_at, recall_requested_at, served_by_member_id, served_by_member_name, status_updated_at, created_at
+       FROM submissions
+       WHERE public_token = $1
+       FOR UPDATE`,
+      [String(publicToken)],
+    );
+    const row = submissionResult.rows[0];
+    if (!row) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    await client.query("DELETE FROM service_history WHERE submission_id = $1", [String(row.id)]);
+    await client.query("DELETE FROM queue_count_events WHERE submission_id = $1", [String(row.id)]);
+    await client.query("DELETE FROM submissions WHERE id = $1", [row.id]);
+    await client.query("COMMIT");
+    return mapSubmissionRow(row);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function getWaitEstimates() {

@@ -70,6 +70,46 @@ export async function getSubmissionByLabel(label) {
   return data.submission || null;
 }
 
+export async function getSubmissionByAccessKey(accessKey) {
+  if (!accessKey) return null;
+  if (/^[AP]\d+$/i.test(String(accessKey))) return getSubmissionByLabel(accessKey);
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/submissions/public/${encodeURIComponent(accessKey)}`);
+  } catch {
+    throw new Error("Submission service is unavailable. Start the backend and confirm the API is reachable.");
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (response.status === 404) return null;
+    throw new Error(data.error || "Failed to load submission.");
+  }
+
+  return data.submission || null;
+}
+
+export async function deleteSubmissionByPublicToken(publicToken) {
+  if (!publicToken) return false;
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/submissions/public/${encodeURIComponent(publicToken)}`, {
+      method: "DELETE",
+    });
+  } catch {
+    throw new Error("Submission service is unavailable. Start the backend and confirm the API is reachable.");
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to delete ticket.");
+  }
+
+  return Boolean(data.deleted);
+}
+
 export async function getSubmissionStats() {
   let response;
 

@@ -116,11 +116,11 @@ describe("ticket lifecycle messages", () => {
   };
 
   it.each([
-    ["serving", "Now serving", "You are now being served at Counter 1."],
-    ["completed", "Completed", "Your service has been completed."],
-    ["skipped", "You were missed", "You were marked absent and removed from the queue."],
-    ["removed", "Ticket removed", "This ticket was removed from the queue."],
-  ])("shows the correct %s state", (status, heading, notice) => {
+    ["serving", "Now serving"],
+    ["completed", "Completed"],
+    ["skipped", "You were missed"],
+    ["removed", "Ticket removed"],
+  ])("shows the correct %s state", (status, heading) => {
     const view = render(
       <TicketPage
         {...baseProps}
@@ -129,7 +129,6 @@ describe("ticket lifecycle messages", () => {
     );
 
     expect(view.getByText(heading)).toBeTruthy();
-    expect(view.getByText(notice)).toBeTruthy();
     expect(view.queryByText(/ahead of you/i)).toBeNull();
     expect(view.queryByText(/next in line/i)).toBeNull();
   });
@@ -143,9 +142,86 @@ describe("ticket lifecycle messages", () => {
     );
 
     expect(view.getByText("You're called")).toBeTruthy();
-    expect(view.getByText("Your ticket has been called. Please proceed to Counter 1.")).toBeTruthy();
     expect(view.queryByText("Estimated wait")).toBeNull();
     expect(view.queryByText(/ahead of you/i)).toBeNull();
+  });
+
+  it("uses the black ticket-details panel, dashboard service icon, and site footer", () => {
+    const view = render(
+      <TicketPage
+        {...baseProps}
+        ticket={{ ...ticket, status: "queued" }}
+        ticketPosition={1}
+      />,
+    );
+    const detailsPanel = view.getByRole("region", { name: "Ticket details" });
+
+    expect(detailsPanel.style.backgroundColor).toBe("rgb(0, 0, 0)");
+    expect(detailsPanel.classList.contains("border")).toBe(false);
+    expect(detailsPanel.querySelector(".lucide-layers3")).toBeTruthy();
+    expect(view.getByText(/All rights reserved/)).toBeTruthy();
+  });
+
+  it("shows live serving time and the fixed served duration", async () => {
+    const servingTicket = {
+      ...ticket,
+      status: "serving",
+      startedAt: 1_000,
+      publicToken: "Yx8p4X2aGmHj6Qn9RkT3VwZbLcDf5S7u",
+    };
+    const view = render(
+      <TicketPage
+        {...baseProps}
+        ticket={servingTicket}
+        now={61_000}
+      />,
+    );
+
+    expect(view.getByText("1:00")).toBeTruthy();
+    expect(view.queryByText("Serving 1:00")).toBeNull();
+    expect(view.queryByRole("button", { name: "Exit ticket" })).toBeNull();
+
+    view.rerender(
+      <TicketPage
+        {...baseProps}
+        ticket={{ ...servingTicket, status: "completed", completedAt: 31_000 }}
+        now={91_000}
+      />,
+    );
+    await waitFor(() => expect(view.getByText("Served 0:30")).toBeTruthy());
+  });
+
+  it("confirms and permanently deletes a private-link ticket", async () => {
+    const privateTicket = {
+      ...ticket,
+      publicToken: "Yx8p4X2aGmHj6Qn9RkT3VwZbLcDf5S7u",
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ deleted: true }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const view = render(
+      <TicketPage
+        {...baseProps}
+        ticketLabel={privateTicket.publicToken}
+        ticket={privateTicket}
+        ticketPosition={1}
+      />,
+    );
+
+    fireEvent.click(view.getByRole("button", { name: "Exit ticket" }));
+    expect(view.getByText("Are you sure?")).toBeTruthy();
+    expect(view.getByText("!")).toBeTruthy();
+    expect(view.getByText(/You will lose your position in the queue/)).toBeTruthy();
+    fireEvent.click(view.getByRole("button", { name: "Exit queue" }));
+
+    await waitFor(() => expect(view.getByText("Ticket deleted")).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/submissions/public/${privateTicket.publicToken}`,
+      { method: "DELETE" },
+    );
+    vi.unstubAllGlobals();
   });
 
   it("updates the mobile address-bar color with the live ticket status", async () => {
@@ -191,6 +267,8 @@ describe("ticket lifecycle messages", () => {
       />,
     );
     await waitFor(() => expect(view.getByText("You're called")).toBeTruthy());
+    expect(view.getByTestId("ticket-service-value").style.color).toBe("rgb(232, 163, 61)");
+    expect(view.getByTestId("ticket-counter-value").style.color).toBe("rgb(232, 163, 61)");
 
     view.rerender(
       <TicketPage
@@ -201,6 +279,8 @@ describe("ticket lifecycle messages", () => {
     await waitFor(() => expect(view.getByText("You were missed")).toBeTruthy());
     expect(view.getByTestId("queue-position-progress").getAttribute("stroke")).toBe("#E2614F");
     expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("289 289");
+    expect(view.getByTestId("ticket-service-value").style.color).toBe("rgb(226, 97, 79)");
+    expect(view.getByTestId("ticket-counter-value").style.color).toBe("rgb(226, 97, 79)");
 
     view.rerender(
       <TicketPage
@@ -211,6 +291,8 @@ describe("ticket lifecycle messages", () => {
     await waitFor(() => expect(view.getByText("Completed")).toBeTruthy());
     expect(view.getByTestId("queue-position-progress").getAttribute("stroke")).toBe("#4FB286");
     expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("289 289");
+    expect(view.getByTestId("ticket-service-value").style.color).toBe("rgb(79, 178, 134)");
+    expect(view.getByTestId("ticket-counter-value").style.color).toBe("rgb(79, 178, 134)");
   });
 
   it("lets an absent customer request a recall", async () => {

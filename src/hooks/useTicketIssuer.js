@@ -93,6 +93,7 @@ export function useTicketIssuer({ services, queue, desks, setQueue, serviceWordL
       const ticket = {
         id: submission.id,
         label: submission.label,
+        publicToken: submission.publicToken || null,
         type: submission.type,
         name: submission.name,
         phone: submission.phone,

@@ -29,7 +29,7 @@ import { ConfirmDialog } from "./components/modals/ConfirmDialog";
 import { IssueToast } from "./components/shared/IssueToast";
 import { C } from "./lib/theme";
 import { findDeskByPath, findMemberByProfilePath, getDeskPath, getMemberProfilePath, getTicketPath, findTicketLabelByPath, isCounterDetailPath } from "./lib/routing";
-import { cancelSubmissionRecall, clearSubmissions, getWaitEstimates, listQueueCountEvents, listSubmissions, updateSubmissionStatus } from "./lib/submissionsApi";
+import { cancelSubmissionRecall, clearSubmissions, getSubmissionByAccessKey, getWaitEstimates, listQueueCountEvents, listSubmissions, updateSubmissionStatus } from "./lib/submissionsApi";
 import { cacheSettings, loadSettings, saveSettings, updateDeskStatus } from "./lib/settingsApi";
 import { createRealtimeClient } from "./lib/realtime";
 import { deriveDeskServicesFromMembers, memberHasDesk, normalizeMemberRole, uniqueIds } from "./lib/assignments";
@@ -315,6 +315,7 @@ function submissionToTicket(submission) {
   return {
     id: submission.id,
     label: submission.label,
+    publicToken: submission.publicToken || null,
     type: submission.type,
     name: submission.name,
     phone: submission.phone,
@@ -782,16 +783,19 @@ function findSubmissionByLabel(label, { savedSubmissions, queue, desks }) {
   if (!label) return null;
   const normalized = String(label).toUpperCase();
 
-  const savedMatch = savedSubmissions.find((submission) => String(submission.label).toUpperCase() === normalized);
+  const matchesAccessKey = (submission) =>
+    String(submission.label).toUpperCase() === normalized
+    || String(submission.publicToken || "") === String(label);
+  const savedMatch = savedSubmissions.find(matchesAccessKey);
   if (savedMatch) return savedMatch;
 
-  const queueMatch = queue.find((ticket) => String(ticket.label).toUpperCase() === normalized);
+  const queueMatch = queue.find(matchesAccessKey);
   if (queueMatch) return queueMatch;
 
   for (const desk of desks) {
     const ticket = [desk.current, ...(Array.isArray(desk.calledTickets) ? desk.calledTickets : [])]
       .filter(Boolean)
-      .find((item) => String(item.label).toUpperCase() === normalized);
+      .find(matchesAccessKey);
     if (ticket) return ticket;
   }
 
@@ -846,6 +850,7 @@ export default function App() {
   const [search, setSearch] = useState(() => window.location.search || "");
   const [activeDeskPageId, setActiveDeskPageId] = useState(null);
   const [recentIssuedTicket, setRecentIssuedTicket] = useState(null);
+  const [accessedPublicTicket, setAccessedPublicTicket] = useState(null);
   const [issuedToday, setIssuedToday] = useState(0);
   const [savedSubmissions, setSavedSubmissions] = useState([]);
   const [submissionSummary, setSubmissionSummary] = useState({ total: 0, waiting: 0, serving: 0, served: 0, absent: 0 });
@@ -977,7 +982,7 @@ export default function App() {
     serviceWordLower: labels.serviceWordLower,
     onIssued: (ticket) => {
       setRecentIssuedTicket(ticket);
-      navigate(getTicketPath(ticket.label));
+      navigate(getTicketPath(ticket));
     },
   });
   const removeAbsentWithStatus = (ticketId) => {
@@ -1622,6 +1627,31 @@ export default function App() {
   const ticketLabelFromPath = findTicketLabelByPath(pathname);
 
   useEffect(() => {
+    let cancelled = false;
+    const isPrivateToken = ticketLabelFromPath && !/^[AP]\d+$/i.test(ticketLabelFromPath);
+
+    if (!isPrivateToken) {
+      setAccessedPublicTicket(null);
+      return undefined;
+    }
+
+    getSubmissionByAccessKey(ticketLabelFromPath)
+      .then((submission) => {
+        if (!cancelled) setAccessedPublicTicket(submission);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.warn(error.message);
+          setAccessedPublicTicket(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ticketLabelFromPath]);
+
+  useEffect(() => {
     if (matchedDeskFromPath) {
       setActiveDeskPageId(matchedDeskFromPath.id);
       return;
@@ -1743,15 +1773,29 @@ export default function App() {
 
   const getDeskRoute = (desk) => getDeskPath(desk, desks);
   const authIdentifierFromQuery = new URLSearchParams(search).get("member") || "";
-  const ticketFromState = ticketLabelFromPath
-    ? findSubmissionByLabel(ticketLabelFromPath, {
-        savedSubmissions,
-        queue,
-        desks,
-      })
+  const accessedTicketMatches = accessedPublicTicket
+    && String(accessedPublicTicket.publicToken || "") === String(ticketLabelFromPath);
+  const accessedTicketSnapshot = accessedTicketMatches
+    ? savedSubmissions.find((submission) => String(submission.id) === String(accessedPublicTicket.id)) || null
     : null;
+  const ticketFromState = accessedTicketMatches
+    ? {
+        ...accessedPublicTicket,
+        ...(accessedTicketSnapshot || {}),
+        publicToken: accessedPublicTicket.publicToken,
+      }
+    : ticketLabelFromPath
+      ? findSubmissionByLabel(ticketLabelFromPath, {
+          savedSubmissions,
+          queue,
+          desks,
+        })
+      : null;
   const recentTicketMatches = recentIssuedTicket
-    && String(recentIssuedTicket.label).toUpperCase() === String(ticketLabelFromPath).toUpperCase();
+    && (
+      String(recentIssuedTicket.label).toUpperCase() === String(ticketLabelFromPath).toUpperCase()
+      || String(recentIssuedTicket.publicToken || "") === String(ticketLabelFromPath)
+    );
   const displayedTicket = ticketFromState
     ? (recentTicketMatches ? { ...recentIssuedTicket, ...ticketFromState } : ticketFromState)
     : recentTicketMatches

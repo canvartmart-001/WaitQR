@@ -11,6 +11,7 @@ export function ConfirmDialog({ confirmAction, onCancel, onConfirm, theme }) {
   const isSuccess = confirmAction.variant === "success";
   const isDestructive = confirmAction.variant === "destructive";
   const isWarning = confirmAction.variant === "warning";
+  const isPlainExclamation = confirmAction.icon === "exclamation";
   const colors = {
     bgColor: theme?.bgColor || C.ink800,
     fontColor: theme?.fontColor || C.textLight,
@@ -41,12 +42,22 @@ export function ConfirmDialog({ confirmAction, onCancel, onConfirm, theme }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 mb-2">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-            style={{ background: toneBg }}
-          >
-            <Icon size={16} style={{ color: toneColor }} />
-          </div>
+          {isPlainExclamation ? (
+            <span
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base font-bold leading-none"
+              style={{ color: toneColor, background: toneBg }}
+              aria-hidden="true"
+            >
+              !
+            </span>
+          ) : (
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+              style={{ background: toneBg }}
+            >
+              <Icon size={16} style={{ color: toneColor }} />
+            </div>
+          )}
           <h3 className="text-sm font-semibold" style={{ color: toneColor }}>
             {confirmAction.title}
           </h3>

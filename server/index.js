@@ -7,10 +7,12 @@ import {
   createSubmission,
   getSubmissionById,
   getSubmissionByLabel,
+  getSubmissionByPublicToken,
   listSubmissions,
   updateSubmissionStatus,
   requestSubmissionRecall,
   cancelSubmissionRecall,
+  deleteSubmissionByPublicToken,
   clearSubmissions,
   getSubmissionStats,
   getLiveQueueCounts,
@@ -150,7 +152,9 @@ app.get("/api/submissions", async (req, res) => {
   try {
     const limit = Math.min(Math.max(Number(req.query.limit || 100), 1), 500);
     const submissions = await listSubmissions(limit);
-    res.json({ submissions });
+    res.json({
+      submissions: submissions.map(({ publicToken: _publicToken, ...submission }) => submission),
+    });
   } catch (error) {
     console.error("Failed to list submissions", error);
     res.status(500).json({ error: "Failed to load submissions." });
@@ -166,10 +170,62 @@ app.get("/api/submissions/label/:label", async (req, res) => {
       return;
     }
 
-    res.json({ submission });
+    const {
+      name: _name,
+      phone: _phone,
+      phoneDigits: _phoneDigits,
+      publicToken: _publicToken,
+      servedByMemberId: _servedByMemberId,
+      servedByMemberName: _servedByMemberName,
+      ...publicSubmission
+    } = submission;
+    res.json({ submission: publicSubmission });
   } catch (error) {
     console.error("Failed to load submission", error);
     res.status(500).json({ error: "Failed to load submission." });
+  }
+});
+
+app.get("/api/submissions/public/:token", async (req, res) => {
+  try {
+    const submission = await getSubmissionByPublicToken(req.params.token);
+
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found." });
+      return;
+    }
+
+    const {
+      name: _name,
+      phone: _phone,
+      phoneDigits: _phoneDigits,
+      servedByMemberId: _servedByMemberId,
+      servedByMemberName: _servedByMemberName,
+      ...publicSubmission
+    } = submission;
+    res.json({ submission: publicSubmission });
+  } catch (error) {
+    console.error("Failed to load public submission", error);
+    res.status(500).json({ error: "Failed to load submission." });
+  }
+});
+
+app.delete("/api/submissions/public/:token", async (req, res) => {
+  try {
+    const submission = await deleteSubmissionByPublicToken(req.params.token);
+
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found." });
+      return;
+    }
+
+    res.json({ deleted: true });
+    emitSubmissionChange("ticket-deleted", submission);
+    await emitLiveQueueCounts("ticket-deleted", submission);
+    await emitWaitEstimates();
+  } catch (error) {
+    console.error("Failed to permanently delete public submission", error);
+    res.status(500).json({ error: "Failed to delete ticket." });
   }
 });
 

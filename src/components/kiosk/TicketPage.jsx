@@ -1,18 +1,16 @@
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
-  BellRing,
-  BriefcaseBusiness,
-  Check,
+  Layers3,
+  LogOut,
   MapPin,
   Ticket,
   Undo2,
-  UsersRound,
-  X,
 } from "lucide-react";
 import { C } from "../../lib/theme";
-import { countdownLabel, waitEstimateDisplay } from "../../lib/format";
-import { getSubmissionByLabel, requestSubmissionRecall } from "../../lib/submissionsApi";
+import { countdownLabel, elapsedTimerLabel, waitEstimateDisplay } from "../../lib/format";
+import { deleteSubmissionByPublicToken, getSubmissionByAccessKey, requestSubmissionRecall } from "../../lib/submissionsApi";
+import { ConfirmDialog } from "../modals/ConfirmDialog";
 
 const ticketPageStyle = {
   width: "min(100%, 520px)",
@@ -84,6 +82,8 @@ function SubmissionCard({
   now,
   theme,
   onRequestRecall,
+  onExit,
+  exitPending,
   recallRequesting,
   recallError,
 }) {
@@ -151,7 +151,6 @@ function SubmissionCard({
       ? "Slight delay"
       : "Estimated wait";
   const position = Number(effectivePosition);
-  const peopleAhead = isQueued && Number.isFinite(position) ? Math.max(0, position - 1) : null;
   const joinedPosition = Math.max(1, Number(submission.joinedPosition) || position || 1);
   const totalPositionSteps = Math.max(0, joinedPosition - 1);
   const completedPositionSteps = Math.max(0, joinedPosition - Math.max(1, position || joinedPosition));
@@ -185,33 +184,23 @@ function SubmissionCard({
       : isCalled
         ? C.amber
         : appearance.accentColor;
+  const serviceTimer = isServing && submission.startedAt
+    ? elapsedTimerLabel(now - submission.startedAt)
+    : isCompleted && submission.startedAt
+      ? `Served ${elapsedTimerLabel((submission.completedAt || submission.statusUpdatedAt || now) - submission.startedAt)}`
+      : "";
   const panelStyle = {
     color: appearance.fontColor,
     backgroundColor: withAlpha(appearance.fontColor, 0.035),
     borderColor: appearance.borderColor,
     borderRadius: appearance.radius,
   };
-  const statusMessage = isCalled
-    ? `Your ticket has been called. Please proceed to ${ticketDeskName || "the counter"}.`
-    : isServing
-      ? `You are now being served at ${ticketDeskName || "the counter"}.`
-      : isCompleted
-        ? "Your service has been completed."
-        : isAbsent
-          ? "You were marked absent and removed from the queue."
-          : isRemoved
-            ? "This ticket was removed from the queue."
-    : estimateDisplay.paused
-      ? "The counter is on break. Your wait time is paused."
-      : estimateDisplay.delayed
-        ? "There is a slight delay. Your place in the queue is secured."
-        : "Please wait nearby. We will call your ticket shortly.";
-  const queueMessage = peopleAhead == null
-    ? "Your queue position is being updated"
-    : peopleAhead === 0
-      ? "You're next in line"
-      : `There ${peopleAhead === 1 ? "is" : "are"} ${peopleAhead} ${peopleAhead === 1 ? "person" : "people"} ahead of you`;
-
+  const detailsPanelStyle = {
+    color: C.textLight,
+    backgroundColor: "#000000",
+    borderColor: C.ink700,
+    borderRadius: appearance.radius,
+  };
   return (
     <div className="mx-auto flex w-full flex-col gap-4" style={ticketPageStyle}>
       <section
@@ -365,68 +354,70 @@ function SubmissionCard({
 
       </section>
 
-      <section className="overflow-hidden border" style={panelStyle} aria-label="Ticket details">
+      <section className="overflow-hidden" style={detailsPanelStyle} aria-label="Ticket details">
         <div className="flex items-center gap-3 px-4 py-3.5">
           <span
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border"
-            style={{ color: appearance.accentColor, borderColor: appearance.borderColor }}
+            style={{ color: statusAccent, borderColor: C.ink700 }}
           >
-            <BriefcaseBusiness size={19} />
+            <Layers3 size={19} />
           </span>
-          <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase" style={{ color: withAlpha(appearance.fontColor, 0.58) }}>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-semibold uppercase" style={{ color: C.textMuted }}>
               Service
             </div>
-            <div className="mt-0.5 truncate text-base font-semibold">{serviceLine}</div>
+            <div
+              data-testid="ticket-service-value"
+              className="mt-0.5 truncate text-base font-semibold"
+              style={{ color: statusAccent }}
+            >
+              {serviceLine}
+            </div>
           </div>
         </div>
-        <div className="mx-4 border-t" style={{ borderColor: appearance.borderColor }} />
+        <div className="mx-4 border-t" style={{ borderColor: C.ink700 }} />
         <div className="flex items-center gap-3 px-4 py-3.5">
           <span
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border"
-            style={{ color: appearance.accentColor, borderColor: appearance.borderColor }}
+            style={{ color: statusAccent, borderColor: C.ink700 }}
           >
             <MapPin size={19} />
           </span>
           <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase" style={{ color: withAlpha(appearance.fontColor, 0.58) }}>
+            <div className="text-[10px] font-semibold uppercase" style={{ color: C.textMuted }}>
               Counter
             </div>
             <div
+              data-testid="ticket-counter-value"
               className="mt-0.5 truncate text-base font-semibold"
-              style={{ color: ticketDeskName ? appearance.accentColor : appearance.fontColor }}
+              style={{ color: statusAccent }}
             >
               {ticketDeskName || "Assigning counter"}
             </div>
           </div>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {serviceTimer ? (
+              <span className="qp-mono inline-flex items-center text-xs font-semibold" style={{ color: statusAccent }}>
+                {serviceTimer}
+              </span>
+            ) : null}
+            {submission.publicToken && !isServing ? (
+              <button
+                type="button"
+                onClick={onExit}
+                disabled={exitPending}
+                title="Exit and delete ticket"
+                aria-label="Exit ticket"
+                className="qp-focusable inline-flex h-8 w-8 items-center justify-center disabled:cursor-wait disabled:opacity-50"
+                style={{ color: C.coral, backgroundColor: C.coralSoft, borderRadius: Math.min(appearance.radius, 6) }}
+              >
+                <LogOut size={15} aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
         </div>
       </section>
 
-      <section
-        className="flex items-center gap-3 border px-4 py-3.5"
-        style={{
-          color: appearance.fontColor,
-          backgroundColor: withAlpha(statusAccent, 0.11),
-          borderColor: withAlpha(statusAccent, 0.42),
-          borderRadius: appearance.radius,
-        }}
-        aria-live="polite"
-      >
-        <span
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-          style={{ color: statusAccent, backgroundColor: withAlpha(statusAccent, 0.12) }}
-        >
-          {isNoLongerWaiting ? <X size={19} /> : isCompleted ? <Check size={19} /> : <BellRing size={19} />}
-        </span>
-        <p className="m-0 text-sm leading-relaxed">{statusMessage}</p>
-      </section>
-
-      {isQueued ? (
-        <section className="flex items-center gap-3 border px-4 py-3" style={panelStyle}>
-          <UsersRound size={20} className="shrink-0" style={{ color: appearance.accentColor }} />
-          <p className="m-0 text-sm">{queueMessage}</p>
-        </section>
-      ) : null}
     </div>
   );
 }
@@ -448,6 +439,10 @@ export function TicketPage({
   const [error, setError] = useState("");
   const [recallRequesting, setRecallRequesting] = useState(false);
   const [recallError, setRecallError] = useState("");
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
+  const [exitPending, setExitPending] = useState(false);
+  const [exitError, setExitError] = useState("");
+  const [exited, setExited] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -459,7 +454,10 @@ export function TicketPage({
       return;
     }
 
-    if (ticket && String(ticket.label).toUpperCase() === String(ticketLabel).toUpperCase()) {
+    if (ticket && (
+      String(ticket.label).toUpperCase() === String(ticketLabel).toUpperCase()
+      || String(ticket.publicToken || "") === String(ticketLabel)
+    )) {
       setSubmission(ticket);
       setLoading(false);
       setError("");
@@ -475,7 +473,7 @@ export function TicketPage({
     setLoading(true);
     setError("");
 
-    getSubmissionByLabel(ticketLabel)
+    getSubmissionByAccessKey(ticketLabel)
       .then((nextSubmission) => {
         if (cancelled) return;
         setSubmission(nextSubmission);
@@ -510,6 +508,24 @@ export function TicketPage({
     }
   };
 
+  const handleExit = async () => {
+    if (!submission?.publicToken || exitPending) return;
+    setExitPending(true);
+    setExitError("");
+
+    try {
+      await deleteSubmissionByPublicToken(submission.publicToken);
+      setExitConfirmOpen(false);
+      setSubmission(null);
+      setExited(true);
+    } catch (deleteError) {
+      setExitError(deleteError.message || "Could not delete ticket.");
+      setExitConfirmOpen(false);
+    } finally {
+      setExitPending(false);
+    }
+  };
+
   const appearance = {
     accentColor: theme?.accentColor || C.amber,
     bgColor: theme?.bgColor || C.ink900,
@@ -520,11 +536,27 @@ export function TicketPage({
 
   return (
     <main
-      className="qp-page-shell qp-kiosk-page-shell min-h-screen py-6 sm:py-8"
+      className="qp-page-shell qp-kiosk-page-shell qp-ticket-page-shell py-6 sm:py-8"
       style={{ backgroundColor: appearance.bgColor, color: appearance.fontColor }}
     >
-      <section className="qp-kiosk-panel" style={ticketPageStyle}>
-        {loading ? (
+      <section className="qp-kiosk-panel qp-ticket-page-content" style={ticketPageStyle}>
+        {exited ? (
+          <div
+            className="mx-auto flex min-h-72 w-full flex-col items-center justify-center px-8 py-10 text-center"
+            style={{ color: appearance.fontColor }}
+          >
+            <div className="text-2xl font-semibold" style={{ color: C.coral }}>Ticket deleted</div>
+            <p className="mt-2 text-sm" style={{ color: C.textMuted }}>You have exited the queue.</p>
+            <button
+              type="button"
+              onClick={() => onNavigate?.("/create")}
+              className="qp-focusable mt-5 px-4 py-2 text-sm font-semibold text-white"
+              style={{ backgroundColor: appearance.accentColor, borderRadius: appearance.radius }}
+            >
+              Return
+            </button>
+          </div>
+        ) : loading ? (
           <div
             className="mx-auto flex min-h-72 items-center justify-center border px-8 py-10 text-center"
             style={{
@@ -549,6 +581,8 @@ export function TicketPage({
             now={now}
             theme={appearance}
             onRequestRecall={handleRecallRequest}
+            onExit={() => setExitConfirmOpen(true)}
+            exitPending={exitPending}
             recallRequesting={recallRequesting}
             recallError={recallError}
           />
@@ -568,7 +602,35 @@ export function TicketPage({
             {error || "Ticket not found."}
           </button>
         )}
+        {exitError ? (
+          <p className="mt-3 text-center text-xs" style={{ color: C.coral }}>{exitError}</p>
+        ) : null}
       </section>
+      <footer className="qp-ticket-page-footer w-full pt-3 text-center text-[11px] leading-tight" style={{ color: C.textFaint }}>
+        <a
+          href="https://waitqr.com"
+          title="waitqr.com"
+          className="qp-focusable underline-offset-2 hover:underline"
+          style={{ color: C.textFaint }}
+        >
+          WaitQR
+        </a>{" "}
+        © {new Date().getFullYear()} All rights reserved.
+      </footer>
+      <ConfirmDialog
+        confirmAction={exitConfirmOpen ? {
+          title: "Are you sure?",
+          message: "You will lose your position in the queue.",
+          confirmLabel: exitPending ? "Deleting..." : "Exit queue",
+          variant: "destructive",
+          icon: "exclamation",
+        } : null}
+        onCancel={() => {
+          if (!exitPending) setExitConfirmOpen(false);
+        }}
+        onConfirm={handleExit}
+        theme={{ ...appearance, themeMode: "Light" }}
+      />
     </main>
   );
 }
