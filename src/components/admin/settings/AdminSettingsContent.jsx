@@ -312,7 +312,7 @@ function LogoUpload({ logoUrl, onUpload, onRemove, fontColor, radius, borderColo
   );
 }
 
-function SectionCard({ icon: Icon, iconBg, title, children, fontColor, borderColor, separatorColor, radius }) {
+function SectionCard({ icon: Icon, iconBg, title, children, fontColor, borderColor, radius }) {
   const items = Children.toArray(children);
 
   return (
@@ -327,7 +327,7 @@ function SectionCard({ icon: Icon, iconBg, title, children, fontColor, borderCol
       </div>
       <div>
         {items.map((child, i) => (
-          <div key={i} style={i > 0 ? { borderTop: `1px solid ${separatorColor}` } : undefined}>
+          <div key={i} style={i > 0 ? { borderTop: `1px solid ${borderColor}` } : undefined}>
             {child}
           </div>
         ))}
@@ -337,8 +337,8 @@ function SectionCard({ icon: Icon, iconBg, title, children, fontColor, borderCol
 }
 
 export function AdminSettingsContent({ s, theme }) {
-  const { accentColor, fontColor, borderColor, separatorColor, radius, logoUrl } = theme;
-  const cardProps = { fontColor, borderColor, separatorColor, radius };
+  const { accentColor, fontColor, borderColor, radius, logoUrl } = theme;
+  const cardProps = { fontColor, borderColor, radius };
 
   return (
     <div className="space-y-4 px-2.5 py-2.5 sm:space-y-6 sm:px-6 sm:py-6 md:pl-10 md:pr-6">
@@ -422,8 +422,7 @@ export function AdminSettingsContent({ s, theme }) {
         <ColorSwatchInput label="Accent Color" hint="Used for active states, toggles, and the save button" value={accentColor} onChange={theme.setAccentColor} fontColor={fontColor} borderColor={borderColor} radius={radius} />
         <ColorSwatchInput label="Background Color" hint="Base background color for the dashboard" value={theme.bgColor} onChange={theme.setBgColor} fontColor={fontColor} borderColor={borderColor} radius={radius} />
         <ColorSwatchInput label="Font Color" hint="Text color used across labels, headings, and inputs" value={fontColor} onChange={theme.setFontColor} fontColor={fontColor} borderColor={borderColor} radius={radius} />
-        <ColorSwatchInput label="Border Color" hint="Applied to card, input, and sidebar borders" value={borderColor} onChange={theme.setBorderColor} fontColor={fontColor} borderColor={borderColor} radius={radius} />
-        <ColorSwatchInput label="Separator Color" hint="Divider lines between fields inside each card" value={separatorColor} onChange={theme.setSeparatorColor} fontColor={fontColor} borderColor={borderColor} radius={radius} />
+        <ColorSwatchInput label="Border Color" hint="Applied to cards, inputs, and divider lines" value={borderColor} onChange={theme.setBorderColor} fontColor={fontColor} borderColor={borderColor} radius={radius} />
         <RadiusControl value={radius} onChange={theme.setRadius} fontColor={fontColor} borderColor={borderColor} />
       </SectionCard>
 

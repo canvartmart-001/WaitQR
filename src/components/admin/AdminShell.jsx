@@ -67,12 +67,13 @@ function resolveThemeMode(themeMode) {
 }
 
 function pickThemeColors(appearance) {
+  const borderColor = appearance.borderColor;
   return {
     accentColor: appearance.accentColor,
     bgColor: appearance.bgColor,
     fontColor: appearance.fontColor,
-    borderColor: appearance.borderColor,
-    separatorColor: appearance.separatorColor,
+    borderColor,
+    separatorColor: borderColor,
   };
 }
 
@@ -399,12 +400,31 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
       ...pickThemeColors({ accentColor, bgColor, fontColor, borderColor, separatorColor }),
       ...patch,
     };
+    const sharedAccentColor = patch.accentColor || accentColor;
+    const nextThemeColors = {
+      ...themeColors,
+      [currentMode]: nextColors,
+    };
+
+    if (patch.accentColor) {
+      nextThemeColors.Dark = {
+        ...(nextThemeColors.Dark || THEME_PRESETS.Dark),
+        accentColor: sharedAccentColor,
+      };
+      nextThemeColors.Light = {
+        ...(nextThemeColors.Light || THEME_PRESETS.Light),
+        accentColor: sharedAccentColor,
+      };
+      nextThemeColors[currentMode] = {
+        ...nextColors,
+        accentColor: sharedAccentColor,
+      };
+    }
+
     updateAppearance({
       ...patch,
-      themeColors: {
-        ...themeColors,
-        [currentMode]: nextColors,
-      },
+      ...(patch.accentColor ? { accentColor: sharedAccentColor } : {}),
+      themeColors: nextThemeColors,
     });
   };
 
@@ -415,13 +435,17 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
     };
     const nextMode = resolveThemeMode(nextTheme);
     const nextColors = themeColors[nextMode] || THEME_PRESETS[nextMode] || THEME_PRESETS.Dark;
+    const nextColorsWithSharedAccent = { ...nextColors, accentColor };
     updateAppearance({
       themeMode: nextTheme,
-      ...nextColors,
+      ...nextColorsWithSharedAccent,
+      accentColor,
       themeColors: {
         ...themeColors,
-        [currentMode]: currentColors,
-        [nextMode]: nextColors,
+        Dark: { ...(themeColors.Dark || THEME_PRESETS.Dark), accentColor },
+        Light: { ...(themeColors.Light || THEME_PRESETS.Light), accentColor },
+        [currentMode]: { ...currentColors, accentColor },
+        [nextMode]: nextColorsWithSharedAccent,
       },
     });
   };
@@ -437,9 +461,9 @@ export function AdminShell({ currentPage, children, onNavigate, appearance, onAp
     fontColor,
     setFontColor: (value) => updateCurrentThemeColors({ fontColor: value }),
     borderColor,
-    setBorderColor: (value) => updateCurrentThemeColors({ borderColor: value }),
+    setBorderColor: (value) => updateCurrentThemeColors({ borderColor: value, separatorColor: value }),
     separatorColor,
-    setSeparatorColor: (value) => updateCurrentThemeColors({ separatorColor: value }),
+    setSeparatorColor: (value) => updateCurrentThemeColors({ separatorColor: value, borderColor: value }),
     radius,
     setRadius: (value) => updateAppearance({ radius: value }),
     logoUrl,

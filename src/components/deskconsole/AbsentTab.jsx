@@ -1,4 +1,4 @@
-import { CircleAlert, Undo2, X } from "lucide-react";
+import { Trash2, Undo2, X } from "lucide-react";
 import { C } from "../../lib/theme";
 import { elapsedLabel } from "../../lib/format";
 
@@ -50,9 +50,9 @@ function AbsentRow({ ticket: t, desks, now, serviceName, recallAbsent, removeAbs
   const confirmRemove = () => {
     askConfirm?.(
       "Delete absent ticket?",
-      `Delete absent ticket ${t.label}${t.name ? ` for ${t.name}` : ""}? This cannot be recalled afterward.`,
+      `Permanently delete absent ticket ${t.label}${t.name ? ` for ${t.name}` : ""}? This cannot be undone.`,
       () => removeAbsent(t.id),
-      { confirmLabel: "Delete", variant: "destructive" }
+      { confirmLabel: "Delete", variant: "destructive", icon: "trash" }
     );
   };
 
@@ -90,7 +90,7 @@ function AbsentRow({ ticket: t, desks, now, serviceName, recallAbsent, removeAbs
                 className="qp-focusable p-1.5 rounded-md shrink-0"
                 style={{ color: C.coral, background: C.coralSoft, borderRadius: surfaceTheme.radius }}
               >
-                <CircleAlert size={14} />
+                <Trash2 size={14} />
               </button>
             </div>
           </div>

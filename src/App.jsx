@@ -133,17 +133,26 @@ function CounterRoutePlaceholder({ loading, theme, onNavigate }) {
 
 function normalizeAppearance(appearance) {
   const source = appearance && typeof appearance === "object" ? appearance : {};
+  const borderColor = source.borderColor || DEFAULT_APPEARANCE_SETTINGS.borderColor;
+  const darkBorderColor = source.themeColors?.Dark?.borderColor || DEFAULT_APPEARANCE_SETTINGS.themeColors.Dark.borderColor;
+  const lightBorderColor = source.themeColors?.Light?.borderColor || DEFAULT_APPEARANCE_SETTINGS.themeColors.Light.borderColor;
   return {
     ...DEFAULT_APPEARANCE_SETTINGS,
     ...source,
+    borderColor,
+    separatorColor: borderColor,
     themeColors: {
       Dark: {
         ...DEFAULT_APPEARANCE_SETTINGS.themeColors.Dark,
         ...(source.themeColors?.Dark || {}),
+        borderColor: darkBorderColor,
+        separatorColor: darkBorderColor,
       },
       Light: {
         ...DEFAULT_APPEARANCE_SETTINGS.themeColors.Light,
         ...(source.themeColors?.Light || {}),
+        borderColor: lightBorderColor,
+        separatorColor: lightBorderColor,
       },
     },
   };
@@ -220,18 +229,35 @@ function applyThemeModeToAppearance(appearance, nextThemeMode) {
     bgColor: normalizedAppearance.bgColor,
     fontColor: normalizedAppearance.fontColor,
     borderColor: normalizedAppearance.borderColor,
-    separatorColor: normalizedAppearance.separatorColor,
+    separatorColor: normalizedAppearance.borderColor,
   };
   const nextColors = themeColors[nextMode] || DEFAULT_APPEARANCE_SETTINGS.themeColors[nextMode] || DEFAULT_APPEARANCE_SETTINGS.themeColors.Dark;
+  const sharedAccentColor = normalizedAppearance.accentColor || DEFAULT_APPEARANCE_SETTINGS.accentColor;
+  const nextColorsWithSharedAccent = {
+    ...nextColors,
+    accentColor: sharedAccentColor,
+  };
 
   return normalizeAppearance({
     ...normalizedAppearance,
     themeMode,
-    ...nextColors,
+    ...nextColorsWithSharedAccent,
+    accentColor: sharedAccentColor,
     themeColors: {
       ...themeColors,
-      [currentMode]: currentColors,
-      [nextMode]: nextColors,
+      Dark: {
+        ...(themeColors.Dark || DEFAULT_APPEARANCE_SETTINGS.themeColors.Dark),
+        accentColor: sharedAccentColor,
+      },
+      Light: {
+        ...(themeColors.Light || DEFAULT_APPEARANCE_SETTINGS.themeColors.Light),
+        accentColor: sharedAccentColor,
+      },
+      [currentMode]: {
+        ...currentColors,
+        accentColor: sharedAccentColor,
+      },
+      [nextMode]: nextColorsWithSharedAccent,
     },
   });
 }

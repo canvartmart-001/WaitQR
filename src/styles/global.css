@@ -637,7 +637,7 @@ svg {
   --qp-serving-panel-fg: #fff;
   --qp-serving-panel-muted: rgba(255, 255, 255, .86);
   --qp-serving-panel-subtle: rgba(255, 255, 255, .12);
-  --qp-serving-panel-pill-bg: rgba(92, 224, 190, .68);
+  --qp-serving-panel-pill-bg: rgba(255, 255, 255, .18);
   --qp-serving-panel-pill-fg: #fff;
   display: flex;
   height: 100%;

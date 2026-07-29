@@ -76,7 +76,7 @@ export function TicketTabsPanel({
   const faintColor = withAlpha(surfaceTheme.fontColor, "55");
   const activeTabBackground = withAlpha(surfaceTheme.fontColor, "12");
   const tabs = [
-    { key: "waiting", label: "Waiting", count: waitingCount, countColor: C.blue },
+    { key: "waiting", label: "Waiting", count: waitingCount, countColor: surfaceTheme.accentColor },
     { key: "absent", label: "Absent", count: filteredAbsent.length, countColor: C.coral },
     { key: "served", label: "Served", count: filteredServed.length, countColor: C.teal },
     { key: "service", label: "Service", count: filteredServices.length, countColor: C.teal },

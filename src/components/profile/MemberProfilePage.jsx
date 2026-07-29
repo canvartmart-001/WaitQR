@@ -408,7 +408,7 @@ export function MemberProfilePage({ member, desks, services, labels, theme, load
       bgColor: theme.bgColor,
       fontColor: theme.fontColor,
       borderColor: theme.borderColor,
-      separatorColor: theme.separatorColor,
+      separatorColor: theme.borderColor,
     };
     const nextColors = themeColors[nextMode] || THEME_PRESETS[nextMode] || THEME_PRESETS.Dark;
 

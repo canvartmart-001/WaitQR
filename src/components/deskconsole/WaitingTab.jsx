@@ -44,8 +44,8 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
             className="qp-ticket-face flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-semibold leading-none"
             style={{
               fontFamily: "'Inter', 'Segoe UI', sans-serif",
-              color: C.blue,
-              background: C.blueSoft,
+              color: surfaceTheme.accentColor,
+              background: withAlpha(surfaceTheme.accentColor, "1f"),
               fontVariantNumeric: "tabular-nums",
             }}
           >
@@ -54,7 +54,7 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                <span className="qp-ticket-face text-sm font-semibold shrink-0" style={{ color: C.blue, fontVariantNumeric: "tabular-nums" }}>
+                <span className="qp-ticket-face text-sm font-semibold shrink-0" style={{ color: surfaceTheme.accentColor, fontVariantNumeric: "tabular-nums" }}>
                   {t.label}
                 </span>
                 <span className="text-sm font-medium truncate" style={{ color: surfaceTheme.fontColor }}>
@@ -82,7 +82,7 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
                     type="button"
                     onClick={() => callTicket?.(selectedDesk.id, t.id)}
                     className="qp-focusable p-1.5 rounded-md shrink-0"
-                    style={{ color: C.blue, background: withAlpha(surfaceTheme.accentColor, "16"), borderRadius: surfaceTheme.radius }}
+                    style={{ color: surfaceTheme.accentColor, background: withAlpha(surfaceTheme.accentColor, "16"), borderRadius: surfaceTheme.radius }}
                     title="Call this ticket"
                     aria-label="Call this ticket"
                   >
