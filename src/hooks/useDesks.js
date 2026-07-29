@@ -222,6 +222,7 @@ export function useDesks(initialDesks, { queue, setQueue, onTicketCompleted, onT
         phone: ticket.phone,
         serviceId: ticket.serviceId,
         createdAt: ticket.createdAt,
+        calledAt: ticket.calledAt,
         skippedAt,
         skippedFromDesk: deskId,
       });
@@ -268,6 +269,7 @@ export function useDesks(initialDesks, { queue, setQueue, onTicketCompleted, onT
         phone: ticket.phone,
         serviceId: ticket.serviceId,
         createdAt: ticket.createdAt,
+        calledAt: ticket.calledAt,
         skippedAt,
         skippedFromDesk: deskId,
       });

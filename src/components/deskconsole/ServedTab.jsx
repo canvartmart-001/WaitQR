@@ -9,6 +9,7 @@ function withAlpha(hex, alphaHex) {
 
 export function ServedTab({ filteredServed, now, serviceName, desks, deskWord, recallServed, askConfirm, theme }) {
   const surfaceTheme = {
+    accentColor: theme?.accentColor || C.blue,
     fontColor: theme?.fontColor || C.textLight,
     borderColor: theme?.borderColor || C.ink700,
     radius: theme?.radius || 8,
@@ -48,6 +49,12 @@ function ServedRow({ entry: e, now, serviceName, desks, deskWord, recallServed, 
   const recallDesk = desks.find((desk) => String(desk.id) === String(e.deskId));
   const recallDisabled = !recallServed || !recallDesk;
   const servedByName = e.servedByMemberName || "";
+  const servedMeta = [
+    recallDesk?.name || deskWord,
+    servedByName ? `By ${servedByName}` : null,
+    `Waited ${elapsedLabel(e.waitMs)}`,
+    `${elapsedLabel(now - e.completedAt)} ago`,
+  ].filter(Boolean).join(" | ");
   const confirmRecall = () => {
     if (!askConfirm) {
       recallServed(e.id);
@@ -65,17 +72,14 @@ function ServedRow({ entry: e, now, serviceName, desks, deskWord, recallServed, 
   return (
     <div className="rounded-lg px-3 py-3 border" style={{ borderColor: surfaceTheme.borderColor, background: "transparent", borderRadius: surfaceTheme.radius }}>
       <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: C.tealSoft }}>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ background: C.tealSoft }}>
           <Check size={16} style={{ color: C.teal }} />
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0 flex-wrap">
-              <span className="qp-mono text-sm font-semibold shrink-0" style={{ color: C.teal }}>
+        <div className="min-w-0 flex-1">
+          <div className="grid min-h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+            <div className="min-w-0">
+              <span className="qp-mono block truncate text-lg font-semibold leading-tight" style={{ color: C.teal }}>
                 {e.label}
-              </span>
-              <span className="text-sm font-medium truncate" style={{ color: surfaceTheme.fontColor }}>
-                {e.name}
               </span>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
@@ -84,27 +88,28 @@ function ServedRow({ entry: e, now, serviceName, desks, deskWord, recallServed, 
                 disabled={recallDisabled}
                 title={recallDisabled ? "Counter unavailable" : "Recall ticket"}
                 aria-label="Recall ticket"
-                className="qp-focusable p-1.5 rounded-md shrink-0 disabled:cursor-not-allowed disabled:opacity-35"
+                className="qp-focusable inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-35"
                 style={{ color: C.amber, background: C.amberSoft, borderRadius: surfaceTheme.radius }}
               >
                 <Undo2 size={13} />
+                <span>Recall</span>
               </button>
             </div>
           </div>
-          <div className="text-xs mt-1 truncate" style={{ color: mutedColor }}>
-            {e.phone} · {serviceName(e.serviceId)}
-          </div>
-          <div className="text-[10px] mt-0.5 truncate qp-mono" style={{ color: faintColor }}>
-            {recallDesk?.name || deskWord} · waited {elapsedLabel(e.waitMs)}
-          </div>
-          <div className="text-[10px] mt-0.5 truncate qp-mono" style={{ color: faintColor }}>
-            {elapsedLabel(now - e.completedAt)} ago
-          </div>
-          {servedByName ? (
-            <div className="text-[10px] mt-0.5 truncate" style={{ color: faintColor }}>
-              Served by {servedByName}
+          <div className="mt-1 grid gap-0.5">
+            <div className="min-w-0 truncate text-sm font-medium leading-tight" style={{ color: surfaceTheme.fontColor }}>
+              {e.name}
             </div>
-          ) : null}
+            <div className="text-xs truncate" style={{ color: mutedColor }}>
+              {e.phone}
+            </div>
+            <div className="text-sm font-normal truncate" style={{ color: withAlpha(surfaceTheme.fontColor, "cc") }}>
+              {serviceName(e.serviceId)}
+            </div>
+          </div>
+          <div className="text-[10px] mt-0.5 truncate qp-mono" style={{ color: faintColor }}>
+            {servedMeta}
+          </div>
         </div>
       </div>
     </div>

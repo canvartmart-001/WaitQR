@@ -1,6 +1,6 @@
 import { C } from "../../lib/theme";
 import { elapsedLabel } from "../../lib/format";
-import { Megaphone } from "lucide-react";
+import { UserRoundCheck } from "lucide-react";
 
 function withAlpha(hex, alphaHex) {
   if (typeof hex !== "string" || !/^#?[0-9a-f]{6}$/i.test(hex)) return hex;
@@ -41,7 +41,7 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
           }}
         >
           <div
-            className="qp-ticket-face flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-semibold leading-none"
+            className="qp-ticket-face flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-semibold leading-none"
             style={{
               fontFamily: "'Inter', 'Segoe UI', sans-serif",
               color: surfaceTheme.accentColor,
@@ -51,25 +51,12 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
           >
             {isActive ? t.label : i + 1}
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                <span className="qp-ticket-face text-sm font-semibold shrink-0" style={{ color: surfaceTheme.accentColor, fontVariantNumeric: "tabular-nums" }}>
+          <div className="min-w-0 flex-1">
+            <div className="grid min-h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+              <div className="min-w-0">
+                <span className="qp-ticket-face block truncate text-lg font-semibold leading-tight" style={{ color: surfaceTheme.accentColor, fontVariantNumeric: "tabular-nums" }}>
                   {t.label}
                 </span>
-                <span className="text-sm font-medium truncate" style={{ color: surfaceTheme.fontColor }}>
-                  {t.name}
-                </span>
-                {t.type === "priority" && (
-                  <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full shrink-0" style={{ background: C.coralSoft, color: C.coral }}>
-                    Priority
-                  </span>
-                )}
-                {isActive && (
-                  <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full shrink-0" style={{ background: t._activeStatus === "serving" ? C.tealSoft : C.amberSoft, color: t._activeStatus === "serving" ? C.teal : C.amber }}>
-                    {t._activeStatus === "serving" ? "Serving" : "Called"}
-                  </span>
-                )}
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
                 {isActive && (
@@ -81,27 +68,42 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
                   <button
                     type="button"
                     onClick={() => callTicket?.(selectedDesk.id, t.id)}
-                    className="qp-focusable inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold"
+                    className="qp-focusable inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-semibold"
                     style={{ color: surfaceTheme.accentColor, background: withAlpha(surfaceTheme.accentColor, "16"), borderRadius: surfaceTheme.radius }}
                     title="Call Next"
                     aria-label="Call Next"
                   >
-                    <Megaphone size={13} />
+                    <UserRoundCheck size={13} />
                     <span>Call Next</span>
                   </button>
                 ) : null}
               </div>
             </div>
-            <div className="mt-1.5 grid gap-0.5">
+            <div className="mt-1 grid gap-0.5">
+              <div className="min-w-0 truncate text-sm font-medium leading-tight" style={{ color: surfaceTheme.fontColor }}>
+                {t.name}
+              </div>
               <div className="text-xs truncate" style={{ color: mutedColor }}>
                 {t.phone}
               </div>
               <div className="text-sm font-normal truncate" style={{ color: withAlpha(surfaceTheme.fontColor, "cc") }}>
                 {serviceName(t.serviceId)}
               </div>
-            </div>
-            <div className="qp-ticket-face text-[10px] mt-1 truncate" style={{ color: faintColor, fontVariantNumeric: "tabular-nums" }}>
-              {elapsedLabel(now - t.createdAt)}
+              <div className="qp-ticket-face text-[10px] truncate" style={{ color: faintColor, fontVariantNumeric: "tabular-nums" }}>
+                {elapsedLabel(now - t.createdAt)}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {t.type === "priority" && (
+                  <span className="w-fit text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full shrink-0" style={{ background: C.coralSoft, color: C.coral }}>
+                    Priority
+                  </span>
+                )}
+                {isActive && (
+                  <span className="w-fit text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full shrink-0" style={{ background: t._activeStatus === "serving" ? C.tealSoft : C.amberSoft, color: t._activeStatus === "serving" ? C.teal : C.amber }}>
+                    {t._activeStatus === "serving" ? "Serving" : "Called"}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
