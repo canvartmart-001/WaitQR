@@ -1,14 +1,69 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Ticket } from "lucide-react";
 import { C } from "../../lib/theme";
+import { countdownLabel, waitEstimateDisplay } from "../../lib/format";
 import { getSubmissionByLabel } from "../../lib/submissionsApi";
 
 const ticketFrameStyle = {
   width: "min(88vw, 70vh, 540px)",
 };
 
-function SubmissionCard({ submission, serviceName, ticketPosition, ticketDeskName }) {
+function formatWaitEstimate(estimate, now, status) {
+  if (status === "completed") return "Completed";
+  if (status === "skipped" || status === "removed") return "No longer waiting";
+  if (!estimate) return "Calculating";
+  if (estimate.status === "serving") return "Now serving";
+
+  const display = waitEstimateDisplay(estimate, now);
+  return display.waitMs == null ? "Calculating" : countdownLabel(display.waitMs);
+}
+
+function isReadyForCall(ticketPosition, waitEstimate, now, status) {
+  if (status !== "queued" && status !== "called") return false;
+  const position = Number(ticketPosition);
+  if (position !== 1 || !waitEstimate) return false;
+  const display = waitEstimateDisplay(waitEstimate, now);
+  return !display.paused && !display.delayed && display.waitMs === 0;
+}
+
+function ordinal(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "";
+  const whole = Math.trunc(number);
+  if (whole <= 0) return "";
+  const mod100 = whole % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${whole}th`;
+  const mod10 = whole % 10;
+  if (mod10 === 1) return `${whole}st`;
+  if (mod10 === 2) return `${whole}nd`;
+  if (mod10 === 3) return `${whole}rd`;
+  return `${whole}th`;
+}
+
+function queueFallbackLabel(waitEstimate, status) {
+  if (status === "completed") return "Completed";
+  if (status === "skipped" || status === "removed") return "No longer waiting";
+  if (status === "called") return "You're called";
+  if (waitEstimate?.status === "serving" || status === "serving") return "Now serving";
+  return "Queue position loading";
+}
+
+function SubmissionCard({ submission, serviceName, ticketPosition, ticketDeskName, waitEstimate, now }) {
   const serviceLine = submission.serviceId ? serviceName(submission.serviceId) : "General";
+  const isCalled = submission.status === "called";
+  const positionLabel = ordinal(ticketPosition);
+  const hasQueuePosition = !isCalled && Boolean(positionLabel);
+  const waitLabel = isReadyForCall(ticketPosition, waitEstimate, now, submission.status)
+    ? "Wait for the call"
+    : formatWaitEstimate(waitEstimate, now, submission.status);
+  const showWaitBlock = !isCalled && (hasQueuePosition || waitLabel !== queueFallbackLabel(waitEstimate, submission.status));
+  const showWaitHeading = waitLabel !== "Wait for the call";
+  const estimateDisplay = waitEstimateDisplay(waitEstimate, now);
+  const waitHeading = estimateDisplay.paused
+    ? "Counter on break"
+    : estimateDisplay.delayed
+      ? "Taking longer than usual"
+      : "Estimated wait";
 
   return (
     <div
@@ -29,29 +84,54 @@ function SubmissionCard({ submission, serviceName, ticketPosition, ticketDeskNam
         </div>
 
         <div className="flex flex-1 flex-col items-center justify-center">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: C.textMuted }}>
-            Position
-          </div>
-          <div className="mt-1 text-[clamp(4rem,10vw,6.5rem)] font-semibold leading-none" style={{ color: C.amber }}>
-            {Number.isFinite(ticketPosition) ? String(ticketPosition) : "--"}
-          </div>
+          {isCalled ? (
+            <div className="max-w-full px-4">
+              <div className="text-3xl font-semibold leading-tight md:text-4xl" style={{ color: C.amber }}>
+                You're called
+              </div>
+              <div className="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: C.textMuted }}>
+                Please proceed to
+              </div>
+              <div className="mt-2 text-2xl font-semibold leading-tight md:text-3xl" style={{ color: C.textLight }}>
+                {ticketDeskName || "the desk"}
+              </div>
+            </div>
+          ) : hasQueuePosition ? (
+            <>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: C.textMuted }}>
+                You are
+              </div>
+              <div className="mt-1 text-[clamp(4rem,10vw,6.5rem)] font-semibold leading-none" style={{ color: C.amber }}>
+                {positionLabel}
+              </div>
+              <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: C.textMuted }}>
+                In the Queue
+              </div>
+            </>
+          ) : (
+            <div className="max-w-full text-3xl font-semibold leading-tight md:text-4xl" style={{ color: C.amber }}>
+              {queueFallbackLabel(waitEstimate, submission.status)}
+            </div>
+          )}
+          {showWaitBlock ? (
+            <div className="mt-4 px-6">
+              <div className="text-2xl font-semibold leading-none md:text-3xl" style={{ color: C.textLight }}>
+                {waitLabel}
+              </div>
+              {showWaitHeading ? (
+                <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: C.textMuted }}>
+                  {waitHeading}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div className="w-full space-y-1 text-center">
-          {submission.name ? (
-            <div className="truncate text-sm font-normal tracking-wide md:text-base" style={{ color: C.textMuted }}>
-              {submission.name}
-            </div>
-          ) : null}
-          {submission.phone ? (
-            <div className="truncate text-sm font-normal tracking-wide md:text-base" style={{ color: C.textMuted }}>
-              {submission.phone}
-            </div>
-          ) : null}
           <div className="truncate text-base font-semibold tracking-wide md:text-lg" style={{ color: C.textLight }}>
             {serviceLine}
           </div>
-          {ticketDeskName ? (
+          {ticketDeskName && !isCalled ? (
             <div className="truncate text-sm font-semibold tracking-wide md:text-base" style={{ color: C.amber }}>
               {ticketDeskName}
             </div>
@@ -62,7 +142,7 @@ function SubmissionCard({ submission, serviceName, ticketPosition, ticketDeskNam
   );
 }
 
-export function TicketPage({ ticketLabel, ticket, ticketsLoaded, ticketPosition, ticketDeskName, serviceName, onNavigate }) {
+export function TicketPage({ ticketLabel, ticket, ticketsLoaded, ticketPosition, ticketDeskName, waitEstimate, now = Date.now(), serviceName, onNavigate }) {
   const [submission, setSubmission] = useState(ticket || null);
   const [loading, setLoading] = useState(!ticket);
   const [error, setError] = useState("");
@@ -127,7 +207,14 @@ export function TicketPage({ ticketLabel, ticket, ticketsLoaded, ticketPosition,
             </div>
           </div>
         ) : submission ? (
-          <SubmissionCard submission={submission} serviceName={serviceName} ticketPosition={ticketPosition} ticketDeskName={ticketDeskName} />
+          <SubmissionCard
+            submission={submission}
+            serviceName={serviceName}
+            ticketPosition={ticketPosition}
+            ticketDeskName={ticketDeskName}
+            waitEstimate={waitEstimate}
+            now={now}
+          />
         ) : (
           <div
             className="qp-ticket-ring-host mx-auto flex aspect-square items-center justify-center rounded-full border-[14px] px-8 py-10"

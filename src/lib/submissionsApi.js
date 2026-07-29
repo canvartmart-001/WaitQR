@@ -106,6 +106,30 @@ export async function listQueueCountEvents(limit = 500) {
   return data.events || [];
 }
 
+export async function getWaitEstimates() {
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/wait-estimates`);
+  } catch (error) {
+    throw new Error("Wait estimate service is unavailable. Start the backend and confirm the API is reachable.");
+  }
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to calculate wait estimates.");
+  }
+
+  return data.estimates || {
+    generatedAt: Date.now(),
+    model: { learning: false, historySamples: 0 },
+    tickets: [],
+    counters: [],
+    services: [],
+  };
+}
+
 export async function clearSubmissions() {
   let response;
 

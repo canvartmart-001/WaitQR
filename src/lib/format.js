@@ -47,6 +47,39 @@ export function elapsedTimerLabel(ms) {
   return `${minutesPart}:${String(seconds).padStart(2, "0")}`;
 }
 
+export function countdownLabel(ms) {
+  const totalSeconds = Math.max(0, Math.ceil(Number(ms || 0) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutesPart = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours >= 1) return minutesPart > 0 ? `${hours}h ${minutesPart}m` : `${hours}h`;
+  if (minutesPart >= 1) return `${minutesPart}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
+export function waitEstimateDisplay(estimate, nowTimestamp = Date.now()) {
+  const predictedStartAt = Number(estimate?.predictedStartAt);
+  if (!Number.isFinite(predictedStartAt)) {
+    return { waitMs: null, paused: false, delayed: false };
+  }
+
+  const now = Number(nowTimestamp);
+  const pauseStartedAt = Number(estimate?.pauseStartedAt);
+  const paused = Boolean(estimate?.paused) && Number.isFinite(pauseStartedAt);
+  const effectiveNow = paused ? Math.min(now, pauseStartedAt) : now;
+  const baseWaitMs = Math.max(0, predictedStartAt - effectiveNow);
+  const delayAt = estimate?.delayAt == null ? null : Number(estimate.delayAt);
+  const delayed = !paused && Number.isFinite(delayAt) && now >= delayAt;
+  const minimumWaitMs = delayed ? Math.max(0, Number(estimate?.minimumWaitMs) || 0) : 0;
+
+  return {
+    waitMs: Math.max(baseWaitMs, minimumWaitMs),
+    paused,
+    delayed,
+  };
+}
+
 function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }

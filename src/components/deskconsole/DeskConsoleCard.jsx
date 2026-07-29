@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, Check, Clock3, Coffee, Layers3, Lock, Phone, Ticket, Unlock, UserRound, Volume2, X } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, Clock3, Coffee, Layers3, Lock, Phone, Ticket, Unlock, UserRound, X } from "lucide-react";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { C } from "../../lib/theme";
@@ -206,6 +206,9 @@ export function DeskConsoleCard({
   const servingPanelTone = d.current ? (d.current.startedAt ? "now-serving" : "called") : "next-up";
   const primaryLabel = !d.current ? "Call Next" : !d.current.startedAt ? "Start Serving" : "Mark Complete";
   const primaryIcon = d.current?.startedAt ? <Check size={15} /> : <ArrowRight size={15} />;
+  const primaryIconClass = d.current?.startedAt
+    ? "qp-desk-primary-icon qp-desk-primary-icon--complete"
+    : "qp-desk-primary-icon qp-desk-primary-icon--arrow";
   const timerLabel = d.current?.startedAt ? elapsedTimerLabel(now - d.current.startedAt) : null;
   const scheduleRows = scheduleDayRows(d.schedule);
   const currentScheduleDay = new Date(now).getDay();
@@ -329,9 +332,8 @@ export function DeskConsoleCard({
             borderRadius: surfaceTheme.radius,
           }}
         >
-          {!d.current ? <Volume2 size={16} /> : null}
           <span>{primaryLabel}</span>
-          <span className="qp-desk-primary-arrow">{primaryIcon}</span>
+          <span className={primaryIconClass} aria-hidden="true">{primaryIcon}</span>
       </button>
 
       {!d.current ? (

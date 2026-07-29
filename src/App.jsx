@@ -29,7 +29,7 @@ import { ConfirmDialog } from "./components/modals/ConfirmDialog";
 import { IssueToast } from "./components/shared/IssueToast";
 import { C } from "./lib/theme";
 import { findDeskByPath, findMemberByProfilePath, getDeskPath, getMemberProfilePath, getTicketPath, findTicketLabelByPath, isCounterDetailPath } from "./lib/routing";
-import { clearSubmissions, listQueueCountEvents, listSubmissions, updateSubmissionStatus } from "./lib/submissionsApi";
+import { clearSubmissions, getWaitEstimates, listQueueCountEvents, listSubmissions, updateSubmissionStatus } from "./lib/submissionsApi";
 import { cacheSettings, loadSettings, saveSettings, updateDeskStatus } from "./lib/settingsApi";
 import { createRealtimeClient } from "./lib/realtime";
 import { deriveDeskServicesFromMembers, memberHasDesk, normalizeMemberRole, uniqueIds } from "./lib/assignments";
@@ -840,6 +840,7 @@ export default function App() {
   const [issuedToday, setIssuedToday] = useState(0);
   const [savedSubmissions, setSavedSubmissions] = useState([]);
   const [submissionSummary, setSubmissionSummary] = useState({ total: 0, waiting: 0, serving: 0, served: 0, absent: 0 });
+  const [waitEstimatesByTicketId, setWaitEstimatesByTicketId] = useState({});
   const [liveQueuePoints, setLiveQueuePoints] = useState([]);
   const [counterNotifications, setCounterNotifications] = useState(loadStoredCounterNotifications);
   const [submissionsLoaded, setSubmissionsLoaded] = useState(false);
@@ -867,14 +868,29 @@ export default function App() {
   useEffect(() => {
     servicesRef.current = services;
   }, [services]);
+  const applyWaitEstimates = (estimates = {}) => {
+    const tickets = Array.isArray(estimates.tickets) ? estimates.tickets : [];
+    setWaitEstimatesByTicketId(
+      Object.fromEntries(tickets.map((estimate) => [String(estimate.submissionId), estimate])),
+    );
+  };
   const syncSubmissionsFromServer = () =>
-    listSubmissions()
-      .then(applySubmissionSnapshot)
+    Promise.all([
+      listSubmissions(),
+      getWaitEstimates().catch((error) => {
+        console.warn(error.message);
+        return null;
+      }),
+    ])
+      .then(([submissions, estimates]) => {
+        applySubmissionSnapshot(submissions);
+        if (estimates) applyWaitEstimates(estimates);
+      })
       .catch((error) => {
         console.warn(error.message);
       });
   const updateTicketStatus = (ticketId, status, options = {}) => {
-    const servedByOptions = status === "completed"
+    const servedByOptions = status === "serving" || status === "completed"
       ? {
           servedByMemberId: options.servedByMemberId || activeLoggedInMember?.id || "",
           servedByMemberName: options.servedByMemberName || activeLoggedInMember?.name || "",
@@ -1049,10 +1065,17 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
 
-    listSubmissions()
-      .then((submissions) => {
+    Promise.all([
+      listSubmissions(),
+      getWaitEstimates().catch((error) => {
+        console.warn(error.message);
+        return null;
+      }),
+    ])
+      .then(([submissions, estimates]) => {
         if (cancelled) return;
         applySubmissionSnapshot(submissions);
+        if (estimates) applyWaitEstimates(estimates);
       })
       .catch((error) => {
         console.warn(error.message);
@@ -1116,10 +1139,17 @@ export default function App() {
     };
 
     const syncSubmissions = () => {
-      listSubmissions()
-        .then((submissions) => {
+      Promise.all([
+        listSubmissions(),
+        getWaitEstimates().catch((error) => {
+          if (!cancelled) console.warn(error.message);
+          return null;
+        }),
+      ])
+        .then(([submissions, estimates]) => {
           if (cancelled) return;
           applySubmissionSnapshot(submissions);
+          if (estimates) applyWaitEstimates(estimates);
         })
         .catch((error) => {
           if (!cancelled) console.warn(error.message);
@@ -1174,6 +1204,8 @@ export default function App() {
       syncSettings();
     });
     socket.on("submissions:changed", syncSubmissions);
+    socket.on("wait-estimates:current", applyWaitEstimates);
+    socket.on("wait-estimates:changed", applyWaitEstimates);
     socket.on("settings:changed", syncSettings);
     socket.on("desks:status", syncDeskStatus);
     socket.on("queue:history", hydrateLiveQueueHistory);
@@ -1711,6 +1743,9 @@ export default function App() {
     : null;
   const displayedTicket = recentIssuedTicket && String(recentIssuedTicket.label).toUpperCase() === String(ticketLabelFromPath).toUpperCase() ? recentIssuedTicket : ticketFromState;
   const ticketDeskQueueInfo = getTicketDeskQueueInfo(displayedTicket, { desks, sortedQueue });
+  const displayedTicketWaitEstimate = displayedTicket?.id == null
+    ? null
+    : waitEstimatesByTicketId[String(displayedTicket.id)] || null;
 
   // --- Cross-cutting actions that touch more than one hook's state -----------------------------
   const addDesk = () => {
@@ -1977,6 +2012,7 @@ export default function App() {
       setDeskDetailTab={setDeskDetailTab}
       deskActions={deskPageActions}
       ticketLogs={ticketLogsWithStatus}
+      waitEstimatesByTicketId={waitEstimatesByTicketId}
       recallAbsent={recallAbsent}
       recallServed={recallServed}
       askConfirm={askConfirm}
@@ -2080,6 +2116,8 @@ export default function App() {
           ticketsLoaded={submissionsLoaded}
           ticketPosition={ticketDeskQueueInfo.position}
           ticketDeskName={ticketDeskQueueInfo.deskName}
+          waitEstimate={displayedTicketWaitEstimate}
+          now={now}
           serviceName={serviceName}
           onNavigate={navigate}
         />
@@ -2168,6 +2206,8 @@ export default function App() {
           ticketsLoaded={submissionsLoaded}
           ticketPosition={ticketDeskQueueInfo.position}
           ticketDeskName={ticketDeskQueueInfo.deskName}
+          waitEstimate={displayedTicketWaitEstimate}
+          now={now}
           serviceName={serviceName}
           onNavigate={navigate}
         />

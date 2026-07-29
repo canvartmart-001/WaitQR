@@ -47,6 +47,7 @@ export function DeskPage({
   setDeskDetailTab,
   deskActions,
   ticketLogs,
+  waitEstimatesByTicketId,
   recallAbsent,
   recallServed,
   askConfirm,
@@ -151,6 +152,7 @@ export function DeskPage({
             serviceWordPluralLower={serviceWordPluralLower}
             deskWord={deskWord}
             callTicket={deskActions.callTicket}
+            waitEstimatesByTicketId={waitEstimatesByTicketId}
             recallAbsent={recallAbsent}
             recallServed={recallServed}
             removeAbsent={removeAbsent}

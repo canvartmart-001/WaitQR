@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   status TEXT NOT NULL DEFAULT 'queued',
   called_at TIMESTAMPTZ,
   started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
   served_by_member_id TEXT,
   served_by_member_name TEXT,
   status_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -31,12 +32,40 @@ CREATE TABLE IF NOT EXISTS submissions (
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS desk_id TEXT;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS called_at TIMESTAMPTZ;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS served_by_member_id TEXT;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS served_by_member_name TEXT;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 CREATE INDEX IF NOT EXISTS submissions_created_at_idx ON submissions (created_at DESC);
 CREATE INDEX IF NOT EXISTS submissions_phone_digits_idx ON submissions (phone_digits);
+CREATE INDEX IF NOT EXISTS submissions_live_queue_idx
+  ON submissions (desk_id, status, created_at)
+  WHERE status IN ('queued', 'called', 'serving');
+
+CREATE TABLE IF NOT EXISTS service_history (
+  id BIGSERIAL PRIMARY KEY,
+  submission_id TEXT NOT NULL,
+  service_id TEXT,
+  desk_id TEXT,
+  member_id TEXT,
+  member_name TEXT,
+  ticket_type TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  called_at TIMESTAMPTZ,
+  started_at TIMESTAMPTZ NOT NULL,
+  completed_at TIMESTAMPTZ NOT NULL,
+  wait_ms BIGINT NOT NULL,
+  service_ms BIGINT NOT NULL,
+  UNIQUE (submission_id, started_at)
+);
+
+CREATE INDEX IF NOT EXISTS service_history_completed_at_idx ON service_history (completed_at DESC);
+CREATE INDEX IF NOT EXISTS service_history_service_idx ON service_history (service_id, completed_at DESC);
+CREATE INDEX IF NOT EXISTS service_history_member_service_idx
+  ON service_history (member_id, service_id, completed_at DESC);
+CREATE INDEX IF NOT EXISTS service_history_desk_service_idx
+  ON service_history (desk_id, service_id, completed_at DESC);
 
 CREATE TABLE IF NOT EXISTS queue_count_events (
   id BIGSERIAL PRIMARY KEY,

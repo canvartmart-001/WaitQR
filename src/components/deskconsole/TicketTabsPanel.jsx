@@ -31,6 +31,7 @@ export function TicketTabsPanel({
   serviceWordPluralLower,
   deskWord,
   callTicket,
+  waitEstimatesByTicketId,
   recallAbsent,
   recallServed,
   removeAbsent,
@@ -89,7 +90,7 @@ export function TicketTabsPanel({
     service: "Search service",
   }[deskDetailTab] || "Search";
   const activePanel = deskDetailTab === "waiting"
-    ? <WaitingTab filteredWaiting={filteredWaiting} queuedWaiting={queuedWaiting} selectedDesk={selectedDesk} now={now} serviceName={serviceName} desks={desks} deskWord={deskWord} callTicket={callTicket} theme={surfaceTheme} />
+    ? <WaitingTab filteredWaiting={filteredWaiting} queuedWaiting={queuedWaiting} selectedDesk={selectedDesk} now={now} serviceName={serviceName} desks={desks} deskWord={deskWord} callTicket={callTicket} waitEstimatesByTicketId={waitEstimatesByTicketId} theme={surfaceTheme} />
     : deskDetailTab === "absent"
       ? <AbsentTab filteredAbsent={filteredAbsent} desks={desks} now={now} serviceName={serviceName} recallAbsent={recallAbsent} removeAbsent={removeAbsent} askConfirm={askConfirm} theme={surfaceTheme} />
       : deskDetailTab === "served"

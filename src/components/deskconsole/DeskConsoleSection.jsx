@@ -13,6 +13,7 @@ export function DeskConsoleSection({
   recallAbsent,
   recallServed,
   askConfirm,
+  waitEstimatesByTicketId,
 }) {
   const { deskWord } = labels;
   const { absentList, sortedServed, removeAbsent } = ticketLogs;
@@ -30,6 +31,7 @@ export function DeskConsoleSection({
         serviceName={serviceName}
         deskWord={deskWord}
         callTicket={callTicket}
+        waitEstimatesByTicketId={waitEstimatesByTicketId}
         recallAbsent={recallAbsent}
         recallServed={recallServed}
         removeAbsent={removeAbsent}

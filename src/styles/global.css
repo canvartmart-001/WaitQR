@@ -956,8 +956,14 @@ svg {
   transform: translateY(1px);
 }
 
-.qp-desk-primary-arrow {
+.qp-desk-primary-icon {
   display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+}
+
+.qp-desk-primary-icon--arrow {
   margin-left: auto;
 }
 

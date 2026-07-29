@@ -1,5 +1,5 @@
 import { C } from "../../lib/theme";
-import { elapsedLabel } from "../../lib/format";
+import { countdownLabel, elapsedLabel, waitEstimateDisplay } from "../../lib/format";
 import { UserRoundCheck } from "lucide-react";
 
 function withAlpha(hex, alphaHex) {
@@ -7,13 +7,17 @@ function withAlpha(hex, alphaHex) {
   return `${hex.startsWith("#") ? hex : `#${hex}`}${alphaHex}`;
 }
 
-function estimatedWaitLabel(ticket) {
-  const minutes = Number(ticket?.estimatedWaitMinutes ?? ticket?.estTime ?? ticket?.estimatedWait);
-  if (!Number.isFinite(minutes) || minutes <= 0) return "--";
-  return elapsedLabel(minutes * 60000);
+function waitCountdownLabel(ticket, waitEstimatesByTicketId, now) {
+  const estimate = waitEstimatesByTicketId?.[String(ticket?.id)];
+  if (!estimate) return "--";
+  if (estimate.status === "serving") return "Now serving";
+  const display = waitEstimateDisplay(estimate, now);
+  if (display.waitMs == null) return "--";
+  const suffix = display.paused ? " (paused)" : display.delayed ? " (delayed)" : "";
+  return `${countdownLabel(display.waitMs)}${suffix}`;
 }
 
-export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, now, serviceName, desks = [], deskWord, callTicket, theme }) {
+export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, now, serviceName, desks = [], deskWord, callTicket, waitEstimatesByTicketId = {}, theme }) {
   const surfaceTheme = {
     accentColor: theme?.accentColor || C.blue,
     fontColor: theme?.fontColor || C.textLight,
@@ -96,7 +100,7 @@ export function WaitingTab({ filteredWaiting, queuedWaiting = [], selectedDesk, 
                 {serviceName(t.serviceId)}
               </div>
               <div className="qp-ticket-face text-[10px] truncate" style={{ color: faintColor, fontVariantNumeric: "tabular-nums" }}>
-                Joined {elapsedLabel(now - t.createdAt)} ago | Estimated wait {estimatedWaitLabel(t)}
+                Joined {elapsedLabel(now - t.createdAt)} ago | Wait {waitCountdownLabel(t, waitEstimatesByTicketId, now)}
               </div>
               <div className="flex flex-wrap gap-1">
                 {t.type === "priority" && (

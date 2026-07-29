@@ -12,6 +12,7 @@ import {
   clearSubmissions,
   getSubmissionStats,
   getLiveQueueCounts,
+  getWaitEstimates,
   recordQueueCountEvent,
   listQueueCountEvents,
   getAppSettings,
@@ -114,6 +115,17 @@ async function emitLiveQueueCounts(eventType, submission = null) {
   }
 }
 
+async function emitWaitEstimates(eventName = "wait-estimates:changed") {
+  try {
+    const estimates = await getWaitEstimates();
+    io.emit(eventName, estimates);
+    return estimates;
+  } catch (error) {
+    console.error("Failed to emit wait estimates", error);
+    return null;
+  }
+}
+
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", resolveOriginHeader(req.headers.origin));
   res.header("Access-Control-Allow-Headers", "Content-Type");
@@ -196,12 +208,35 @@ app.get("/api/queue-count-events", async (req, res) => {
   }
 });
 
+app.get("/api/wait-estimates", async (req, res) => {
+  try {
+    const estimates = await getWaitEstimates();
+    const submissionId = req.query.submissionId == null ? null : String(req.query.submissionId);
+
+    if (submissionId) {
+      const estimate = estimates.tickets.find((ticket) => ticket.submissionId === submissionId);
+      if (!estimate) {
+        res.status(404).json({ error: "No active wait estimate found for this submission." });
+        return;
+      }
+      res.json({ estimate, model: estimates.model, generatedAt: estimates.generatedAt });
+      return;
+    }
+
+    res.json({ estimates });
+  } catch (error) {
+    console.error("Failed to load wait estimates", error);
+    res.status(500).json({ error: "Failed to calculate wait estimates." });
+  }
+});
+
 app.delete("/api/submissions", async (_req, res) => {
   try {
     await clearSubmissions();
     res.json({ ok: true });
     emitSubmissionChange("cleared");
     await emitLiveQueueCounts("cleared");
+    await emitWaitEstimates();
   } catch (error) {
     console.error("Failed to clear submissions", error);
     res.status(500).json({ error: "Failed to clear submissions." });
@@ -238,6 +273,7 @@ app.put("/api/settings", async (req, res) => {
     emitSettingsChange(savedSettings);
     if (repairedTickets > 0) emitSubmissionChange("assignments-repaired");
     res.json({ settings: savedSettings });
+    if (repairedTickets > 0) await emitWaitEstimates();
   } catch (error) {
     console.error("Failed to save settings", error);
     res.status(500).json({ error: "Failed to save settings." });
@@ -246,6 +282,7 @@ app.put("/api/settings", async (req, res) => {
 
 app.patch("/api/desks/:id/status", async (req, res) => {
   const deskId = String(req.params.id);
+  const changedAt = Date.now();
   const incomingDesk = req.body && typeof req.body === "object" && !Array.isArray(req.body)
     ? req.body
     : {};
@@ -263,6 +300,7 @@ app.patch("/api/desks/:id/status", async (req, res) => {
     }
 
     const shouldReplaceSchedule = schedule !== undefined && (schedule !== null || previousDesk?.schedule == null);
+    const breakChanged = Boolean(previousDesk?.onBreak) !== Boolean(deskPatch.onBreak);
     const updatedDesk = normalizeDeskAvailability({
       ...(deskIndex === -1 ? {} : desks[deskIndex]),
       ...deskPatch,
@@ -271,6 +309,10 @@ app.patch("/api/desks/:id/status", async (req, res) => {
       ...(status ? { status } : {}),
       ...(typeof locked === "boolean" ? { locked } : {}),
       ...(shouldReplaceSchedule ? { schedule } : {}),
+      ...(breakChanged ? {
+        breakStartedAt: deskPatch.onBreak ? changedAt : null,
+        waitForecastChangedAt: changedAt,
+      } : {}),
       current: null,
     });
     const nextDesks = deskIndex === -1
@@ -286,9 +328,7 @@ app.patch("/api/desks/:id/status", async (req, res) => {
       || previousDesk.availabilityMode !== savedDesk.availabilityMode
       || Boolean(previousDesk.locked) !== Boolean(savedDesk.locked)
       || JSON.stringify(previousDesk.schedule || null) !== JSON.stringify(savedDesk.schedule || null);
-    const breakChanged = Boolean(previousDesk?.onBreak) !== Boolean(savedDesk.onBreak);
     const changeType = breakChanged ? "desk-break" : statusChanged ? "desk-status" : "desk-updated";
-    const changedAt = Date.now();
 
     emitSettingsChange(savedSettings, {
       type: changeType,
@@ -303,6 +343,7 @@ app.patch("/api/desks/:id/status", async (req, res) => {
       changedBy: changedBy && typeof changedBy === "object" ? changedBy : null,
     });
     res.json({ desk: savedDesk, settings: savedSettings, changedAt });
+    if (breakChanged) await emitWaitEstimates();
   } catch (error) {
     console.error("Failed to update counter status", error);
     res.status(500).json({ error: "Failed to update counter status." });
@@ -341,6 +382,7 @@ app.post("/api/submissions", async (req, res) => {
     });
     emitSubmissionChange("created", submission);
     await emitLiveQueueCounts("created", submission);
+    await emitWaitEstimates();
   } catch (error) {
     console.error("Failed to create submission", error);
     if (error.code === "SERVICE_COUNTER_UNAVAILABLE") {
@@ -382,6 +424,7 @@ app.patch("/api/submissions/:id/status", async (req, res) => {
     if (submission.status !== "called") {
       await emitLiveQueueCounts(`status:${submission.status}`, submission);
     }
+    await emitWaitEstimates();
   } catch (error) {
     console.error("Failed to update submission status", error);
     res.status(500).json({ error: "Failed to update submission status." });
@@ -398,6 +441,9 @@ async function start() {
         socket.emit("queue:current", counts);
       })
       .catch((error) => console.error("Failed to send live queue history", error));
+    getWaitEstimates()
+      .then((estimates) => socket.emit("wait-estimates:current", estimates))
+      .catch((error) => console.error("Failed to send wait estimates", error));
   });
 
   server.listen(port, () => {
