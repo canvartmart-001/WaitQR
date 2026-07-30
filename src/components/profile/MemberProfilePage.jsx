@@ -1,4 +1,4 @@
-import { Check, Clock3, KeyRound, LayoutDashboard, LogIn, LogOut, Mail, Pencil, Phone, Monitor, Moon, Star, Sun, Upload, UserRound, X } from "lucide-react";
+import { CalendarDays, Check, Clock3, KeyRound, Layers3, LayoutDashboard, Lock, LogIn, LogOut, Mail, Pencil, Phone, Monitor, Moon, Star, Sun, Unlock, Upload, UserRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { readImageFile } from "../../lib/imageUpload";
 import { normalizeMemberRole } from "../../lib/assignments";
@@ -39,6 +39,7 @@ function itemsForIds(items, ids) {
 const SERVICE_HISTORY_HALF_LIFE_MS = 30 * 24 * 60 * 60 * 1000;
 const MIN_VALID_SERVICE_MS = 15 * 1000;
 const MAX_VALID_SERVICE_MS = 4 * 60 * 60 * 1000;
+const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 0];
 
 export function memberServiceInsights(member, services, submissions, now = Date.now()) {
   const memberId = String(member?.id || "");
@@ -163,6 +164,65 @@ function counterDisplayName(name) {
   const text = String(name || "").trim();
   if (!text) return "Counter";
   return text.replace(/^desk\b/i, "Counter");
+}
+
+function availabilityModeForDesk(desk) {
+  if (desk?.status === "Scheduled") return "scheduled";
+  if (desk?.status === "Unavailable") return "always_closed";
+  if (desk?.status === "Available") return "always_open";
+  if (desk?.availabilityMode) return desk.availabilityMode;
+  return "always_open";
+}
+
+function normalizeSchedule(schedule) {
+  const source = schedule && typeof schedule === "object" ? schedule : {};
+  const sourceEntries = Array.isArray(source.entries) && source.entries.length
+    ? source.entries
+    : Array.isArray(source.days)
+      ? [{ days: source.days, startTime: source.startTime, endTime: source.endTime }]
+      : [{ days: [1], startTime: source.startTime, endTime: source.endTime }];
+
+  return {
+    entries: sourceEntries
+      .map((entry) => ({
+        days: (Array.isArray(entry?.days) ? entry.days : [entry?.day])
+          .map(Number)
+          .filter((day) => WEEK_DAYS.includes(day)),
+        startTime: entry?.startTime || "09:00",
+        endTime: entry?.endTime || "17:00",
+      }))
+      .filter((entry) => entry.days.length),
+  };
+}
+
+function timeToMinutes(time) {
+  const [hours, minutes] = String(time || "").split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
+}
+
+function isScheduleOpenNow(schedule, now = new Date()) {
+  const normalized = normalizeSchedule(schedule);
+  const currentDay = now.getDay();
+  const previousDay = (currentDay + 6) % 7;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  return normalized.entries.some((entry) => {
+    const start = timeToMinutes(entry.startTime);
+    const end = timeToMinutes(entry.endTime);
+    if (start == null || end == null) return false;
+    if (start <= end) return entry.days.includes(currentDay) && currentMinutes >= start && currentMinutes < end;
+    return (entry.days.includes(currentDay) && currentMinutes >= start) || (entry.days.includes(previousDay) && currentMinutes < end);
+  });
+}
+
+function counterStatusState(desk) {
+  const availabilityMode = availabilityModeForDesk(desk);
+  const scheduled = availabilityMode === "scheduled" || desk?.status === "Scheduled";
+  const available = scheduled ? isScheduleOpenNow(desk?.schedule) : availabilityMode !== "always_closed" && desk?.status !== "Unavailable";
+
+  if (scheduled) return { Icon: CalendarDays, color: available ? "#22c55e" : "#f59e0b" };
+  return available ? { Icon: Unlock, color: "#22c55e" } : { Icon: Lock, color: "#ef4444" };
 }
 
 function displayRoleName(role, fallback = "Member") {
@@ -433,6 +493,7 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
   const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", about: "", photo: null });
   const [editError, setEditError] = useState("");
   const [expandedCounters, setExpandedCounters] = useState({});
+  const [profileTab, setProfileTab] = useState("counters");
   const photoInputRef = useRef(null);
   const allSubmissions = Array.isArray(submissions) ? submissions : [];
   const assignedDeskIds = new Set((Array.isArray(member?.deskIds) ? member.deskIds : []).map(String));
@@ -454,8 +515,25 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
       };
     });
   const counterInsights = counterActivityInsights(visibleDesks, submissions, member);
-  const assignedServices = itemsForIds(services, member?.serviceIds);
-  const memberInsights = memberServiceInsights(member, assignedServices, submissions);
+  const assignedServiceIds = new Set((Array.isArray(member?.serviceIds) ? member.serviceIds : []).map(String));
+  const serviceById = new Map((Array.isArray(services) ? services : []).map((service) => [String(service.id), service]));
+  const historicalServiceIds = allSubmissions
+    .filter(
+      (submission) => submission.status === "completed"
+        && String(submission.servedByMemberId || "") === String(member?.id || "")
+        && submission.serviceId != null,
+    )
+    .map((submission) => String(submission.serviceId));
+  const visibleServices = Array.from(new Set([...assignedServiceIds, ...historicalServiceIds]))
+    .map((serviceId) => {
+      const service = serviceById.get(serviceId);
+      return {
+        ...(service || { id: serviceId, name: "Service" }),
+        isAssigned: assignedServiceIds.has(serviceId),
+        isAvailable: Boolean(service),
+      };
+    });
+  const memberInsights = memberServiceInsights(member, visibleServices, submissions);
   const sharedServiceInsightsById = new Map(
     memberInsights.services.map((service) => [String(service.id), service]),
   );
@@ -463,7 +541,7 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
     ...desk,
     services: memberServiceInsights(
       member,
-      assignedServices,
+      visibleServices,
       allSubmissions.filter(
         (submission) => String(submission.deskId ?? "") === String(desk.id),
       ),
@@ -753,20 +831,59 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                   ) : null}
 
                   {!editing ? <div className="mt-5 space-y-3">
+                    <div className="flex w-full gap-2 text-xs font-medium sm:w-auto">
+                      {[
+                        { id: "counters", label: "Counters", icon: Monitor },
+                        { id: "services", label: labels.serviceWordPlural, icon: Layers3 },
+                      ].map((tab) => {
+                        const Icon = tab.icon;
+                        const active = profileTab === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setProfileTab(tab.id)}
+                            className="flex min-h-9 flex-1 items-center justify-center gap-1.5 px-4 py-2 transition-colors sm:flex-none"
+                            style={{
+                              borderRadius: Math.min(theme.radius, 8),
+                              backgroundColor: active ? withAlpha(theme.accentColor, "18") : "transparent",
+                              color: active ? theme.accentColor : withAlpha(theme.fontColor, "75"),
+                            }}
+                            aria-pressed={active}
+                          >
+                            <Icon size={14} className="shrink-0" />
+                            {tab.label}
+                          </button>
+                        );
+                      })}
+                    </div>
                     <div className="min-w-0 text-sm" style={{ color: theme.fontColor }}>
+                      {profileTab === "counters" ? (
                       <div className="w-full space-y-2.5">
                           {counterServiceInsights.length ? (
                             counterServiceInsights.map((desk) => {
                               const deskPath = desk.isAvailable ? getDeskPath(desk, desks) : "";
                               const servicesExpanded = Boolean(expandedCounters[desk.id]);
                               const counterNameColor = desk.isAssigned ? theme.fontColor : withAlpha(theme.fontColor, "70");
+                              const statusState = counterStatusState(desk);
+                              const StatusIcon = statusState.Icon;
+                              const statusIconColor = desk.isAssigned ? statusState.color : withAlpha(statusState.color, "80");
+                              const counterStats = desk.isAssigned
+                                ? [
+                                    { label: "Waiting", value: desk.waitingCount, color: theme.accentColor },
+                                    { label: "Absent", value: desk.absentCount, color: "#f59e0b" },
+                                    { label: "Served", value: desk.servedCount, color: "#22c55e" },
+                                  ]
+                                : [
+                                    { label: "Served", value: desk.servedCount, color: "#22c55e" },
+                                  ];
                               return (
                                 <div
                                   key={desk.id}
                                   className="block w-full border px-2.5 py-3 sm:p-3"
                                   style={{ borderColor: theme.borderColor, borderRadius: Math.min(theme.radius, 8), backgroundColor: withAlpha(theme.fontColor, "08") }}
                                 >
-                                  <span className="grid w-full grid-cols-3 items-center gap-x-2 gap-y-2 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(2.75rem,auto))]">
+                                  <span className={`grid w-full items-center gap-x-2 gap-y-2 ${desk.isAssigned ? "grid-cols-3 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(2.75rem,auto))]" : "grid-cols-[minmax(0,1fr)_minmax(2.75rem,auto)]"}`}>
                                     {desk.isAvailable ? (
                                       <a
                                         href={deskPath}
@@ -774,26 +891,22 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                                           event.preventDefault();
                                           onNavigate?.(deskPath);
                                         }}
-                                        className="col-span-3 flex min-w-0 items-center gap-1.5 transition-opacity hover:opacity-80 sm:col-span-1 sm:gap-2"
+                                        className={`${desk.isAssigned ? "col-span-3 sm:col-span-1" : ""} flex min-w-0 items-center gap-1.5 transition-opacity hover:opacity-80 sm:gap-2`}
                                       >
-                                        <Monitor size={15} className="shrink-0 sm:h-4 sm:w-4" style={{ color: desk.isAssigned ? theme.accentColor : withAlpha(theme.accentColor, "80") }} />
+                                        <StatusIcon size={15} className="shrink-0 sm:h-4 sm:w-4" style={{ color: statusIconColor }} />
                                         <span className="block min-w-0 break-words text-sm font-semibold leading-tight sm:truncate sm:text-base" style={{ color: counterNameColor }}>
                                           {counterDisplayName(desk.name)}
                                         </span>
                                       </a>
                                     ) : (
-                                      <span className="col-span-3 flex min-w-0 items-center gap-1.5 sm:col-span-1 sm:gap-2">
-                                      <Monitor size={15} className="shrink-0 sm:h-4 sm:w-4" style={{ color: theme.accentColor }} />
+                                      <span className={`${desk.isAssigned ? "col-span-3 sm:col-span-1" : ""} flex min-w-0 items-center gap-1.5 sm:gap-2`}>
+                                      <StatusIcon size={15} className="shrink-0 sm:h-4 sm:w-4" style={{ color: statusIconColor }} />
                                       <span className="block min-w-0 break-words text-sm font-semibold leading-tight sm:truncate sm:text-base" style={{ color: counterNameColor }}>
                                         {counterDisplayName(desk.name)}
                                       </span>
                                       </span>
                                     )}
-                                    {[
-                                      { label: "Waiting", value: desk.waitingCount, color: theme.accentColor },
-                                      { label: "Absent", value: desk.absentCount, color: "#f59e0b" },
-                                      { label: "Served", value: desk.servedCount, color: "#22c55e" },
-                                    ].map((stat) => (
+                                    {counterStats.map((stat) => (
                                       <button
                                         key={stat.label}
                                         type="button"
@@ -818,24 +931,21 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                                         desk.services.map((service, serviceIndex) => (
                                           <span
                                             key={service.id}
-                                            className="grid w-full grid-cols-3 items-center gap-x-2 gap-y-2.5 py-4 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(2.75rem,auto))]"
+                                            className={`grid w-full items-center gap-x-2 gap-y-2.5 py-4 first:pt-0 last:pb-0 ${desk.isAssigned && service.isAssigned ? "grid-cols-3 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(2.75rem,auto))]" : "grid-cols-[minmax(0,1fr)_minmax(2.75rem,auto)]"}`}
                                             style={{ borderTop: serviceIndex ? `1px solid ${withAlpha(theme.borderColor, "66")}` : undefined }}
                                           >
-                                            <span className="col-span-3 min-w-0 sm:col-span-1">
-                                              <span className="block break-words font-medium">{service.name}</span>
-                                              <span className="mt-2 flex min-w-0 items-center gap-3 text-xs font-normal" style={{ color: withAlpha(theme.fontColor, "80") }}>
-                                                <RatingSummary average={service.averageRating} count={service.ratingCount} theme={theme} compact />
-                                                <span className="flex min-w-0 items-center gap-1 truncate">
-                                                  <Clock3 size={12} className="shrink-0" />
-                                                  <span className="truncate">{formatEstimatedServiceTime(service.estimatedServiceMs)}</span>
-                                                </span>
-                                              </span>
+                                            <span className={`${desk.isAssigned && service.isAssigned ? "col-span-3 sm:col-span-1" : ""} min-w-0`}>
+                                              <span className="block break-words font-medium" style={{ color: service.isAssigned ? theme.fontColor : withAlpha(theme.fontColor, "70") }}>{service.name}</span>
                                             </span>
-                                            {[
-                                              { label: "waiting", value: service.waitingCount, color: theme.accentColor },
-                                              { label: "absent", value: service.absentCount, color: "#f59e0b" },
-                                              { label: "served", value: service.servedCount, color: "#22c55e" },
-                                            ].map((stat) => (
+                                            {(desk.isAssigned && service.isAssigned
+                                              ? [
+                                                  { label: "waiting", value: service.waitingCount, color: theme.accentColor },
+                                                  { label: "absent", value: service.absentCount, color: "#f59e0b" },
+                                                  { label: "served", value: service.servedCount, color: "#22c55e" },
+                                                ]
+                                              : [
+                                                  { label: "served", value: service.servedCount, color: "#22c55e" },
+                                                ]).map((stat) => (
                                               <span key={stat.label} className="min-w-0 text-center" aria-label={`${service.name} ${stat.value} ${stat.label}`}>
                                                 <span className="block text-sm font-semibold leading-none" style={{ color: stat.color }}>
                                                   {stat.value}
@@ -856,6 +966,53 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                             <p className="mt-0.5 break-words font-medium">-</p>
                           )}
                       </div>
+                      ) : (
+                        <div className="w-full space-y-2.5">
+                          {memberInsights.services.length ? (
+                            memberInsights.services.map((service) => {
+                              const serviceStats = service.isAssigned
+                                ? [
+                                    { label: "Waiting", value: service.waitingCount, color: theme.accentColor },
+                                    { label: "Absent", value: service.absentCount, color: "#f59e0b" },
+                                    { label: "Served", value: service.servedCount, color: "#22c55e" },
+                                  ]
+                                : [
+                                    { label: "Served", value: service.servedCount, color: "#22c55e" },
+                                  ];
+                              return (
+                              <div
+                                key={service.id}
+                                className={`grid w-full items-center gap-x-2 gap-y-2.5 border px-2.5 py-3 sm:p-3 ${service.isAssigned ? "grid-cols-3 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(2.75rem,auto))]" : "grid-cols-[minmax(0,1fr)_minmax(2.75rem,auto)]"}`}
+                                style={{ borderColor: theme.borderColor, borderRadius: Math.min(theme.radius, 8), backgroundColor: withAlpha(theme.fontColor, "08") }}
+                              >
+                                <span className={`${service.isAssigned ? "col-span-3 sm:col-span-1" : ""} min-w-0`}>
+                                  <span className="block break-words font-medium" style={{ color: service.isAssigned ? theme.fontColor : withAlpha(theme.fontColor, "70") }}>{service.name}</span>
+                                  <span className="mt-2 flex min-w-0 items-center gap-3 text-xs font-normal" style={{ color: withAlpha(theme.fontColor, "80") }}>
+                                    <RatingSummary average={service.averageRating} count={service.ratingCount} theme={theme} compact />
+                                    <span className="flex min-w-0 items-center gap-1 truncate">
+                                      <Clock3 size={12} className="shrink-0" />
+                                      <span className="truncate">{formatEstimatedServiceTime(service.estimatedServiceMs)}</span>
+                                    </span>
+                                  </span>
+                                </span>
+                                {serviceStats.map((stat) => (
+                                  <span key={stat.label} className="min-w-0 text-center" aria-label={`${service.name} ${stat.value} ${stat.label.toLowerCase()}`}>
+                                    <span className="block text-sm font-semibold leading-none" style={{ color: stat.color }}>
+                                      {stat.value}
+                                    </span>
+                                    <span className="mt-1 block text-[9px] leading-none sm:text-[10px]" style={{ color: withAlpha(theme.fontColor, "70") }}>
+                                      {stat.label}
+                                    </span>
+                                  </span>
+                                ))}
+                              </div>
+                              );
+                            })
+                          ) : (
+                            <p className="mt-0.5 break-words font-medium">-</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div> : null}
                 </>

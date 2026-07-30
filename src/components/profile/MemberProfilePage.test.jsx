@@ -62,6 +62,13 @@ const submissions = [
     completedAt: 604_000,
     feedbackRating: 5,
   },
+  {
+    id: "ticket-8",
+    status: "completed",
+    deskId: "desk-1",
+    serviceId: "massage",
+    servedByMemberId: "member-1",
+  },
 ];
 
 const theme = {
@@ -93,14 +100,14 @@ test("calculates activity totals for each assigned counter", () => {
   expect(insights[0]).toMatchObject({
     waitingCount: 2,
     absentCount: 1,
-    servedCount: 3,
+    servedCount: 4,
   });
 });
 
 test("renders assigned services as rows with estimates and ratings", () => {
   render(
     <MemberProfilePage
-      member={{ ...member, deskIds: ["desk-1"] }}
+      member={{ ...member, deskIds: ["desk-1"], serviceIds: ["hair"] }}
       desks={[{ id: "desk-1", name: "Desk 1" }, { id: "desk-2", name: "Desk 2" }]}
       services={services}
       submissions={submissions}
@@ -113,18 +120,23 @@ test("renders assigned services as rows with estimates and ratings", () => {
 
   expect(screen.getByRole("heading", { name: "John Due" })).toBeInTheDocument();
   expect(screen.getByText("Counter 2")).toBeInTheDocument();
-  expect(screen.getByLabelText("Served 2, show services")).toBeInTheDocument();
-  expect(screen.queryByText("Est. 13 min")).not.toBeInTheDocument();
-  fireEvent.click(screen.getByLabelText("Served 2, show services"));
+  expect(screen.getByLabelText("Served 3, show services")).toBeInTheDocument();
+  expect(screen.queryByText("Est. 12 min")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByLabelText("Served 3, show services"));
+  expect(screen.queryByText("Est. 12 min")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Hair Cut 2 served")).toBeInTheDocument();
+  expect(screen.getByLabelText("Massage 1 served")).toBeInTheDocument();
+  fireEvent.click(screen.getByLabelText("Served 1, show services"));
+  expect(screen.getByLabelText("Hair Cut 1 served")).toBeInTheDocument();
+  expect(screen.getAllByText("Waiting")).toHaveLength(1);
+  expect(screen.getAllByText("Absent")).toHaveLength(1);
+  expect(screen.getAllByText("Served")).toHaveLength(2);
+  expect(screen.queryByLabelText("No ratings yet")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Services" }));
   expect(screen.getAllByLabelText("4.3 out of 5 from 3 ratings")).toHaveLength(2);
   expect(screen.getByText("Est. 12 min")).toBeInTheDocument();
   expect(screen.getByText("Est. pending")).toBeInTheDocument();
-  expect(screen.getByLabelText("Hair Cut 2 served")).toBeInTheDocument();
-  fireEvent.click(screen.getByLabelText("Served 1, show services"));
-  expect(screen.getByLabelText("Hair Cut 1 served")).toBeInTheDocument();
-  expect(screen.getAllByText("Est. 12 min")).toHaveLength(2);
-  expect(screen.getAllByText("Waiting")).toHaveLength(2);
-  expect(screen.getAllByText("Absent")).toHaveLength(2);
-  expect(screen.getAllByText("Served")).toHaveLength(2);
-  expect(screen.getAllByLabelText("No ratings yet")).toHaveLength(2);
+  expect(screen.getByLabelText("No ratings yet")).toBeInTheDocument();
+  expect(screen.getByLabelText("Hair Cut 3 served")).toBeInTheDocument();
+  expect(screen.getByLabelText("Massage 1 served")).toBeInTheDocument();
 });
