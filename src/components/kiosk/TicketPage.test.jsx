@@ -169,6 +169,17 @@ describe("ticket lifecycle messages", () => {
     expect(view.queryByText(/next in line/i)).toBeNull();
   });
 
+  it("shows a check mark inside the ring when completed", () => {
+    const view = render(
+      <TicketPage
+        {...baseProps}
+        ticket={{ ...ticket, status: "completed" }}
+      />,
+    );
+
+    expect(view.getByTestId("completed-check")).toBeTruthy();
+  });
+
   it("hides queue and wait details after a ticket is called", () => {
     const view = render(
       <TicketPage

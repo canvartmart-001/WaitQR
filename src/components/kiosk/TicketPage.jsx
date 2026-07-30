@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
+  Check,
   Layers3,
   LogOut,
   MapPin,
@@ -316,26 +317,30 @@ function SubmissionCard({
         </svg>
 
         <div className="relative z-[1] flex h-[82%] w-[78%] flex-col items-center justify-center px-4 text-center">
-          <div
-            className="inline-flex rounded px-2 py-1 text-base font-semibold uppercase leading-none"
-            style={{
-              color: statusAccent,
-              backgroundColor: isNoLongerWaiting
-                ? C.coralSoft
-                : isServing || isCompleted
-                  ? C.tealSoft
-                  : isCalled
-                    ? C.amberSoft
-                    : withAlpha(appearance.fontColor, 0.035),
-            }}
-          >
-            {submission.label}
-          </div>
-          <div className="mt-2 text-[10px] font-semibold uppercase" style={{ color: withAlpha(appearance.fontColor, 0.6) }}>
-            Your ticket
-          </div>
+          {!isCompleted ? (
+            <>
+              <div
+                className="inline-flex rounded px-2 py-1 text-base font-semibold uppercase leading-none"
+                style={{
+                  color: statusAccent,
+                  backgroundColor: isNoLongerWaiting
+                    ? C.coralSoft
+                    : isServing
+                      ? C.tealSoft
+                      : isCalled
+                        ? C.amberSoft
+                        : withAlpha(appearance.fontColor, 0.035),
+                }}
+              >
+                {submission.label}
+              </div>
+              <div className="mt-2 text-[10px] font-semibold uppercase" style={{ color: withAlpha(appearance.fontColor, 0.6) }}>
+                Your ticket
+              </div>
+            </>
+          ) : null}
 
-          <div className="mt-4 flex flex-col items-center justify-center">
+          <div className={`${isCompleted ? "" : "mt-4"} flex flex-col items-center justify-center`}>
             {isCalled ? (
               <>
                 <div className="text-3xl font-semibold leading-tight sm:text-4xl" style={{ color: C.amber }}>
@@ -350,7 +355,7 @@ function SubmissionCard({
               </>
             ) : isServing ? (
               <>
-                <div className="text-3xl font-semibold leading-tight sm:text-4xl" style={{ color: C.teal }}>
+                <div className="mt-5 text-3xl font-semibold leading-tight sm:text-4xl" style={{ color: C.teal }}>
                   Now serving
                 </div>
                 <div className="mt-3 text-[10px] font-semibold uppercase" style={{ color: withAlpha(appearance.fontColor, 0.6) }}>
@@ -362,6 +367,29 @@ function SubmissionCard({
               </>
             ) : isCompleted ? (
               <>
+                <div
+                  data-testid="completed-check"
+                  className="mb-4 flex h-10 w-10 items-center justify-center rounded-full sm:h-11 sm:w-11"
+                  style={{
+                    color: C.teal,
+                    backgroundColor: C.tealSoft,
+                  }}
+                  aria-hidden="true"
+                >
+                  <Check size={23} strokeWidth={3} />
+                </div>
+                <div
+                  className="inline-flex rounded px-2 py-1 text-base font-semibold uppercase leading-none"
+                  style={{
+                    color: C.teal,
+                    backgroundColor: C.tealSoft,
+                  }}
+                >
+                  {submission.label}
+                </div>
+                <div className="mt-2 text-[10px] font-semibold uppercase" style={{ color: withAlpha(appearance.fontColor, 0.6) }}>
+                  Your ticket
+                </div>
                 <div className="text-3xl font-semibold leading-tight sm:text-4xl" style={{ color: C.teal }}>
                   Completed
                 </div>
