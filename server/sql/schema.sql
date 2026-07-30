@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   recall_requested_at TIMESTAMPTZ,
   served_by_member_id TEXT,
   served_by_member_name TEXT,
+  feedback_rating SMALLINT CHECK (feedback_rating BETWEEN 1 AND 5),
   status_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -41,6 +42,7 @@ ALTER TABLE submissions ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS recall_requested_at TIMESTAMPTZ;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS served_by_member_id TEXT;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS served_by_member_name TEXT;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS feedback_rating SMALLINT;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 UPDATE submissions AS ticket

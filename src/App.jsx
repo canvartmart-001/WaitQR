@@ -357,7 +357,7 @@ function summarizeSubmissions(submissions) {
 }
 
 function mapSubmissionToServedEntry(submission) {
-  const completedAt = submission.statusUpdatedAt || submission.createdAt;
+  const completedAt = submission.completedAt || submission.statusUpdatedAt || submission.createdAt;
 
   return {
     id: submission.id,
@@ -371,6 +371,7 @@ function mapSubmissionToServedEntry(submission) {
     startedAt: submission.startedAt,
     servedByMemberId: submission.servedByMemberId || "",
     servedByMemberName: submission.servedByMemberName || "",
+    feedbackRating: submission.feedbackRating || null,
     completedAt,
     waitMs: Math.max(0, (submission.calledAt || completedAt) - submission.createdAt),
   };
@@ -2198,6 +2199,8 @@ export default function App() {
           waitEstimate={displayedTicketWaitEstimate}
           now={now}
           serviceName={serviceName}
+          services={services}
+          members={memberHooks.members}
           theme={ticketAppearanceSettings}
           onNavigate={navigate}
         />
@@ -2289,6 +2292,8 @@ export default function App() {
           waitEstimate={displayedTicketWaitEstimate}
           now={now}
           serviceName={serviceName}
+          services={services}
+          members={memberHooks.members}
           theme={ticketAppearanceSettings}
           onNavigate={navigate}
         />

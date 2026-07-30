@@ -25,90 +25,66 @@ npm start
 `DATABASE_URL` must point to a PostgreSQL database the app can connect to. The included Docker
 Compose setup starts a local Postgres database that matches `.env.example`.
 
-## Codespaces startup and live preview
+## Codespaces Startup And Preview
 
-Use these steps when you open the project in a new Codespace or when an existing Codespace starts
-again.
+Codespaces is configured to start the WaitQR preview automatically.
 
-### First time in a new Codespace
+When you open or restart the Codespace:
 
-1. Install Node dependencies:
+1. Wait about 30 seconds for the startup command to run.
+2. Open the **Ports** tab in Codespaces.
+3. Open the forwarded URL for port `3000`, labeled `WaitQR frontend`.
+4. Keep port `4000`, labeled `WaitQR API`, running for backend requests.
 
-   ```bash
-   npm install
-   ```
+The app should be available at:
 
-2. Make sure `.env` exists and points to the local database:
+- Frontend: forwarded Codespaces URL for port `3000`
+- Local frontend inside the Codespace: `http://127.0.0.1:3000/`
+- Backend health check: `http://127.0.0.1:4000/api/health`
 
-   ```bash
-   DATABASE_URL=postgres://postgres:postgres@localhost:5432/waitqr
-   ```
+The automatic startup is defined in `.devcontainer/devcontainer.json` and runs:
 
-3. Start PostgreSQL. If Docker is available, use the normal project command:
+```bash
+bash .devcontainer/start-server.sh
+```
 
-   ```bash
-   npm run db:up
-   ```
+That script installs dependencies when needed, starts PostgreSQL with Docker Compose when Docker is
+available, starts the backend on port `4000`, and starts Vite on port `3000`.
 
-   If Docker is not available but PostgreSQL is installed in the Codespace, create a local database
-   once:
+### If Port 3000 Shows 404
 
-   ```bash
-   /usr/lib/postgresql/17/bin/initdb -D .pgdata --username=postgres --auth=trust
-   /usr/lib/postgresql/17/bin/pg_ctl -D .pgdata -l .pgdata/server.log -o "-k .pgdata" start
-   createdb -h localhost -U postgres waitqr
-   ```
+Use this quick recovery checklist:
 
-4. Start the backend API in one terminal:
+1. In the Codespaces **Ports** tab, confirm port `3000` exists and is labeled `WaitQR frontend`.
+2. Open the port `3000` URL from the **Ports** tab instead of reusing an old browser bookmark.
+3. If the page still shows 404, run:
 
    ```bash
-   npm run server
+   bash .devcontainer/start-server.sh
    ```
 
-5. Start the frontend in another terminal:
+4. Check the local frontend:
 
    ```bash
-   npm start
+   curl -I http://127.0.0.1:3000/
    ```
 
-6. Open the live preview:
+   A healthy frontend returns `HTTP/1.1 200 OK`.
 
-   - Frontend: `http://localhost:3000/`
-   - Backend health check: `http://localhost:4000/api/health`
-
-In GitHub Codespaces, open the **Ports** tab and use the forwarded URL for port `3000` to preview
-the app in your browser. Keep port `4000` running for backend API calls.
-
-### When the same Codespace starts again
-
-1. Start PostgreSQL again if it is not already running:
+5. Check the backend:
 
    ```bash
-   npm run db:up
+   curl http://127.0.0.1:4000/api/health
    ```
 
-   Or, if you used the local `.pgdata` setup:
+   A healthy backend returns `{"ok":true}`.
 
-   ```bash
-   /usr/lib/postgresql/17/bin/pg_ctl -D .pgdata -l .pgdata/server.log -o "-k .pgdata" start
-   ```
+6. If the local checks are healthy but the forwarded URL still shows 404, hard refresh the browser
+   tab or reopen port `3000` from the Codespaces **Ports** tab. The GitHub tunnel can keep a stale
+   preview route briefly after a Codespace restart.
 
-2. Start the backend:
-
-   ```bash
-   npm run server
-   ```
-
-3. Start the frontend:
-
-   ```bash
-   npm start
-   ```
-
-4. Open the forwarded port `3000` preview again from the Codespaces **Ports** tab.
-
-If port `3000`, `4000`, or `5432` is already in use, stop the old terminal process or close the old
-Codespace task before starting it again.
+After changing `.devcontainer/devcontainer.json`, run **Codespaces: Rebuild Container** once so
+GitHub applies the startup hooks.
 
 ## Project structure
 

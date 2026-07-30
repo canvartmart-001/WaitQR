@@ -110,6 +110,30 @@ export async function deleteSubmissionByPublicToken(publicToken) {
   return Boolean(data.deleted);
 }
 
+export async function rateSubmissionByPublicToken(publicToken, rating) {
+  if (!publicToken) return null;
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/submissions/public/${encodeURIComponent(publicToken)}/rating`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ rating }),
+    });
+  } catch {
+    throw new Error("Submission service is unavailable. Start the backend and confirm the API is reachable.");
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to save rating.");
+  }
+
+  return data.submission || null;
+}
+
 export async function getSubmissionStats() {
   let response;
 

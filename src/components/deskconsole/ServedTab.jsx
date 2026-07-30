@@ -105,8 +105,13 @@ function ServedRow({ entry: e, now, serviceName, desks, deskWord, recallServed, 
             </div>
           </div>
           <div className="mt-1 grid gap-0.5">
-            <div className="min-w-0 truncate text-sm font-medium leading-tight" style={{ color: surfaceTheme.fontColor }}>
-              {e.name}
+            <div className="flex min-w-0 items-center gap-1.5 text-sm font-medium leading-tight" style={{ color: surfaceTheme.fontColor }}>
+              <span className="truncate">{e.name}</span>
+              {e.feedbackRating ? (
+                <span className="qp-mono shrink-0 text-xs font-semibold" style={{ color: e.feedbackRating >= 4 ? C.teal : e.feedbackRating === 3 ? C.amber : C.coral }}>
+                  ★ {e.feedbackRating}
+                </span>
+              ) : null}
             </div>
             <div className="text-xs truncate" style={{ color: mutedColor }}>
               {e.phone}

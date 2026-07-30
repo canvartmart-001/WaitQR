@@ -4,17 +4,48 @@ import {
   Layers3,
   LogOut,
   MapPin,
+  Smile,
+  Star,
   Ticket,
   Undo2,
 } from "lucide-react";
 import { C } from "../../lib/theme";
-import { countdownLabel, elapsedTimerLabel, waitEstimateDisplay } from "../../lib/format";
-import { deleteSubmissionByPublicToken, getSubmissionByAccessKey, requestSubmissionRecall } from "../../lib/submissionsApi";
+import { countdownLabel, elapsedTimerLabel, finishTimeLabel, waitEstimateDisplay } from "../../lib/format";
+import { deleteSubmissionByPublicToken, getSubmissionByAccessKey, rateSubmissionByPublicToken, requestSubmissionRecall } from "../../lib/submissionsApi";
 import { ConfirmDialog } from "../modals/ConfirmDialog";
 
 const ticketPageStyle = {
   width: "min(100%, 520px)",
 };
+
+const RATING_OPTIONS = [
+  { value: 1, label: "Poor", color: C.coral },
+  { value: 2, label: "Fair", color: C.coral },
+  { value: 3, label: "Good", color: C.amber },
+  { value: 4, label: "Very good", color: C.teal },
+  { value: 5, label: "Excellent", color: C.teal },
+];
+
+const CURRENCY_SYMBOLS = {
+  USD: "$",
+  GBP: "£",
+  INR: "₹",
+};
+
+function servicePriceLabel(service, currency = "USD") {
+  const price = service?.price;
+  if (price === "" || price == null) return "";
+  return `${CURRENCY_SYMBOLS[currency] || CURRENCY_SYMBOLS.USD}${price}`;
+}
+
+function initials(name) {
+  return String(name || "")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "?";
+}
 
 function withAlpha(color, opacity) {
   const hex = String(color || "").replace("#", "");
@@ -76,16 +107,21 @@ function ticketThemeColor(status, accentColor) {
 function SubmissionCard({
   submission,
   serviceName,
+  services = [],
   ticketPosition,
   ticketDeskName,
   waitEstimate,
   now,
   theme,
+  members,
   onRequestRecall,
+  onRate,
   onExit,
   exitPending,
   recallRequesting,
   recallError,
+  ratingPending,
+  ratingError,
 }) {
   const appearance = {
     accentColor: theme?.accentColor || C.amber,
@@ -93,6 +129,7 @@ function SubmissionCard({
     fontColor: theme?.fontColor || C.textLight,
     borderColor: theme?.borderColor || C.ink600,
     radius: Number(theme?.radius) || 8,
+    currency: theme?.currency || "USD",
   };
 
   useEffect(() => {
@@ -121,12 +158,22 @@ function SubmissionCard({
   }, [appearance.accentColor, submission.status]);
 
   const serviceLine = submission.serviceId ? serviceName(submission.serviceId) : "General";
+  const selectedService = (services || []).find((service) => String(service.id) === String(submission.serviceId));
+  const priceLabel = servicePriceLabel(selectedService, appearance.currency);
   const isQueued = submission.status === "queued";
   const isCalled = submission.status === "called";
   const isServing = submission.status === "serving";
   const isCompleted = submission.status === "completed";
   const isAbsent = submission.status === "skipped" || submission.status === "absent";
   const isRemoved = submission.status === "removed";
+  const normalizedServedByName = String(submission.servedByMemberName || "").trim().toLocaleLowerCase();
+  const servedByMember = (members || []).find((member) => (
+    String(member.id) === String(submission.servedByMemberId)
+    || (normalizedServedByName && String(member.name || "").trim().toLocaleLowerCase() === normalizedServedByName)
+  ));
+  const servedByName = servedByMember?.name || submission.servedByMemberName || "Team member";
+  const ratingScore = Number(submission.feedbackRating) || 0;
+  const selectedRating = RATING_OPTIONS.find((option) => option.value === ratingScore);
   const isNoLongerWaiting = isAbsent || isRemoved;
   const recallRequested = Boolean(submission.recallRequestedAt);
   const livePosition = Number(ticketPosition);
@@ -199,12 +246,17 @@ function SubmissionCard({
   const timedSegmentProgress = bestPosition > 1
     ? Math.min(0.94, elapsedStepMs / estimatedStepMs)
     : 0;
+  const firstPositionProgress = bestPosition <= 1
+    ? Math.min(0.94, elapsedStepMs / estimatedStepMs)
+    : 0;
   const calculatedProgress = isFinalRingState
     ? 1
-    : confirmedPositionProgress + positionSegmentSize * timedSegmentProgress;
+    : bestPosition <= 1
+      ? confirmedPositionProgress + 0.1 * firstPositionProgress
+      : confirmedPositionProgress + positionSegmentSize * timedSegmentProgress;
   progressRef.current.value = Math.max(
     progressRef.current.value,
-    Math.max(0.08, Math.min(isFinalRingState ? 1 : 0.9, calculatedProgress)),
+    Math.max(0.08, Math.min(isFinalRingState ? 1 : 0.994, calculatedProgress)),
   );
   const progress = progressRef.current.value;
   const ringLength = 289;
@@ -218,8 +270,8 @@ function SubmissionCard({
         : appearance.accentColor;
   const serviceTimer = isServing && submission.startedAt
     ? elapsedTimerLabel(now - submission.startedAt)
-    : isCompleted && submission.startedAt
-      ? `Served ${elapsedTimerLabel((submission.completedAt || submission.statusUpdatedAt || now) - submission.startedAt)}`
+    : isCompleted
+      ? finishTimeLabel(submission.completedAt || submission.statusUpdatedAt, now)
       : "";
   const panelStyle = {
     color: appearance.fontColor,
@@ -387,6 +439,86 @@ function SubmissionCard({
       </section>
 
       <section className="overflow-hidden" style={detailsPanelStyle} aria-label="Ticket details">
+        {isCompleted ? (
+          <>
+            <div className="grid gap-y-3 px-4 py-4">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 text-left">
+                <div className="min-w-0">
+                  <div data-testid="ticket-service-value" className="truncate text-base font-semibold" style={{ color: C.teal }}>{serviceLine}</div>
+                  <div data-testid="ticket-counter-value" className="mt-0.5 truncate text-xs font-normal" style={{ color: C.textMuted }}>
+                    {ticketDeskName || "Counter"}
+                  </div>
+                </div>
+                {priceLabel ? (
+                  <div className="qp-mono shrink-0 text-right text-base font-semibold" style={{ color: C.textLight }}>
+                    {priceLabel}
+                  </div>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2.5 border-t pt-3" style={{ borderColor: C.ink700 }}>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-700 text-xs font-semibold text-white">
+                  {servedByMember?.photo ? (
+                    <img src={servedByMember.photo} alt={servedByName} className="h-full w-full object-cover" />
+                  ) : initials(servedByName)}
+                </span>
+                <div className="col-span-2 min-w-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[10px] font-normal uppercase" style={{ color: C.textMuted }}>Served by</div>
+                    {serviceTimer ? (
+                      <span className="qp-mono shrink-0 whitespace-nowrap text-[10px]" style={{ color: C.textMuted }}>{serviceTimer}</span>
+                    ) : null}
+                  </div>
+                  <div className="truncate text-sm font-semibold" style={{ color: C.textLight }}>
+                    {servedByName}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="px-4 pb-4 pt-1 text-center">
+              <div className="w-full rounded-md px-3 py-3" style={{ backgroundColor: withAlpha(C.teal, 0.1) }}>
+                <div className="flex items-center justify-start gap-2.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: withAlpha(C.teal, 0.16), color: C.teal }}>
+                    <Smile size={17} />
+                  </span>
+                  <div className="text-left text-sm font-semibold leading-snug" style={{ color: C.textLight }}>How was your experience?</div>
+                </div>
+                <div className="mt-3 flex items-center justify-center gap-2 sm:gap-3" role="group" aria-label="Rate your experience">
+                  {RATING_OPTIONS.map((option) => {
+                    const selected = ratingScore === option.value;
+                    const filled = option.value <= ratingScore;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => onRate(option.value)}
+                        disabled={ratingPending || !submission.publicToken}
+                        aria-label={`${option.value} stars, ${option.label}`}
+                        aria-pressed={selected}
+                        className="qp-focusable flex h-9 w-9 items-center justify-center transition-transform duration-200 ease-out hover:scale-105 disabled:cursor-wait"
+                        style={{
+                          color: filled ? selectedRating?.color : C.textFaint,
+                          transform: selected ? "scale(1.08)" : "scale(1)",
+                          transition: "color 180ms ease, transform 180ms ease",
+                        }}
+                      >
+                        <Star
+                          size={25}
+                          fill={filled ? "currentColor" : "none"}
+                          style={{ transition: "fill 180ms ease, stroke 180ms ease" }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="mt-1 min-h-[16px] text-xs font-semibold transition-colors duration-200" style={{ color: selectedRating?.color || "transparent" }}>
+                {selectedRating?.label || ""}
+              </div>
+              {ratingError ? <p className="mt-2 text-xs" style={{ color: C.coral }}>{ratingError}</p> : null}
+            </div>
+          </>
+        ) : (
+          <>
         <div className="flex items-center gap-3 px-4 py-3.5">
           <span
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border"
@@ -433,7 +565,7 @@ function SubmissionCard({
                 {serviceTimer}
               </span>
             ) : null}
-            {submission.publicToken && !isServing ? (
+            {submission.publicToken && (isQueued || isCalled) ? (
               <button
                 type="button"
                 onClick={onExit}
@@ -448,6 +580,8 @@ function SubmissionCard({
             ) : null}
           </div>
         </div>
+          </>
+        )}
       </section>
 
     </div>
@@ -463,6 +597,8 @@ export function TicketPage({
   waitEstimate,
   now = Date.now(),
   serviceName,
+  services = [],
+  members = [],
   theme,
   onNavigate,
 }) {
@@ -475,6 +611,8 @@ export function TicketPage({
   const [exitPending, setExitPending] = useState(false);
   const [exitError, setExitError] = useState("");
   const [exited, setExited] = useState(false);
+  const [ratingPending, setRatingPending] = useState(false);
+  const [ratingError, setRatingError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -558,6 +696,20 @@ export function TicketPage({
     }
   };
 
+  const handleRate = async (rating) => {
+    if (!submission?.publicToken || submission.status !== "completed" || ratingPending) return;
+    setRatingPending(true);
+    setRatingError("");
+    try {
+      const updatedSubmission = await rateSubmissionByPublicToken(submission.publicToken, rating);
+      if (updatedSubmission) setSubmission(updatedSubmission);
+    } catch (ratingRequestError) {
+      setRatingError(ratingRequestError.message || "Could not save your rating.");
+    } finally {
+      setRatingPending(false);
+    }
+  };
+
   const appearance = {
     accentColor: theme?.accentColor || C.amber,
     bgColor: theme?.bgColor || C.ink900,
@@ -607,16 +759,21 @@ export function TicketPage({
           <SubmissionCard
             submission={submission}
             serviceName={serviceName}
+            services={services}
             ticketPosition={ticketPosition}
             ticketDeskName={ticketDeskName}
             waitEstimate={waitEstimate}
             now={now}
             theme={appearance}
+            members={members}
             onRequestRecall={handleRecallRequest}
+            onRate={handleRate}
             onExit={() => setExitConfirmOpen(true)}
             exitPending={exitPending}
             recallRequesting={recallRequesting}
             recallError={recallError}
+            ratingPending={ratingPending}
+            ratingError={ratingError}
           />
         ) : (
           <button

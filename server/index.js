@@ -10,6 +10,7 @@ import {
   getSubmissionByPublicToken,
   listSubmissions,
   updateSubmissionStatus,
+  rateSubmissionByPublicToken,
   requestSubmissionRecall,
   cancelSubmissionRecall,
   deleteSubmissionByPublicToken,
@@ -199,8 +200,6 @@ app.get("/api/submissions/public/:token", async (req, res) => {
       name: _name,
       phone: _phone,
       phoneDigits: _phoneDigits,
-      servedByMemberId: _servedByMemberId,
-      servedByMemberName: _servedByMemberName,
       ...publicSubmission
     } = submission;
     res.json({ submission: publicSubmission });
@@ -226,6 +225,28 @@ app.delete("/api/submissions/public/:token", async (req, res) => {
   } catch (error) {
     console.error("Failed to permanently delete public submission", error);
     res.status(500).json({ error: "Failed to delete ticket." });
+  }
+});
+
+app.patch("/api/submissions/public/:token/rating", async (req, res) => {
+  const rating = Number(req.body?.rating);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    res.status(400).json({ error: "Rating must be between 1 and 5." });
+    return;
+  }
+
+  try {
+    const submission = await rateSubmissionByPublicToken(req.params.token, rating);
+    if (!submission) {
+      res.status(409).json({ error: "Only completed tickets can be rated." });
+      return;
+    }
+
+    res.json({ submission });
+    emitSubmissionChange("ticket-rated", submission);
+  } catch (error) {
+    console.error("Failed to rate submission", error);
+    res.status(500).json({ error: "Failed to save rating." });
   }
 });
 

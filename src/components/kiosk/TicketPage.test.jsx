@@ -99,7 +99,7 @@ describe("ticket position progress", () => {
     expect(getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe(advancedDash);
   });
 
-  it("holds at the final confirmed milestone while first and completes when called", () => {
+  it("keeps filling the final queue segment while first and completes when called", () => {
     const props = {
       ticketLabel: ticket.label,
       ticket,
@@ -114,7 +114,7 @@ describe("ticket position progress", () => {
     expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("260.1 289");
 
     view.rerender(<TicketPage {...props} now={31_000} />);
-    expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("260.1 289");
+    expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("274.55 289");
 
     view.rerender(<TicketPage {...props} ticket={{ ...ticket, status: "called" }} now={61_000} />);
     expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("289 289");
@@ -148,6 +148,7 @@ describe("ticket lifecycle messages", () => {
     waitEstimate: null,
     now: 1_000,
     serviceName: () => "Massage",
+    services: [{ id: "service-1", name: "Massage", price: "40" }],
   };
 
   it.each([
@@ -197,7 +198,7 @@ describe("ticket lifecycle messages", () => {
     expect(view.getByText(/All rights reserved/)).toBeTruthy();
   });
 
-  it("shows live serving time and the fixed served duration", async () => {
+  it("shows live serving time and the completed timestamp", async () => {
     const servingTicket = {
       ...ticket,
       status: "serving",
@@ -219,11 +220,74 @@ describe("ticket lifecycle messages", () => {
     view.rerender(
       <TicketPage
         {...baseProps}
-        ticket={{ ...servingTicket, status: "completed", completedAt: 31_000 }}
-        now={91_000}
+        ticket={{
+          ...servingTicket,
+          status: "completed",
+          completedAt: new Date(2026, 6, 30, 12, 58).getTime(),
+        }}
+        now={new Date(2026, 6, 30, 13, 30).getTime()}
       />,
     );
-    await waitFor(() => expect(view.getByText("Served 0:30")).toBeTruthy());
+    await waitFor(() => expect(view.getByText("Today, 12.58 PM")).toBeTruthy());
+    expect(view.queryByRole("button", { name: "Exit ticket" })).toBeNull();
+  });
+
+  it("saves completed-ticket feedback and displays the selected rating", async () => {
+    const completedTicket = {
+      ...ticket,
+      status: "completed",
+      completedAt: Date.now(),
+      servedByMemberId: "MEM1",
+      servedByMemberName: "Alex Smith",
+      publicToken: "Yx8p4X2aGmHj6Qn9RkT3VwZbLcDf5S7u",
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ submission: { ...completedTicket, feedbackRating: 5 } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const view = render(
+      <TicketPage
+        {...baseProps}
+        ticket={completedTicket}
+        members={[{ id: "UPDATED-MEMBER-ID", name: "Alex Smith", photo: "data:image/png;base64,avatar" }]}
+      />,
+    );
+
+    expect(view.getByText("Alex Smith")).toBeTruthy();
+    expect(view.getByRole("img", { name: "Alex Smith" }).getAttribute("src")).toBe("data:image/png;base64,avatar");
+    expect(view.queryByText("Poor")).toBeNull();
+    expect(view.queryByText("Excellent")).toBeNull();
+    fireEvent.click(view.getByRole("button", { name: "5 stars, Excellent" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      `/api/submissions/public/${completedTicket.publicToken}/rating`,
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ rating: 5 }),
+      }),
+    ));
+    await waitFor(() => expect(view.getByRole("button", { name: "5 stars, Excellent" }).getAttribute("aria-pressed")).toBe("true"));
+    expect(view.getByText("Excellent")).toBeTruthy();
+    expect(view.queryByText("Poor")).toBeNull();
+    expect(view.getByRole("button", { name: "1 stars, Poor" }).querySelector("svg").getAttribute("fill")).toBe("currentColor");
+    expect(view.getByRole("button", { name: "5 stars, Excellent" }).querySelector("svg").getAttribute("fill")).toBe("currentColor");
+  });
+
+  it.each(["queued", "called"])("shows exit for a %s ticket", (status) => {
+    const view = render(
+      <TicketPage
+        {...baseProps}
+        ticket={{
+          ...ticket,
+          status,
+          publicToken: "Yx8p4X2aGmHj6Qn9RkT3VwZbLcDf5S7u",
+        }}
+      />,
+    );
+
+    expect(view.getByRole("button", { name: "Exit ticket" })).toBeTruthy();
   });
 
   it("confirms and permanently deletes a private-link ticket", async () => {
@@ -327,7 +391,8 @@ describe("ticket lifecycle messages", () => {
     expect(view.getByTestId("queue-position-progress").getAttribute("stroke")).toBe("#4FB286");
     expect(view.getByTestId("queue-position-progress").getAttribute("stroke-dasharray")).toBe("289 289");
     expect(view.getByTestId("ticket-service-value").style.color).toBe("rgb(79, 178, 134)");
-    expect(view.getByTestId("ticket-counter-value").style.color).toBe("rgb(79, 178, 134)");
+    expect(view.getByTestId("ticket-counter-value").style.color).toBe("rgb(139, 145, 156)");
+    expect(view.getByText("$40")).toBeTruthy();
   });
 
   it("lets an absent customer request a recall", async () => {

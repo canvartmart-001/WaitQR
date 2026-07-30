@@ -1,12 +1,16 @@
 {
+  "postStartCommand": "nohup bash .devcontainer/start-server.sh > /tmp/waitqr-preview.log 2>&1 &",
+  "postAttachCommand": "nohup bash .devcontainer/start-server.sh > /tmp/waitqr-preview.log 2>&1 &",
   "forwardPorts": [3000, 4000],
   "portsAttributes": {
     "3000": {
       "label": "WaitQR frontend",
+      "visibility": "private",
       "onAutoForward": "openPreview"
     },
     "4000": {
       "label": "WaitQR API",
+      "visibility": "private",
       "onAutoForward": "notify"
     }
   }
