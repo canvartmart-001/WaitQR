@@ -134,7 +134,7 @@ function ThemeSwitch({ theme, onChange }) {
   }, []);
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative z-50" ref={ref}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -146,7 +146,7 @@ function ThemeSwitch({ theme, onChange }) {
         <Current size={18} />
       </button>
       {open ? (
-        <div className="absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden border py-1 shadow-xl" style={{ backgroundColor: theme.bgColor, borderColor: theme.borderColor, borderRadius: theme.radius }}>
+        <div className="absolute right-0 top-full z-50 mt-2 w-36 overflow-hidden border py-1 shadow-xl" style={{ backgroundColor: theme.bgColor, borderColor: theme.borderColor, borderRadius: theme.radius }}>
           {options.map(({ value, icon: Icon, label }) => {
             const active = theme.themeMode === value;
             return (
@@ -197,7 +197,7 @@ export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members,
   };
 
   return (
-    <header className="w-full px-2.5 py-2.5 sm:px-6 sm:py-5" style={{ backgroundColor: backgroundColor || theme.bgColor }}>
+    <header className="relative z-40 w-full px-2.5 py-2.5 sm:px-6 sm:py-5" style={{ backgroundColor: backgroundColor || theme.bgColor }}>
       <div className={`mx-auto flex w-full items-center justify-between gap-3 ${fullWidth ? "max-w-none" : "max-w-5xl"}`}>
         <button type="button" onClick={() => onNavigate?.("/")} className="flex min-w-0 items-center gap-2 text-left">
           {!hideBrandMark ? (
@@ -236,7 +236,7 @@ export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members,
           <ThemeSwitch theme={theme} onChange={onThemeChange} />
           {signedIn ? <NotificationMenu notifications={notifications} theme={theme} onClear={onClearNotifications} onMarkRead={onMarkNotificationsRead} /> : null}
 
-          <div className="relative" ref={ref}>
+          <div className="relative z-50" ref={ref}>
             <button
               type="button"
               onClick={() => setOpen((value) => !value)}
@@ -249,7 +249,7 @@ export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members,
             </button>
 
             {open ? (
-              <div className="absolute right-0 top-full mt-2 w-48 overflow-hidden border py-1 shadow-xl" style={{ backgroundColor: theme.bgColor, borderColor: theme.borderColor, borderRadius: theme.radius }}>
+              <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden border py-1 shadow-xl" style={{ backgroundColor: theme.bgColor, borderColor: theme.borderColor, borderRadius: theme.radius }}>
                 <div className="border-b px-3 py-2" style={{ borderColor: withAlpha(theme.borderColor, "88") }}>
                   <p className="truncate text-sm font-medium" style={{ color: theme.fontColor }}>
                     {displayName}
