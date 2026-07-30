@@ -100,7 +100,7 @@ test("calculates activity totals for each assigned counter", () => {
 test("renders assigned services as rows with estimates and ratings", () => {
   render(
     <MemberProfilePage
-      member={{ ...member, deskIds: ["desk-1", "desk-2"] }}
+      member={{ ...member, deskIds: ["desk-1"] }}
       desks={[{ id: "desk-1", name: "Desk 1" }, { id: "desk-2", name: "Desk 2" }]}
       services={services}
       submissions={submissions}
@@ -112,6 +112,7 @@ test("renders assigned services as rows with estimates and ratings", () => {
   );
 
   expect(screen.getByRole("heading", { name: "John Due" })).toBeInTheDocument();
+  expect(screen.getByText("Counter 2")).toBeInTheDocument();
   expect(screen.getByLabelText("Served 2, show services")).toBeInTheDocument();
   expect(screen.queryByText("Est. 13 min")).not.toBeInTheDocument();
   fireEvent.click(screen.getByLabelText("Served 2, show services"));

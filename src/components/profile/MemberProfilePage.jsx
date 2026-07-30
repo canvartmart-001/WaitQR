@@ -434,8 +434,26 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
   const [editError, setEditError] = useState("");
   const [expandedCounters, setExpandedCounters] = useState({});
   const photoInputRef = useRef(null);
-  const assignedDesks = itemsForIds(desks, member?.deskIds);
-  const counterInsights = counterActivityInsights(assignedDesks, submissions, member);
+  const allSubmissions = Array.isArray(submissions) ? submissions : [];
+  const assignedDeskIds = new Set((Array.isArray(member?.deskIds) ? member.deskIds : []).map(String));
+  const deskById = new Map((Array.isArray(desks) ? desks : []).map((desk) => [String(desk.id), desk]));
+  const historicalDeskIds = allSubmissions
+    .filter(
+      (submission) => submission.status === "completed"
+        && String(submission.servedByMemberId || "") === String(member?.id || "")
+        && submission.deskId != null,
+    )
+    .map((submission) => String(submission.deskId));
+  const visibleDesks = Array.from(new Set([...assignedDeskIds, ...historicalDeskIds]))
+    .map((deskId) => {
+      const desk = deskById.get(deskId);
+      return {
+        ...(desk || { id: deskId, name: "Counter" }),
+        isAssigned: assignedDeskIds.has(deskId),
+        isAvailable: Boolean(desk),
+      };
+    });
+  const counterInsights = counterActivityInsights(visibleDesks, submissions, member);
   const assignedServices = itemsForIds(services, member?.serviceIds);
   const memberInsights = memberServiceInsights(member, assignedServices, submissions);
   const sharedServiceInsightsById = new Map(
@@ -446,7 +464,7 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
     services: memberServiceInsights(
       member,
       assignedServices,
-      (Array.isArray(submissions) ? submissions : []).filter(
+      allSubmissions.filter(
         (submission) => String(submission.deskId ?? "") === String(desk.id),
       ),
     ).services.map((service) => {
@@ -739,8 +757,9 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                       <div className="w-full space-y-2.5">
                           {counterServiceInsights.length ? (
                             counterServiceInsights.map((desk) => {
-                              const deskPath = getDeskPath(desk, desks);
+                              const deskPath = desk.isAvailable ? getDeskPath(desk, desks) : "";
                               const servicesExpanded = Boolean(expandedCounters[desk.id]);
+                              const counterNameColor = desk.isAssigned ? theme.fontColor : withAlpha(theme.fontColor, "70");
                               return (
                                 <div
                                   key={desk.id}
@@ -748,19 +767,28 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                                   style={{ borderColor: theme.borderColor, borderRadius: Math.min(theme.radius, 8), backgroundColor: withAlpha(theme.fontColor, "08") }}
                                 >
                                   <span className="grid w-full grid-cols-3 items-center gap-x-2 gap-y-2 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(2.75rem,auto))]">
-                                    <a
-                                      href={deskPath}
-                                      onClick={(event) => {
-                                        event.preventDefault();
-                                        onNavigate?.(deskPath);
-                                      }}
-                                      className="col-span-3 flex min-w-0 items-center gap-1.5 transition-opacity hover:opacity-80 sm:col-span-1 sm:gap-2"
-                                    >
+                                    {desk.isAvailable ? (
+                                      <a
+                                        href={deskPath}
+                                        onClick={(event) => {
+                                          event.preventDefault();
+                                          onNavigate?.(deskPath);
+                                        }}
+                                        className="col-span-3 flex min-w-0 items-center gap-1.5 transition-opacity hover:opacity-80 sm:col-span-1 sm:gap-2"
+                                      >
+                                        <Monitor size={15} className="shrink-0 sm:h-4 sm:w-4" style={{ color: desk.isAssigned ? theme.accentColor : withAlpha(theme.accentColor, "80") }} />
+                                        <span className="block min-w-0 break-words text-sm font-semibold leading-tight sm:truncate sm:text-base" style={{ color: counterNameColor }}>
+                                          {counterDisplayName(desk.name)}
+                                        </span>
+                                      </a>
+                                    ) : (
+                                      <span className="col-span-3 flex min-w-0 items-center gap-1.5 sm:col-span-1 sm:gap-2">
                                       <Monitor size={15} className="shrink-0 sm:h-4 sm:w-4" style={{ color: theme.accentColor }} />
-                                      <span className="block min-w-0 break-words text-sm font-semibold leading-tight sm:truncate sm:text-base" style={{ color: theme.fontColor }}>
+                                      <span className="block min-w-0 break-words text-sm font-semibold leading-tight sm:truncate sm:text-base" style={{ color: counterNameColor }}>
                                         {counterDisplayName(desk.name)}
                                       </span>
-                                    </a>
+                                      </span>
+                                    )}
                                     {[
                                       { label: "Waiting", value: desk.waitingCount, color: theme.accentColor },
                                       { label: "Absent", value: desk.absentCount, color: "#f59e0b" },
