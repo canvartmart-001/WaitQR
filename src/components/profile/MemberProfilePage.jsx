@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, Check, KeyRound, LayoutDashboard, LogIn, LogOut, Mail, Pencil, Phone, Monitor, Moon, Sun, Upload, UserRound, X } from "lucide-react";
+import { Check, Clock3, KeyRound, LayoutDashboard, LogIn, LogOut, Mail, Pencil, Phone, Monitor, Moon, Star, Sun, Upload, UserRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { readImageFile } from "../../lib/imageUpload";
 import { normalizeMemberRole } from "../../lib/assignments";
@@ -31,16 +31,132 @@ function initials(name) {
     .join("") || "MB";
 }
 
-function namesForIds(items, ids) {
-  const selected = new Set((Array.isArray(ids) ? ids : []).map(String));
-  return (Array.isArray(items) ? items : [])
-    .filter((item) => selected.has(String(item.id)))
-    .map((item) => item.name);
-}
-
 function itemsForIds(items, ids) {
   const selected = new Set((Array.isArray(ids) ? ids : []).map(String));
   return (Array.isArray(items) ? items : []).filter((item) => selected.has(String(item.id)));
+}
+
+const SERVICE_HISTORY_HALF_LIFE_MS = 30 * 24 * 60 * 60 * 1000;
+const MIN_VALID_SERVICE_MS = 15 * 1000;
+const MAX_VALID_SERVICE_MS = 4 * 60 * 60 * 1000;
+
+export function memberServiceInsights(member, services, submissions, now = Date.now()) {
+  const memberId = String(member?.id || "");
+  const completedByMember = (Array.isArray(submissions) ? submissions : []).filter(
+    (submission) => submission.status === "completed"
+      && String(submission.servedByMemberId || "") === memberId,
+  );
+
+  const serviceInsights = (Array.isArray(services) ? services : []).map((service) => {
+    const serviceSubmissions = (Array.isArray(submissions) ? submissions : []).filter(
+      (submission) => String(submission.serviceId || "") === String(service.id),
+    );
+    const history = completedByMember.filter(
+      (submission) => String(submission.serviceId || "") === String(service.id),
+    );
+    const durations = history
+      .map((submission) => ({
+        completedAt: Number(submission.completedAt || submission.statusUpdatedAt || 0),
+        durationMs: Number(submission.completedAt) - Number(submission.startedAt),
+      }))
+      .filter(({ durationMs }) => durationMs >= MIN_VALID_SERVICE_MS && durationMs <= MAX_VALID_SERVICE_MS);
+    const weightedDuration = durations.reduce(
+      (result, sample) => {
+        const ageMs = Math.max(0, now - sample.completedAt);
+        const weight = Math.pow(0.5, ageMs / SERVICE_HISTORY_HALF_LIFE_MS);
+        return {
+          total: result.total + sample.durationMs * weight,
+          weight: result.weight + weight,
+        };
+      },
+      { total: 0, weight: 0 },
+    );
+    const ratings = history
+      .map((submission) => Number(submission.feedbackRating))
+      .filter((rating) => rating >= 1 && rating <= 5);
+
+    return {
+      ...service,
+      waitingCount: serviceSubmissions.filter(
+        (submission) => submission.status === "queued" || submission.status === "called",
+      ).length,
+      absentCount: serviceSubmissions.filter(
+        (submission) => submission.status === "skipped" || submission.status === "removed",
+      ).length,
+      servedCount: history.length,
+      estimatedServiceMs: weightedDuration.weight ? weightedDuration.total / weightedDuration.weight : null,
+      durationSampleCount: durations.length,
+      averageRating: ratings.length
+        ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
+        : null,
+      ratingCount: ratings.length,
+    };
+  });
+  const allRatings = completedByMember
+    .map((submission) => Number(submission.feedbackRating))
+    .filter((rating) => rating >= 1 && rating <= 5);
+
+  return {
+    services: serviceInsights,
+    averageRating: allRatings.length
+      ? allRatings.reduce((sum, rating) => sum + rating, 0) / allRatings.length
+      : null,
+    ratingCount: allRatings.length,
+  };
+}
+
+export function counterActivityInsights(desks, submissions, member = null) {
+  const allSubmissions = Array.isArray(submissions) ? submissions : [];
+  const memberId = String(member?.id || "");
+
+  return (Array.isArray(desks) ? desks : []).map((desk) => {
+    const deskSubmissions = allSubmissions.filter(
+      (submission) => String(submission.deskId ?? "") === String(desk.id),
+    );
+    const completedSubmissions = deskSubmissions.filter((submission) => submission.status === "completed");
+
+    return {
+      ...desk,
+      waitingCount: deskSubmissions.filter(
+        (submission) => submission.status === "queued" || submission.status === "called",
+      ).length,
+      absentCount: deskSubmissions.filter(
+        (submission) => submission.status === "skipped" || submission.status === "removed",
+      ).length,
+      servedCount: completedSubmissions.filter(
+        (submission) => !memberId || String(submission.servedByMemberId || "") === memberId,
+      ).length,
+    };
+  });
+}
+
+function formatEstimatedServiceTime(milliseconds) {
+  if (!Number.isFinite(milliseconds)) return "Est. pending";
+  const minutes = Math.max(1, Math.round(milliseconds / 60_000));
+  if (minutes < 60) return `Est. ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return remainder ? `Est. ${hours} hr ${remainder} min` : `Est. ${hours} hr`;
+}
+
+function RatingSummary({ average, count, theme, compact = false }) {
+  const hasRatings = Number.isFinite(average) && count > 0;
+
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 ${compact ? "text-xs" : "text-sm"}`}
+      style={{ color: hasRatings ? "#f59e0b" : withAlpha(theme.fontColor, "70") }}
+      aria-label={hasRatings ? `${average.toFixed(1)} out of 5 from ${count} ratings` : "No ratings yet"}
+    >
+      <Star size={compact ? 13 : 15} fill={hasRatings ? "currentColor" : "none"} />
+      <span className="font-semibold">{hasRatings ? average.toFixed(1) : "No ratings"}</span>
+      {hasRatings ? (
+        <span className="font-normal" style={{ color: withAlpha(theme.fontColor, "70") }}>
+          ({count})
+        </span>
+      ) : null}
+    </span>
+  );
 }
 
 function counterDisplayName(name) {
@@ -312,18 +428,51 @@ export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members,
   );
 }
 
-export function MemberProfilePage({ member, desks, services, labels, theme, loading = false, loggedInMember, masterLoggedIn = false, members = [], notifications = [], onClearNotifications, onMarkNotificationsRead, onAppearanceChange, onUpdateMember, onLogout, onNavigate }) {
+export function MemberProfilePage({ member, desks, services, submissions = [], labels, theme, loading = false, loggedInMember, masterLoggedIn = false, members = [], notifications = [], onClearNotifications, onMarkNotificationsRead, onAppearanceChange, onUpdateMember, onLogout, onNavigate }) {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", about: "", photo: null });
   const [editError, setEditError] = useState("");
+  const [expandedCounters, setExpandedCounters] = useState({});
   const photoInputRef = useRef(null);
   const assignedDesks = itemsForIds(desks, member?.deskIds);
-  const assignedServiceNames = namesForIds(services, member?.serviceIds);
+  const counterInsights = counterActivityInsights(assignedDesks, submissions, member);
+  const assignedServices = itemsForIds(services, member?.serviceIds);
+  const memberInsights = memberServiceInsights(member, assignedServices, submissions);
+  const sharedServiceInsightsById = new Map(
+    memberInsights.services.map((service) => [String(service.id), service]),
+  );
+  const counterServiceInsights = counterInsights.map((desk) => ({
+    ...desk,
+    services: memberServiceInsights(
+      member,
+      assignedServices,
+      (Array.isArray(submissions) ? submissions : []).filter(
+        (submission) => String(submission.deskId ?? "") === String(desk.id),
+      ),
+    ).services.map((service) => {
+      const sharedInsight = sharedServiceInsightsById.get(String(service.id));
+      return sharedInsight
+        ? {
+            ...service,
+            averageRating: sharedInsight.averageRating,
+            ratingCount: sharedInsight.ratingCount,
+            estimatedServiceMs: sharedInsight.estimatedServiceMs,
+            durationSampleCount: sharedInsight.durationSampleCount,
+          }
+        : service;
+    }),
+  }));
   const hasPassword = Boolean(String(member?.password || "").trim());
   const viewingOwnProfile = Boolean(member && String(loggedInMember?.id || "") === String(member.id));
   const canViewPrivateDetails = Boolean(masterLoggedIn || viewingOwnProfile);
   const canEditProfile = Boolean(member && onUpdateMember && canViewPrivateDetails);
   const roleChip = roleChipState(member, labels.memberWord);
+  const toggleCounterServices = (deskId) => {
+    setExpandedCounters((current) => ({
+      ...current,
+      [deskId]: !current[deskId],
+    }));
+  };
 
   useEffect(() => {
     setEditForm({
@@ -556,9 +705,12 @@ export function MemberProfilePage({ member, desks, services, labels, theme, load
                               <p className="text-xs font-semibold uppercase" style={{ color: theme.accentColor }}>
                                 {member?.id}
                               </p>
-                              <h1 className="mt-1 break-words text-2xl font-semibold" style={{ color: theme.fontColor }}>
-                                {member?.name || "Member"}
-                              </h1>
+                              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <h1 className="break-words text-2xl font-semibold" style={{ color: theme.fontColor }}>
+                                  {member?.name || "Member"}
+                                </h1>
+                                <RatingSummary average={memberInsights.averageRating} count={memberInsights.ratingCount} theme={theme} />
+                              </div>
                             </div>
                           </div>
                           <div className="mt-3 flex flex-col gap-y-1.5 text-xs sm:text-sm" style={{ color: withAlpha(theme.fontColor, "80") }}>
@@ -582,45 +734,99 @@ export function MemberProfilePage({ member, desks, services, labels, theme, load
                     </p>
                   ) : null}
 
-                  {!editing ? <div className="mt-5 space-y-2 border-t pt-4" style={{ borderColor: withAlpha(theme.borderColor, "55") }}>
-                    <div className="flex min-w-0 items-start gap-2 text-sm" style={{ color: theme.fontColor }}>
-                      <BriefcaseBusiness size={15} className="mt-0.5 shrink-0" style={{ color: theme.accentColor }} />
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium uppercase" style={{ color: withAlpha(theme.fontColor, "70") }}>
-                          Counters
-                        </p>
-                        <div className="mt-1 flex flex-wrap gap-1.5">
-                          {assignedDesks.length ? (
-                            assignedDesks.map((desk) => {
+                  {!editing ? <div className="mt-5 space-y-3">
+                    <div className="min-w-0 text-sm" style={{ color: theme.fontColor }}>
+                      <div className="w-full space-y-2.5">
+                          {counterServiceInsights.length ? (
+                            counterServiceInsights.map((desk) => {
                               const deskPath = getDeskPath(desk, desks);
+                              const servicesExpanded = Boolean(expandedCounters[desk.id]);
                               return (
-                                <a
+                                <div
                                   key={desk.id}
-                                  href={deskPath}
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    onNavigate?.(deskPath);
-                                  }}
-                                  className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium transition-opacity hover:opacity-80"
-                                  style={{ color: theme.accentColor, backgroundColor: withAlpha(theme.accentColor, "14") }}
+                                  className="block w-full border px-2.5 py-3 sm:p-3"
+                                  style={{ borderColor: theme.borderColor, borderRadius: Math.min(theme.radius, 8), backgroundColor: withAlpha(theme.fontColor, "08") }}
                                 >
-                                  {counterDisplayName(desk.name)}
-                                </a>
+                                  <span className="grid w-full grid-cols-3 items-center gap-x-2 gap-y-2 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(2.75rem,auto))]">
+                                    <a
+                                      href={deskPath}
+                                      onClick={(event) => {
+                                        event.preventDefault();
+                                        onNavigate?.(deskPath);
+                                      }}
+                                      className="col-span-3 flex min-w-0 items-center gap-1.5 transition-opacity hover:opacity-80 sm:col-span-1 sm:gap-2"
+                                    >
+                                      <Monitor size={15} className="shrink-0 sm:h-4 sm:w-4" style={{ color: theme.accentColor }} />
+                                      <span className="block min-w-0 break-words text-sm font-semibold leading-tight sm:truncate sm:text-base" style={{ color: theme.fontColor }}>
+                                        {counterDisplayName(desk.name)}
+                                      </span>
+                                    </a>
+                                    {[
+                                      { label: "Waiting", value: desk.waitingCount, color: theme.accentColor },
+                                      { label: "Absent", value: desk.absentCount, color: "#f59e0b" },
+                                      { label: "Served", value: desk.servedCount, color: "#22c55e" },
+                                    ].map((stat) => (
+                                      <button
+                                        key={stat.label}
+                                        type="button"
+                                        onClick={() => toggleCounterServices(desk.id)}
+                                        className="min-w-0 text-center transition-opacity hover:opacity-80"
+                                        aria-expanded={servicesExpanded}
+                                        aria-controls={`counter-services-${desk.id}`}
+                                        aria-label={`${stat.label} ${stat.value}, ${servicesExpanded ? "hide" : "show"} services`}
+                                      >
+                                        <span className="block text-sm font-semibold leading-none" style={{ color: stat.color }}>
+                                          {stat.value}
+                                        </span>
+                                        <span className="mt-1 block text-[9px] leading-none sm:text-[10px]" style={{ color: withAlpha(theme.fontColor, "70") }}>
+                                          {stat.label}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </span>
+                                  {servicesExpanded ? (
+                                    <span id={`counter-services-${desk.id}`} className="mt-4 block w-full">
+                                      {desk.services.length ? (
+                                        desk.services.map((service, serviceIndex) => (
+                                          <span
+                                            key={service.id}
+                                            className="grid w-full grid-cols-3 items-center gap-x-2 gap-y-2.5 py-4 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(2.75rem,auto))]"
+                                            style={{ borderTop: serviceIndex ? `1px solid ${withAlpha(theme.borderColor, "66")}` : undefined }}
+                                          >
+                                            <span className="col-span-3 min-w-0 sm:col-span-1">
+                                              <span className="block break-words font-medium">{service.name}</span>
+                                              <span className="mt-2 flex min-w-0 items-center gap-3 text-xs font-normal" style={{ color: withAlpha(theme.fontColor, "80") }}>
+                                                <RatingSummary average={service.averageRating} count={service.ratingCount} theme={theme} compact />
+                                                <span className="flex min-w-0 items-center gap-1 truncate">
+                                                  <Clock3 size={12} className="shrink-0" />
+                                                  <span className="truncate">{formatEstimatedServiceTime(service.estimatedServiceMs)}</span>
+                                                </span>
+                                              </span>
+                                            </span>
+                                            {[
+                                              { label: "waiting", value: service.waitingCount, color: theme.accentColor },
+                                              { label: "absent", value: service.absentCount, color: "#f59e0b" },
+                                              { label: "served", value: service.servedCount, color: "#22c55e" },
+                                            ].map((stat) => (
+                                              <span key={stat.label} className="min-w-0 text-center" aria-label={`${service.name} ${stat.value} ${stat.label}`}>
+                                                <span className="block text-sm font-semibold leading-none" style={{ color: stat.color }}>
+                                                  {stat.value}
+                                                </span>
+                                              </span>
+                                            ))}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        <span className="mt-0.5 block break-words font-medium">-</span>
+                                      )}
+                                    </span>
+                                  ) : null}
+                                </div>
                               );
                             })
                           ) : (
                             <p className="mt-0.5 break-words font-medium">-</p>
                           )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex min-w-0 items-start gap-2 text-sm" style={{ color: theme.fontColor }}>
-                      <UserRound size={15} className="mt-0.5 shrink-0" style={{ color: theme.accentColor }} />
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium uppercase" style={{ color: withAlpha(theme.fontColor, "70") }}>
-                          {labels.serviceWordPlural}
-                        </p>
-                        <p className="mt-0.5 break-words font-medium">{assignedServiceNames.join(", ") || "-"}</p>
                       </div>
                     </div>
                   </div> : null}

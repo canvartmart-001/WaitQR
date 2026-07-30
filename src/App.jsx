@@ -2133,6 +2133,7 @@ export default function App() {
           member={activeLoggedInMember}
           desks={desks}
           services={services}
+          submissions={savedSubmissions}
           labels={labels}
           theme={activeAppearanceSettings}
           loading={!settingsLoaded}
@@ -2209,6 +2210,7 @@ export default function App() {
           member={matchedMemberFromPath}
           desks={desks}
           services={services}
+          submissions={savedSubmissions}
           labels={labels}
           theme={activeAppearanceSettings}
           loading={!settingsLoaded}
@@ -2302,6 +2304,7 @@ export default function App() {
           member={matchedMemberFromPath}
           desks={desks}
           services={services}
+          submissions={savedSubmissions}
           labels={labels}
           theme={adminTheme}
           loading={!settingsLoaded}
