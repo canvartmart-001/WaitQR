@@ -186,3 +186,40 @@ test("lets an administrator view another member profile without member login", (
   expect(screen.queryByText("Sign in to access this account.")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Edit profile" })).toBeInTheDocument();
 });
+
+test("hides counter and service tabs for administrator profiles", () => {
+  render(
+    <MemberProfilePage
+      member={{ ...member, role: "Administrator" }}
+      desks={[{ id: "desk-1", name: "Desk 1" }]}
+      services={services}
+      submissions={submissions}
+      labels={{ memberWord: "Member", serviceWordPlural: "Services" }}
+      theme={theme}
+      loggedInMember={{ id: "admin-1", name: "Admin User", role: "Administrator" }}
+      members={[member]}
+    />,
+  );
+
+  expect(screen.queryByRole("button", { name: "Counters" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Services" })).not.toBeInTheDocument();
+  expect(screen.queryByText("Counter 1")).not.toBeInTheDocument();
+});
+
+test("hides only the services tab for receptionist profiles", () => {
+  render(
+    <MemberProfilePage
+      member={{ ...member, role: "Receptionist", serviceIds: [] }}
+      desks={[{ id: "desk-1", name: "Desk 1" }]}
+      services={services}
+      submissions={submissions}
+      labels={{ memberWord: "Member", serviceWordPlural: "Services" }}
+      theme={theme}
+      loggedInMember={{ id: "admin-1", name: "Admin User", role: "Administrator" }}
+      members={[member]}
+    />,
+  );
+
+  expect(screen.queryByRole("button", { name: "Services" })).not.toBeInTheDocument();
+  expect(screen.getByText("Counter 1")).toBeInTheDocument();
+});

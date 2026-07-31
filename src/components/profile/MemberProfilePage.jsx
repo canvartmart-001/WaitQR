@@ -616,6 +616,14 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
   const canEditProfile = Boolean(member && onUpdateMember && canViewPrivateDetails);
   const roleChip = roleChipState(member, labels.memberWord);
   const pageBgColor = mutedPageBackground(theme.bgColor, theme.accentColor);
+  const viewedMemberRole = normalizeMemberRole(member?.role);
+  const profileTabs = viewedMemberRole === "Administrator"
+    ? []
+    : [
+        { id: "counters", label: "Counters", icon: Monitor },
+        ...(viewedMemberRole === "Receptionist" ? [] : [{ id: "services", label: labels.serviceWordPlural, icon: Layers3 }]),
+      ];
+  const activeProfileTab = profileTabs.some((tab) => tab.id === profileTab) ? profileTab : profileTabs[0]?.id;
   const toggleCounterServices = (deskId) => {
     setExpandedCounters((current) => ({
       ...current,
@@ -884,14 +892,12 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                     </p>
                   ) : null}
 
-                  {!editing ? <div className="mt-5 space-y-3">
+                  {!editing && profileTabs.length ? <div className="mt-5 space-y-3">
+                    {profileTabs.length > 1 ? (
                     <div className="flex w-full gap-2 text-xs font-medium sm:w-auto">
-                      {[
-                        { id: "counters", label: "Counters", icon: Monitor },
-                        { id: "services", label: labels.serviceWordPlural, icon: Layers3 },
-                      ].map((tab) => {
+                      {profileTabs.map((tab) => {
                         const Icon = tab.icon;
-                        const active = profileTab === tab.id;
+                        const active = activeProfileTab === tab.id;
                         return (
                           <button
                             key={tab.id}
@@ -911,8 +917,9 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                         );
                       })}
                     </div>
+                    ) : null}
                     <div className="min-w-0 text-sm" style={{ color: theme.fontColor }}>
-                      {profileTab === "counters" ? (
+                      {activeProfileTab === "counters" ? (
                       <div className="w-full space-y-2.5">
                           {counterServiceInsights.length ? (
                             counterServiceInsights.map((desk) => {
