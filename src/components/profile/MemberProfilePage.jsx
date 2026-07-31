@@ -15,6 +15,50 @@ function withAlpha(hex, alphaHex) {
   return `${hex}${alphaHex}`;
 }
 
+function hexToRgb(hex) {
+  if (!hex || hex.length !== 7) return null;
+  const clean = hex.slice(1);
+  return {
+    r: parseInt(clean.slice(0, 2), 16),
+    g: parseInt(clean.slice(2, 4), 16),
+    b: parseInt(clean.slice(4, 6), 16),
+  };
+}
+
+function rgbToHex({ r, g, b }) {
+  return `#${[r, g, b].map((value) => Math.round(value).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function mixHex(from, to, amount) {
+  const a = hexToRgb(from);
+  const b = hexToRgb(to);
+  if (!a || !b) return from;
+  return rgbToHex({
+    r: a.r + (b.r - a.r) * amount,
+    g: a.g + (b.g - a.g) * amount,
+    b: a.b + (b.b - a.b) * amount,
+  });
+}
+
+function isLightHex(hex) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return false;
+  return (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 180;
+}
+
+function mutedPageBackground(bgColor, accentColor) {
+  if (!isLightHex(bgColor)) return mixHex(bgColor, "#000000", 0.45);
+  return mixHex(mixHex(bgColor, accentColor || bgColor, 0.035), "#94a3b8", 0.08);
+}
+
+function profileCardStyle(theme) {
+  return {
+    borderColor: theme.borderColor,
+    borderRadius: theme.radius * 1.2,
+    background: "var(--surface-bg, transparent)",
+  };
+}
+
 function resolveThemeMode(themeMode) {
   if (themeMode === "System") {
     return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "Dark" : "Light";
@@ -322,7 +366,7 @@ function ThemeSwitch({ theme, onChange }) {
         <Current size={18} />
       </button>
       {open ? (
-        <div className="absolute right-0 top-full z-50 mt-2 w-36 overflow-hidden border py-1 shadow-xl" style={{ backgroundColor: theme.bgColor, borderColor: theme.borderColor, borderRadius: theme.radius }}>
+        <div className="absolute right-0 top-full z-50 mt-2 w-36 overflow-hidden border py-1 shadow-xl" style={{ backgroundColor: "var(--surface-bg, transparent)", borderColor: theme.borderColor, borderRadius: theme.radius }}>
           {options.map(({ value, icon: Icon, label }) => {
             const active = theme.themeMode === value;
             return (
@@ -425,7 +469,7 @@ export function ProfileHeader({ member, loggedInMember, masterLoggedIn, members,
             </button>
 
             {open ? (
-              <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden border py-1 shadow-xl" style={{ backgroundColor: theme.bgColor, borderColor: theme.borderColor, borderRadius: theme.radius }}>
+              <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden border py-1 shadow-xl" style={{ backgroundColor: "var(--surface-bg, transparent)", borderColor: theme.borderColor, borderRadius: theme.radius }}>
                 <div className="border-b px-3 py-2" style={{ borderColor: withAlpha(theme.borderColor, "88") }}>
                   <p className="truncate text-sm font-medium" style={{ color: theme.fontColor }}>
                     {displayName}
@@ -563,6 +607,7 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
   const canViewPrivateDetails = Boolean(masterLoggedIn || viewingOwnProfile);
   const canEditProfile = Boolean(member && onUpdateMember && canViewPrivateDetails);
   const roleChip = roleChipState(member, labels.memberWord);
+  const pageBgColor = mutedPageBackground(theme.bgColor, theme.accentColor);
   const toggleCounterServices = (deskId) => {
     setExpandedCounters((current) => ({
       ...current,
@@ -670,7 +715,7 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
   };
 
   return (
-    <main className="flex min-h-screen w-full flex-col" style={{ backgroundColor: theme.bgColor, color: theme.fontColor }}>
+    <main className="flex min-h-screen w-full flex-col" style={{ backgroundColor: pageBgColor, color: theme.fontColor, "--surface-bg": theme.bgColor, "--page-bg": pageBgColor }}>
       <ProfileHeader
         member={member}
         loggedInMember={loggedInMember}
@@ -682,12 +727,13 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
         onMarkNotificationsRead={onMarkNotificationsRead}
         subtitle={null}
         fullWidth
+        backgroundColor={pageBgColor}
         onThemeChange={handleThemeChange}
         onNavigate={onNavigate}
         onLogout={onLogout}
       />
       <section className="mx-auto flex w-full max-w-5xl flex-1 items-start justify-center px-2.5 py-2.5 sm:px-6 sm:py-6">
-        <div className="relative w-full max-w-3xl border bg-white/5 p-4" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.4 }}>
+        <div className="relative w-full max-w-3xl border p-4" style={{ borderColor: theme.borderColor, backgroundColor: "var(--surface-bg, transparent)", borderRadius: theme.radius * 1.4 }}>
           {loading || !member ? (
             <div className="py-16 text-center">
               <UserRound size={34} className="mx-auto" style={{ color: withAlpha(theme.fontColor, "70") }} />
@@ -845,7 +891,7 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                             onClick={() => setProfileTab(tab.id)}
                             className="flex min-h-9 flex-1 items-center justify-center gap-1.5 px-4 py-2 transition-colors sm:flex-none"
                             style={{
-                              borderRadius: Math.min(theme.radius, 8),
+                              borderRadius: theme.radius * 1.2,
                               backgroundColor: active ? withAlpha(theme.accentColor, "18") : "transparent",
                               color: active ? theme.accentColor : withAlpha(theme.fontColor, "75"),
                             }}
@@ -881,7 +927,7 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                                 <div
                                   key={desk.id}
                                   className="block w-full border px-2.5 py-3 sm:p-3"
-                                  style={{ borderColor: theme.borderColor, borderRadius: Math.min(theme.radius, 8), backgroundColor: withAlpha(theme.fontColor, "08") }}
+                                  style={profileCardStyle(theme)}
                                 >
                                   <span className={`grid w-full items-center gap-x-2 gap-y-2 ${desk.isAssigned ? "grid-cols-3 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(2.75rem,auto))]" : "grid-cols-[minmax(0,1fr)_minmax(2.75rem,auto)]"}`}>
                                     {desk.isAvailable ? (
@@ -986,7 +1032,7 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                               <div
                                 key={service.id}
                                 className={`grid w-full items-center gap-x-2 gap-y-2.5 border px-2.5 py-3 sm:p-3 ${service.isAssigned ? "grid-cols-3 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(2.75rem,auto))]" : "grid-cols-[minmax(0,1fr)_minmax(2.75rem,auto)]"}`}
-                                style={{ borderColor: theme.borderColor, borderRadius: Math.min(theme.radius, 8), backgroundColor: withAlpha(theme.fontColor, "08") }}
+                                style={profileCardStyle(theme)}
                               >
                                 <span className={`${service.isAssigned ? "col-span-3 sm:col-span-1" : ""} min-w-0`}>
                                   <span className="block break-words font-medium" style={{ color: service.isAssigned ? theme.fontColor : withAlpha(theme.fontColor, "70") }}>{service.name}</span>
