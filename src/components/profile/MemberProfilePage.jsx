@@ -87,6 +87,7 @@ const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 0];
 
 export function memberServiceInsights(member, services, submissions, now = Date.now()) {
   const memberId = String(member?.id || "");
+  const assignedDeskIds = new Set((Array.isArray(member?.deskIds) ? member.deskIds : []).map(String));
   const completedByMember = (Array.isArray(submissions) ? submissions : []).filter(
     (submission) => submission.status === "completed"
       && String(submission.servedByMemberId || "") === memberId,
@@ -94,7 +95,8 @@ export function memberServiceInsights(member, services, submissions, now = Date.
 
   const serviceInsights = (Array.isArray(services) ? services : []).map((service) => {
     const serviceSubmissions = (Array.isArray(submissions) ? submissions : []).filter(
-      (submission) => String(submission.serviceId || "") === String(service.id),
+      (submission) => String(submission.serviceId || "") === String(service.id)
+        && (!assignedDeskIds.size || assignedDeskIds.has(String(submission.deskId ?? ""))),
     );
     const history = completedByMember.filter(
       (submission) => String(submission.serviceId || "") === String(service.id),

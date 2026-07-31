@@ -70,6 +70,12 @@ const submissions = [
     serviceId: "massage",
     servedByMemberId: "member-1",
   },
+  {
+    id: "ticket-9",
+    status: "queued",
+    deskId: "desk-2",
+    serviceId: "hair",
+  },
 ];
 
 const theme = {
@@ -144,6 +150,7 @@ test("renders assigned services as rows with estimates and ratings", () => {
   expect(screen.getByText("Est. 12 min")).toBeInTheDocument();
   expect(screen.getByText("Est. pending")).toBeInTheDocument();
   expect(screen.getByLabelText("No ratings yet")).toBeInTheDocument();
+  expect(screen.getByLabelText("Hair Cut 0 waiting")).toBeInTheDocument();
   expect(screen.getByLabelText("Hair Cut 3 served")).toBeInTheDocument();
   expect(screen.getByLabelText("Massage 1 served")).toBeInTheDocument();
 });
