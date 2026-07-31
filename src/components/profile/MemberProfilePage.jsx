@@ -891,7 +891,7 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                                           event.preventDefault();
                                           onNavigate?.(deskPath);
                                         }}
-                                        className={`${desk.isAssigned ? "col-span-3 sm:col-span-1" : ""} flex min-w-0 items-center gap-1.5 transition-opacity hover:opacity-80 sm:gap-2`}
+                                        className={`${desk.isAssigned ? "col-span-3 sm:col-span-1" : ""} inline-flex w-fit max-w-full min-w-0 items-center gap-1.5 transition-opacity hover:opacity-80 sm:gap-2`}
                                       >
                                         <StatusIcon size={15} className="shrink-0 sm:h-4 sm:w-4" style={{ color: statusIconColor }} />
                                         <span className="block min-w-0 break-words text-sm font-semibold leading-tight sm:truncate sm:text-base" style={{ color: counterNameColor }}>
@@ -899,7 +899,7 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                                         </span>
                                       </a>
                                     ) : (
-                                      <span className={`${desk.isAssigned ? "col-span-3 sm:col-span-1" : ""} flex min-w-0 items-center gap-1.5 sm:gap-2`}>
+                                      <span className={`${desk.isAssigned ? "col-span-3 sm:col-span-1" : ""} inline-flex w-fit max-w-full min-w-0 items-center gap-1.5 sm:gap-2`}>
                                       <StatusIcon size={15} className="shrink-0 sm:h-4 sm:w-4" style={{ color: statusIconColor }} />
                                       <span className="block min-w-0 break-words text-sm font-semibold leading-tight sm:truncate sm:text-base" style={{ color: counterNameColor }}>
                                         {counterDisplayName(desk.name)}
@@ -916,7 +916,7 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                                         aria-controls={`counter-services-${desk.id}`}
                                         aria-label={`${stat.label} ${stat.value}, ${servicesExpanded ? "hide" : "show"} services`}
                                       >
-                                        <span className="block text-sm font-semibold leading-none" style={{ color: stat.color }}>
+                                        <span className="block text-base font-semibold leading-none sm:text-lg" style={{ color: stat.color }}>
                                           {stat.value}
                                         </span>
                                         <span className="mt-1 block text-[9px] leading-none sm:text-[10px]" style={{ color: withAlpha(theme.fontColor, "70") }}>
@@ -947,7 +947,7 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                                                   { label: "served", value: service.servedCount, color: "#22c55e" },
                                                 ]).map((stat) => (
                                               <span key={stat.label} className="min-w-0 text-center" aria-label={`${service.name} ${stat.value} ${stat.label}`}>
-                                                <span className="block text-sm font-semibold leading-none" style={{ color: stat.color }}>
+                                                <span className="block text-base font-semibold leading-none sm:text-lg" style={{ color: stat.color }}>
                                                   {stat.value}
                                                 </span>
                                               </span>
@@ -997,7 +997,7 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                                 </span>
                                 {serviceStats.map((stat) => (
                                   <span key={stat.label} className="min-w-0 text-center" aria-label={`${service.name} ${stat.value} ${stat.label.toLowerCase()}`}>
-                                    <span className="block text-sm font-semibold leading-none" style={{ color: stat.color }}>
+                                    <span className="block text-base font-semibold leading-none sm:text-lg" style={{ color: stat.color }}>
                                       {stat.value}
                                     </span>
                                     <span className="mt-1 block text-[9px] leading-none sm:text-[10px]" style={{ color: withAlpha(theme.fontColor, "70") }}>

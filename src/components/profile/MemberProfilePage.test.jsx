@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { vi } from "vitest";
 import { MemberProfilePage, counterActivityInsights, memberServiceInsights } from "./MemberProfilePage";
 
 const member = {
@@ -105,6 +106,8 @@ test("calculates activity totals for each assigned counter", () => {
 });
 
 test("renders assigned services as rows with estimates and ratings", () => {
+  const onNavigate = vi.fn();
+
   render(
     <MemberProfilePage
       member={{ ...member, deskIds: ["desk-1"], serviceIds: ["hair"] }}
@@ -115,6 +118,7 @@ test("renders assigned services as rows with estimates and ratings", () => {
       theme={theme}
       loggedInMember={member}
       members={[member]}
+      onNavigate={onNavigate}
     />,
   );
 
@@ -123,6 +127,7 @@ test("renders assigned services as rows with estimates and ratings", () => {
   expect(screen.getByLabelText("Served 3, show services")).toBeInTheDocument();
   expect(screen.queryByText("Est. 12 min")).not.toBeInTheDocument();
   fireEvent.click(screen.getByLabelText("Served 3, show services"));
+  expect(onNavigate).not.toHaveBeenCalled();
   expect(screen.queryByText("Est. 12 min")).not.toBeInTheDocument();
   expect(screen.getByLabelText("Hair Cut 2 served")).toBeInTheDocument();
   expect(screen.getByLabelText("Massage 1 served")).toBeInTheDocument();
@@ -132,6 +137,8 @@ test("renders assigned services as rows with estimates and ratings", () => {
   expect(screen.getAllByText("Absent")).toHaveLength(1);
   expect(screen.getAllByText("Served")).toHaveLength(2);
   expect(screen.queryByLabelText("No ratings yet")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText("Counter 1"));
+  expect(onNavigate).toHaveBeenCalledWith("/counters/desk-1");
   fireEvent.click(screen.getByRole("button", { name: "Services" }));
   expect(screen.getAllByLabelText("4.3 out of 5 from 3 ratings")).toHaveLength(2);
   expect(screen.getByText("Est. 12 min")).toBeInTheDocument();
