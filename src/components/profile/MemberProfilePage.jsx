@@ -687,7 +687,7 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
         onLogout={onLogout}
       />
       <section className="mx-auto flex w-full max-w-5xl flex-1 items-start justify-center px-2.5 py-2.5 sm:px-6 sm:py-6">
-        <div className="relative w-full max-w-xl border bg-white/5 p-4" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.4 }}>
+        <div className="relative w-full max-w-3xl border bg-white/5 p-4" style={{ borderColor: theme.borderColor, borderRadius: theme.radius * 1.4 }}>
           {loading || !member ? (
             <div className="py-16 text-center">
               <UserRound size={34} className="mx-auto" style={{ color: withAlpha(theme.fontColor, "70") }} />
