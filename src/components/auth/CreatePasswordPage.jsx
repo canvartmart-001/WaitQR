@@ -56,7 +56,7 @@ export function CreatePasswordPage({ members, theme, loading, initialIdentifier 
 
     const member = findLoginMember(members, initialIdentifier);
     if (member && String(member.password || "").trim()) {
-      onNavigate(`/reset-password?member=${encodeURIComponent(initialIdentifier)}`);
+      onNavigate("/reset-password");
     }
   }, [initialIdentifier, loading, members, onNavigate]);
 
@@ -88,7 +88,7 @@ export function CreatePasswordPage({ members, theme, loading, initialIdentifier 
       return;
     }
 
-    onNavigate(`/login?member=${encodeURIComponent(member.id)}`);
+    onNavigate("/login");
   };
 
   return (

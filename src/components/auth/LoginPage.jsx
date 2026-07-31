@@ -1,4 +1,4 @@
-import { Lock, LogIn, RotateCcw, UserRound } from "lucide-react";
+import { KeyRound, Lock, LogIn, RotateCcw, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getMemberProfilePath } from "../../lib/routing";
 import { findLoggedInMember, isMasterLoggedIn, loginAsMaster, loginAsMember } from "../../lib/memberSession";
@@ -50,6 +50,8 @@ export function LoginPage({ members, theme, loading, initialIdentifier = "", onN
   const [identifier, setIdentifier] = useState(initialIdentifier);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const matchedMember = findLoginMember(members, identifier);
+  const matchedMemberNeedsPassword = Boolean(matchedMember && !String(matchedMember.password || "").trim());
 
   useEffect(() => {
     setIdentifier(initialIdentifier);
@@ -86,7 +88,7 @@ export function LoginPage({ members, theme, loading, initialIdentifier = "", onN
       return;
     }
     if (!String(member.password || "").trim()) {
-      setError("Password is not created yet. Open your member profile to create one.");
+      setError("Password is not created yet. Create one to continue.");
       return;
     }
     if (password !== String(member.password || "")) {
@@ -156,12 +158,12 @@ export function LoginPage({ members, theme, loading, initialIdentifier = "", onN
         <button
           type="button"
           disabled={loading}
-          onClick={handleLogin}
+          onClick={matchedMemberNeedsPassword ? () => onNavigate("/create-password") : handleLogin}
           className="mt-5 flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           style={{ backgroundColor: theme.accentColor, borderRadius: theme.radius }}
         >
-          <LogIn size={16} />
-          {loading ? "Loading..." : "Login"}
+          {matchedMemberNeedsPassword ? <KeyRound size={16} /> : <LogIn size={16} />}
+          {loading ? "Loading..." : matchedMemberNeedsPassword ? "Create password" : "Login"}
         </button>
         <button
           type="button"
