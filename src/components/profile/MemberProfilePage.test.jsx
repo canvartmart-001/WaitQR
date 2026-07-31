@@ -165,3 +165,24 @@ test("renders assigned services as rows with estimates and ratings", () => {
   expect(screen.getByLabelText("Hair Cut 3 served")).toBeInTheDocument();
   expect(screen.getByLabelText("Massage 1 served")).toBeInTheDocument();
 });
+
+test("lets an administrator view another member profile without member login", () => {
+  render(
+    <MemberProfilePage
+      member={member}
+      desks={[{ id: "desk-1", name: "Desk 1" }]}
+      services={services}
+      submissions={submissions}
+      labels={{ memberWord: "Member", serviceWordPlural: "Services" }}
+      theme={theme}
+      loggedInMember={{ id: "admin-1", name: "Admin User", role: "Administrator" }}
+      members={[member, { id: "admin-1", name: "Admin User", role: "Administrator" }]}
+      onUpdateMember={vi.fn()}
+    />,
+  );
+
+  expect(screen.getByRole("heading", { name: "John Due" })).toBeInTheDocument();
+  expect(screen.getByText("john@example.com")).toBeInTheDocument();
+  expect(screen.queryByText("Sign in to access this account.")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Edit profile" })).toBeInTheDocument();
+});

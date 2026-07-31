@@ -611,7 +611,8 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
   }));
   const hasPassword = Boolean(String(member?.password || "").trim());
   const viewingOwnProfile = Boolean(member && String(loggedInMember?.id || "") === String(member.id));
-  const canViewPrivateDetails = Boolean(masterLoggedIn || viewingOwnProfile);
+  const viewingAsAdministrator = normalizeMemberRole(loggedInMember?.role) === "Administrator";
+  const canViewPrivateDetails = Boolean(masterLoggedIn || viewingAsAdministrator || viewingOwnProfile);
   const canEditProfile = Boolean(member && onUpdateMember && canViewPrivateDetails);
   const roleChip = roleChipState(member, labels.memberWord);
   const pageBgColor = mutedPageBackground(theme.bgColor, theme.accentColor);
