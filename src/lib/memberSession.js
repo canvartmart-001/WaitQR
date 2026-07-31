@@ -22,6 +22,26 @@ function writeActiveSession(session) {
   }
 }
 
+export function syncSessionStorageToActiveSession(members = []) {
+  if (typeof window === "undefined") return;
+
+  const activeSession = readActiveSession();
+  (Array.isArray(members) ? members : []).forEach((member) => {
+    const key = memberLoginKey(member.id);
+    if (activeSession?.type === "member" && String(activeSession.memberId) === String(member.id)) {
+      window.sessionStorage.setItem(key, "true");
+    } else {
+      window.sessionStorage.removeItem(key);
+    }
+  });
+
+  if (activeSession?.type === "master") {
+    window.sessionStorage.setItem(MASTER_LOGIN_KEY, "true");
+  } else {
+    window.sessionStorage.removeItem(MASTER_LOGIN_KEY);
+  }
+}
+
 export function memberLoginKey(memberId) {
   return `waitqr:member-login:${memberId}`;
 }

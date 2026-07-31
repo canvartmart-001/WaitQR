@@ -33,7 +33,7 @@ import { cancelSubmissionRecall, clearSubmissions, getSubmissionByAccessKey, get
 import { cacheSettings, loadSettings, saveSettings, updateDeskStatus } from "./lib/settingsApi";
 import { createRealtimeClient } from "./lib/realtime";
 import { deriveDeskServicesFromMembers, memberHasDesk, normalizeMemberRole, uniqueIds } from "./lib/assignments";
-import { findLoggedInMember, isMasterLoggedIn, MEMBER_SESSION_CHANGED_EVENT, setMasterLoggedIn, setMemberLoggedIn } from "./lib/memberSession";
+import { findLoggedInMember, isMasterLoggedIn, MEMBER_SESSION_CHANGED_EVENT, setMasterLoggedIn, setMemberLoggedIn, syncSessionStorageToActiveSession } from "./lib/memberSession";
 
 const DASHBOARD_BREAKDOWN_MIN_HEIGHT = 640;
 const COUNTER_NOTIFICATIONS_STORAGE_KEY = "waitqr:counter-notifications";
@@ -1309,7 +1309,7 @@ export default function App() {
   const [masterLoggedIn, setMasterLoggedInState] = useState(() => isMasterLoggedIn());
   const storedLoggedInMember = findLoggedInMember(memberHooks.members);
   const activeLoggedInMember = storedLoggedInMember || null;
-  const activeMasterLoggedIn = Boolean(!activeLoggedInMember && (masterLoggedIn || isMasterLoggedIn()));
+  const activeMasterLoggedIn = Boolean(!activeLoggedInMember && isMasterLoggedIn());
   const activeMemberRole = normalizeMemberRole(activeLoggedInMember?.role);
   const activeAppearanceSettings = useMemo(
     () => resolveMemberAppearance(appearanceSettings, activeLoggedInMember),
@@ -1402,6 +1402,7 @@ export default function App() {
 
   useEffect(() => {
     const refreshLoggedInMember = () => {
+      syncSessionStorageToActiveSession(memberHooks.members);
       setLoggedInMemberState(findLoggedInMember(memberHooks.members));
       setMasterLoggedInState(isMasterLoggedIn());
     };
