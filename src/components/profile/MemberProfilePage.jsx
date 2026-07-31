@@ -1,4 +1,4 @@
-import { CalendarDays, Check, Clock3, KeyRound, Layers3, LayoutDashboard, Lock, LogIn, LogOut, Mail, Pencil, Phone, Monitor, Moon, Star, Sun, Unlock, Upload, UserRound, X } from "lucide-react";
+import { CalendarDays, Check, Clock3, ExternalLink, KeyRound, Layers3, LayoutDashboard, Lock, LogIn, LogOut, Mail, Pencil, Phone, Monitor, Moon, Star, Sun, Unlock, Upload, UserRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { readImageFile } from "../../lib/imageUpload";
 import { normalizeMemberRole } from "../../lib/assignments";
@@ -896,6 +896,9 @@ export function MemberProfilePage({ member, desks, services, submissions = [], l
                                         <StatusIcon size={15} className="shrink-0 sm:h-4 sm:w-4" style={{ color: statusIconColor }} />
                                         <span className="block min-w-0 break-words text-sm font-semibold leading-tight sm:truncate sm:text-base" style={{ color: counterNameColor }}>
                                           {counterDisplayName(desk.name)}
+                                        </span>
+                                        <span className="inline-flex h-[1em] w-[1em] shrink-0 -translate-y-px items-center justify-center">
+                                          <ExternalLink size={13} style={{ color: withAlpha(theme.fontColor, "99") }} />
                                         </span>
                                       </a>
                                     ) : (
