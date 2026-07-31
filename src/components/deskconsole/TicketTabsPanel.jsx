@@ -39,6 +39,7 @@ export function TicketTabsPanel({
   servedByDeskService,
   absentByDeskService,
   removedByDeskService,
+  memberServiceFilter = null,
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const queueList = sortedQueue || [];
@@ -48,7 +49,10 @@ export function TicketTabsPanel({
   const queuedWaiting = selectedDesk
     ? queueList.filter(eligibleForDesk ? eligibleForDesk(selectedDesk) : () => true)
     : queueList;
-  const baseWaiting = queuedWaiting;
+  const memberServiceIds = new Set((Array.isArray(memberServiceFilter) ? memberServiceFilter : []).map(String));
+  const baseWaiting = memberServiceIds.size
+    ? queuedWaiting.filter((ticket) => memberServiceIds.has(String(ticket.serviceId ?? "")))
+    : queuedWaiting;
   const baseAbsent = (selectedDesk
     ? absentList.filter((ticket) => ticket.skippedFromDesk != null && String(ticket.skippedFromDesk) === String(selectedDesk.id))
     : absentList

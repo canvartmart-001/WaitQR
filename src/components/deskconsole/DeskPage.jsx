@@ -53,6 +53,7 @@ export function DeskPage({
   recallServed,
   askConfirm,
   adminLayout = false,
+  loggedInMember = null,
 }) {
   const { deskWord, deskWordLower, serviceWord, serviceWordLower, serviceWordPluralLower } = labels;
   const { servedByDeskService, absentByDeskService, removedByDeskService, absentList, sortedServed, removeAbsent } = ticketLogs;
@@ -207,6 +208,7 @@ export function DeskPage({
             servedByDeskService={servedByDeskService}
             absentByDeskService={absentByDeskService}
             removedByDeskService={removedByDeskService}
+            memberServiceFilter={!adminLayout ? loggedInMember?.serviceIds : null}
           />
         </div>
       </section>

@@ -2098,6 +2098,7 @@ export default function App() {
       askConfirm={askConfirm}
       onNavigate={navigate}
       adminLayout={adminAuthenticated}
+      loggedInMember={activeLoggedInMember}
     />
   ) : null;
   return (
