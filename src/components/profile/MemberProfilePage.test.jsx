@@ -50,9 +50,9 @@ const submissions = [
     completedAt: 3_601_000,
     feedbackRating: 1,
   },
-  { id: "ticket-4", status: "queued", deskId: "desk-1" },
-  { id: "ticket-5", status: "called", deskId: "desk-1" },
-  { id: "ticket-6", status: "skipped", deskId: "desk-1" },
+  { id: "ticket-4", status: "queued", deskId: "desk-1", serviceId: "hair" },
+  { id: "ticket-5", status: "called", deskId: "desk-1", serviceId: "massage" },
+  { id: "ticket-6", status: "skipped", deskId: "desk-1", serviceId: "hair" },
   {
     id: "ticket-7",
     status: "completed",
@@ -92,8 +92,8 @@ test("calculates service and overall insights from the selected member's complet
 
   expect(insights.averageRating).toBeCloseTo(4.33, 1);
   expect(insights.ratingCount).toBe(3);
-  expect(insights.services[0].waitingCount).toBe(0);
-  expect(insights.services[0].absentCount).toBe(0);
+  expect(insights.services[0].waitingCount).toBe(1);
+  expect(insights.services[0].absentCount).toBe(1);
   expect(insights.services[0].averageRating).toBeCloseTo(4.33, 1);
   expect(insights.services[0].servedCount).toBe(3);
   expect(insights.services[0].durationSampleCount).toBe(3);
@@ -108,6 +108,14 @@ test("calculates activity totals for each assigned counter", () => {
     waitingCount: 2,
     absentCount: 1,
     servedCount: 4,
+  });
+
+  const memberScopedInsights = counterActivityInsights([{ id: "desk-1", name: "Desk 1" }], submissions, { ...member, serviceIds: ["hair"] });
+
+  expect(memberScopedInsights[0]).toMatchObject({
+    waitingCount: 1,
+    absentCount: 1,
+    servedCount: 3,
   });
 });
 
@@ -130,6 +138,8 @@ test("renders assigned services as rows with estimates and ratings", () => {
 
   expect(screen.getByRole("heading", { name: "John Due" })).toBeInTheDocument();
   expect(screen.getByText("Counter 2")).toBeInTheDocument();
+  expect(screen.getByLabelText("Waiting 1, show services")).toBeInTheDocument();
+  expect(screen.getByLabelText("Absent 1, show services")).toBeInTheDocument();
   expect(screen.getByLabelText("Served 3, show services")).toBeInTheDocument();
   expect(screen.queryByText("Est. 12 min")).not.toBeInTheDocument();
   fireEvent.click(screen.getByLabelText("Served 3, show services"));
@@ -150,7 +160,8 @@ test("renders assigned services as rows with estimates and ratings", () => {
   expect(screen.getByText("Est. 12 min")).toBeInTheDocument();
   expect(screen.getByText("Est. pending")).toBeInTheDocument();
   expect(screen.getByLabelText("No ratings yet")).toBeInTheDocument();
-  expect(screen.getByLabelText("Hair Cut 0 waiting")).toBeInTheDocument();
+  expect(screen.getByLabelText("Hair Cut 1 waiting")).toBeInTheDocument();
+  expect(screen.getByLabelText("Hair Cut 1 absent")).toBeInTheDocument();
   expect(screen.getByLabelText("Hair Cut 3 served")).toBeInTheDocument();
   expect(screen.getByLabelText("Massage 1 served")).toBeInTheDocument();
 });

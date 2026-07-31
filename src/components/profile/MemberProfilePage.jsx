@@ -155,6 +155,9 @@ export function memberServiceInsights(member, services, submissions, now = Date.
 export function counterActivityInsights(desks, submissions, member = null) {
   const allSubmissions = Array.isArray(submissions) ? submissions : [];
   const memberId = String(member?.id || "");
+  const assignedServiceIds = new Set((Array.isArray(member?.serviceIds) ? member.serviceIds : []).map(String));
+  const isRelevantWaitingSubmission = (submission) => !assignedServiceIds.size
+    || assignedServiceIds.has(String(submission.serviceId ?? ""));
 
   return (Array.isArray(desks) ? desks : []).map((desk) => {
     const deskSubmissions = allSubmissions.filter(
@@ -165,10 +168,12 @@ export function counterActivityInsights(desks, submissions, member = null) {
     return {
       ...desk,
       waitingCount: deskSubmissions.filter(
-        (submission) => submission.status === "queued" || submission.status === "called",
+        (submission) => (submission.status === "queued" || submission.status === "called")
+          && isRelevantWaitingSubmission(submission),
       ).length,
       absentCount: deskSubmissions.filter(
-        (submission) => submission.status === "skipped" || submission.status === "removed",
+        (submission) => (submission.status === "skipped" || submission.status === "removed")
+          && isRelevantWaitingSubmission(submission),
       ).length,
       servedCount: completedSubmissions.filter(
         (submission) => !memberId || String(submission.servedByMemberId || "") === memberId,
